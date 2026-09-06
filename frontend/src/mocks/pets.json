@@ -1,0 +1,18 @@
+[
+  {
+    "id": 1,
+    "name": "몽이",
+    "species": "DOG",
+    "breed": "말티즈",
+    "weight": 4.2,
+    "age": 4
+  },
+  {
+    "id": 2,
+    "name": "초코",
+    "species": "DOG",
+    "breed": "푸들",
+    "weight": 8.5,
+    "age": 6
+  }
+]

@@ -1,0 +1,128 @@
+[
+  {
+    "contentId": "100001",
+    "name": "멍멍이 정원",
+    "category": "NATURE",
+    "address": "제주특별자치도 제주시 애월읍 애월해안로 100",
+    "latitude": 33.4621,
+    "longitude": 126.3278,
+    "phone": "064-123-4567",
+    "description": "반려동물과 함께 산책할 수 있는 아름다운 정원입니다.",
+    "imageUrl": "https://images.unsplash.com/photo-1552053831-71594a27632d",
+    "matchStatus": "OK",
+    "petInfo": {
+      "allowed": true,
+      "indoor": true,
+      "needLeash": true,
+      "maxWeight": 10,
+      "allowedTypes": ["DOG", "CAT"],
+      "preparation": ["목줄 착용"]
+    },
+    "isFavorite": true
+  },
+  {
+    "contentId": "100002",
+    "name": "댕댕이 카페",
+    "category": "CAFE",
+    "address": "제주특별자치도 제주시 한림읍 한림로 200",
+    "latitude": 33.3892,
+    "longitude": 126.2381,
+    "phone": "064-234-5678",
+    "description": "반려동물과 함께 이용할 수 있는 애견 동반 카페입니다.",
+    "imageUrl": "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4",
+    "matchStatus": "WARN",
+    "petInfo": {
+      "allowed": true,
+      "indoor": false,
+      "needLeash": true,
+      "maxWeight": 7,
+      "allowedTypes": ["DOG"],
+      "preparation": ["목줄 착용", "실내 출입 불가"]
+    },
+    "isFavorite": false
+  },
+  {
+    "contentId": "100003",
+    "name": "반려동물 문화센터",
+    "category": "CULTURE",
+    "address": "서울특별시 마포구 월드컵북로 300",
+    "latitude": 37.5665,
+    "longitude": 126.9012,
+    "phone": "02-345-6789",
+    "description": "반려동물과 관련된 다양한 문화 프로그램을 운영합니다.",
+    "imageUrl": "https://images.unsplash.com/photo-1548199973-03cce0bbc87b",
+    "matchStatus": "OK",
+    "petInfo": {
+      "allowed": true,
+      "indoor": true,
+      "needLeash": true,
+      "maxWeight": null,
+      "allowedTypes": ["DOG", "CAT"],
+      "preparation": ["목줄 착용"]
+    },
+    "isFavorite": false
+  },
+  {
+    "contentId": "100004",
+    "name": "해피 펫 리조트",
+    "category": "STAY",
+    "address": "강원특별자치도 강릉시 해안로 400",
+    "latitude": 37.7519,
+    "longitude": 128.8761,
+    "phone": "033-456-7890",
+    "description": "반려동물과 함께 머물 수 있는 숙박시설입니다.",
+    "imageUrl": "https://images.unsplash.com/photo-1566073771259-6a8506099945",
+    "matchStatus": "WARN",
+    "petInfo": {
+      "allowed": true,
+      "indoor": true,
+      "needLeash": false,
+      "maxWeight": 10,
+      "allowedTypes": ["DOG"],
+      "preparation": ["반려동물 추가 요금 발생"]
+    },
+    "isFavorite": false
+  },
+  {
+    "contentId": "100005",
+    "name": "푸른 바다 산책로",
+    "category": "NATURE",
+    "address": "부산광역시 해운대구 달맞이길 500",
+    "latitude": 35.1587,
+    "longitude": 129.1603,
+    "phone": "051-567-8901",
+    "description": "바다를 바라보며 반려동물과 산책하기 좋은 산책로입니다.",
+    "imageUrl": "https://images.unsplash.com/photo-1507525428034-b723cf961d3e",
+    "matchStatus": "OK",
+    "petInfo": {
+      "allowed": true,
+      "indoor": false,
+      "needLeash": true,
+      "maxWeight": null,
+      "allowedTypes": ["DOG", "CAT"],
+      "preparation": ["목줄 착용"]
+    },
+    "isFavorite": true
+  },
+  {
+    "contentId": "100006",
+    "name": "도심 속 펫 파크",
+    "category": "NATURE",
+    "address": "서울특별시 송파구 올림픽로 600",
+    "latitude": 37.5208,
+    "longitude": 127.1219,
+    "phone": "02-678-9012",
+    "description": "반려견이 자유롭게 뛰어놀 수 있는 도심형 펫 파크입니다.",
+    "imageUrl": "https://images.unsplash.com/photo-1558788353-f76d92427f16",
+    "matchStatus": "NO",
+    "isFavorite": false,
+    "petInfo": {
+      "allowed": true,
+      "indoor": false,
+      "needLeash": false,
+      "maxWeight": 5,
+      "allowedTypes": ["DOG"],
+      "preparation": ["5kg 이하만 이용 가능"]
+    }
+  }
+]
