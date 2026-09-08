@@ -2,12 +2,16 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useSpotDetail } from '../hooks/useSpotDetail';
 import { useFavorites } from '../hooks/useFavorites';
+import { usePetMatching } from '../hooks/usePetMatching'; // 매칭 훅 불러오기
 
 function DetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { detail } = useSpotDetail(id);
   const { toggleFavorite, isFavorite } = useFavorites();
+  
+  // 관광지의 petInfo를 매칭 훅에 전달
+  const { matchResult } = usePetMatching(detail?.petInfo);
 
   if (!detail) {
     return (
@@ -29,9 +33,8 @@ function DetailPage() {
           ← 뒤로 가기
         </button>
         
-        {/* 찜하기(즐겨찾기) 버튼 */}
         <button 
-          onClick={() => toggleFavorite(detail.contentId)}
+          onClick={() => toggleFavorite(detail)} // 👈 detail.contentId 가 아니라 detail 객체 전체를 전달해야 합니다!
           style={{ 
             padding: '8px 15px', 
             backgroundColor: liked ? '#ff4081' : '#fff', 
@@ -64,9 +67,19 @@ function DetailPage() {
 
       <hr style={{ margin: '20px 0', borderColor: '#eee' }} />
 
-      <h3>🐶 반려동물 동반 안내</h3>
+      {/* --- 개인별 맞춤 매칭 결과 영역 (기능명세서 반영) --- */}
+      <h3>🐾 내 반려동물 맞춤 방문 판정</h3>
+      <div style={{ backgroundColor: '#f0f4f8', padding: '15px', borderRadius: '8px', border: '1px solid #d0e1fd', marginBottom: '20px' }}>
+        <p style={{ fontSize: '16px', fontWeight: 'bold', color: matchResult.color, margin: '0 0 8px 0' }}>
+          판정 결과: {matchResult.status}
+        </p>
+        <p style={{ fontSize: '14px', color: '#444', margin: 0 }}>
+          근거: {matchResult.reason}
+        </p>
+      </div>
+
+      <h3>🐶 반려동물 동반 상세 안내</h3>
       <div style={{ backgroundColor: '#f4f9f4', padding: '15px', borderRadius: '8px', border: '1px solid #d4edda' }}>
-        <p><strong>동반 가능 여부:</strong> {detail.petInfo?.allowed ? '✅ 가능' : '❌ 불가'}</p>
         <p><strong>실내 출입:</strong> {detail.petInfo?.indoor ? '실내 동반 가능' : '야외만 가능'}</p>
         <p><strong>목줄 필요 여부:</strong> {detail.petInfo?.needLeash ? '필수' : '필요 없음'}</p>
         <p><strong>입장 가능 동물:</strong> {detail.petInfo?.allowedTypes?.join(', ') || '정보 없음'}</p>

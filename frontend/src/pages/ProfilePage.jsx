@@ -40,7 +40,7 @@ function ProfilePage() {
 
   // 드롭다운용 연도, 월, 일 데이터 생성
   const currentYear = new Date().getFullYear();
-  const years = Array.from({ length: 25 }, (_, i) => currentYear - i); // 최근 25년치 연도
+  const years = Array.from({ length: 30 }, (_, i) => currentYear - i); // 최근 30년치 연도
   const months = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0'));
   const days = Array.from({ length: 31 }, (_, i) => String(i + 1).padStart(2, '0'));
 

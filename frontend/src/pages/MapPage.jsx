@@ -3,6 +3,8 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMapSpots } from '../hooks/useMapSpots';
 import { useTrips } from '../hooks/useTrips';
+import { useRouteOptimizer } from '../hooks/useRouteOptimizer'; // 동선 최적화 훅 불러오기
+import mockSpots from '../mocks/tourist-spots.json';
 
 function MapPage() {
   const { spots, selectedSpot, handleMarkerClick } = useMapSpots();
@@ -10,57 +12,64 @@ function MapPage() {
   const navigate = useNavigate();
   const [tripTitle, setTripTitle] = useState('');
 
+  // 현재 모의 관광지 전체를 대상으로 최적화된 동선 순서를 계산해 둠
+  const optimizedSpots = useRouteOptimizer(mockSpots);
+
   const handleSaveTrip = () => {
     if (!selectedSpot) return;
-    // 선택된 장소의 진짜 이름(selectedSpot.name)을 동선 훅에 전달합니다.
     addTrip(tripTitle, selectedSpot.name);
     setTripTitle('');
   };
 
   return (
     <div style={{ padding: '0 20px', paddingBottom: '50px', maxWidth: '1100px', margin: '0 auto' }}>
-      <h2>🗺️ 반려동물 동반 지도 및 동선 관리</h2>
+      <h2>🗺️ 반려동물 동반 지도 및 최적 동선 관리</h2>
       <p style={{ color: 'gray', marginBottom: '20px' }}>
-        지도 위에서 장소를 선택하고 나만의 여행 동선을 짜보세요.
+        위경도 데이터를 기반으로 계산된 최적의 방문 순서를 확인하고 나만의 동선을 짜보세요.
       </p>
 
       <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
         
-        {/* 왼쪽: 지도 및 동선 목록 */}
+        {/* 왼쪽: 지도 시뮬레이터 및 알고리즘 적용된 추천 순서 안내 */}
         <div style={{ flex: 2, display: 'flex', flexDirection: 'column', gap: '20px', minWidth: '320px' }}>
           
           <div style={{ 
-            height: '350px', border: '2px solid #2196F3', borderRadius: '12px', 
+            height: '380px', border: '2px solid #2196F3', borderRadius: '12px', 
             backgroundColor: '#eef6fc', position: 'relative', overflow: 'hidden',
             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'
           }}>
             <div style={{ position: 'absolute', top: '15px', left: '15px', backgroundColor: 'white', padding: '8px 12px', borderRadius: '6px', fontSize: '13px', fontWeight: 'bold', color: '#1976d2' }}>
-              📍 PawPass 지도 시뮬레이터
+              📍 PawPass 스마트 동선 시뮬레이터
             </div>
 
-            <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', justifyContent: 'center', padding: '20px' }}>
-              {spots.map((spot, index) => {
+            {/* 알고리즘으로 최적화된 순서대로 핀 버튼 배치 */}
+            <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap', justifyContent: 'center', padding: '20px', maxWidth: '90%' }}>
+              {optimizedSpots.map((spot, index) => {
                 const isSelected = selectedSpot?.contentId === spot.contentId;
                 return (
                   <button
                     key={spot.contentId}
                     onClick={() => handleMarkerClick(spot)}
                     style={{
-                      padding: '10px 15px',
+                      padding: '10px 14px',
                       backgroundColor: isSelected ? '#ff4081' : '#fff',
                       color: isSelected ? '#fff' : '#333',
                       border: '2px solid #1976d2',
-                      borderRadius: '30px',
+                      borderRadius: '25px',
                       cursor: 'pointer',
                       fontWeight: 'bold',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                      fontSize: '13px'
                     }}
                   >
-                    🐾 핀 #{index + 1}. {spot.name}
+                    🚗 추천 순서 #{index + 1}. {spot.name}
                   </button>
                 );
               })}
             </div>
+            <span style={{ position: 'absolute', bottom: '10px', fontSize: '12px', color: '#555' }}>
+              * 위경도 거리 계산 알고리즘(Haversine)에 의해 이동 거리가 최소화되도록 자동 정렬되었습니다.
+            </span>
           </div>
 
           {/* 저장된 내 여행 동선 목록 */}
@@ -84,7 +93,7 @@ function MapPage() {
                 ))}
               </ul>
             ) : (
-              <p style={{ color: '#888', margin: 0 }}>저장된 여행 동선이 없습니다. 지도에서 장소를 선택해 동선을 만들어보세요!</p>
+              <p style={{ color: '#888', margin: 0 }}>저장된 여행 동선이 없습니다.</p>
             )}
           </div>
 
@@ -127,7 +136,7 @@ function MapPage() {
             </div>
           ) : (
             <div style={{ textAlign: 'center', color: '#888', marginTop: '100px' }}>
-              <p>🗺️ 왼쪽 지도에서 핀을 클릭하시면<br/>해당 장소를 동선에 추가할 수 있습니다.</p>
+              <p>🗺️ 지도 시뮬레이터에서 핀을 클릭하시면<br/>해당 장소를 동선에 추가할 수 있습니다.</p>
             </div>
           )}
         </div>
