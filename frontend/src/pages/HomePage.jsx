@@ -13,7 +13,6 @@ function HomePage() {
   const [selectedType, setSelectedType] = useState('');
   const [selectedTypeName, setSelectedTypeName] = useState('');
   
-  // 체급별 마릿수 상태 관리
   const [petCounts, setPetCounts] = useState({
     small: 0,
     medium: 0,
@@ -45,16 +44,15 @@ function HomePage() {
     });
   };
 
-  // 💡 "- 3" 대신 "3마리" 형식으로 깔끔하게 조합
   const getPetFilterLabel = () => {
     const { small, medium, large } = petCounts;
     const total = small + medium + large;
     if (total === 0) return '반려동물 선택';
     
     const parts = [];
-    if (small > 0) parts.push(`소형견 ${small마리 = small}마리`);
-    if (medium > 0) parts.push(`중형견 ${medium}마리`);
-    if (large > 0) parts.push(`대형견 ${large}마리`);
+    if (small > 0) parts.push(`소형견/묘 ${small}마리`);
+    if (medium > 0) parts.push(`중형견/묘 ${medium}마리`);
+    if (large > 0) parts.push(`대형견/묘 ${large}마리`);
 
     return parts.length > 0 ? parts.join(' + ') : '반려동물 선택';
   };
@@ -149,7 +147,7 @@ function HomePage() {
               )}
             </div>
 
-            {/* 💡 반려동물 선택 드롭다운 (삼각형 중복 제거 및 마릿수 카운터 적용) */}
+            {/* 반려동물 선택 드롭다운 */}
             <div style={{ position: 'relative', flex: '1 1 200px' }}>
               <button 
                 onClick={() => setActiveDropdown(activeDropdown === 'pet' ? null : 'pet')}
@@ -163,40 +161,39 @@ function HomePage() {
                 <div style={{ position: 'absolute', top: 'calc(100% + 8px)', left: 0, width: '240px', backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '10px', boxShadow: '0 10px 20px rgba(0,0,0,0.1)', zIndex: 50, padding: '12px', boxSizing: 'border-box' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '14px' }}>
                     
-                    {/* 반려동물 프로필 등록하기 링크 */}
                     <div 
                       onClick={() => navigate('/profile')} 
                       style={{ padding: '8px', cursor: 'pointer', borderRadius: '6px', color: '#2563eb', fontWeight: 'bold', borderBottom: '1px solid #f1f5f9', textAlign: 'center', backgroundColor: '#f8fafc' }}
                     >
-                      + 우리 반려동물 프로필 등록하기
+                      + 반려동물 프로필 등록하기
                     </div>
 
-                    {/* 소형견 카운터 */}
+                    {/* 소형견/묘 */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 6px' }}>
-                      <span>소형견</span>
+                      <span>소형견/묘</span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <button onClick={(e) => handleCountChange('small', -1, e)} style={{ width: '26px', height: '26px', border: '1px solid #cbd5e1', background: '#fff', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>-</button>
-                        <span style={{ minWidth: '24px', textAlign: 'center', fontWeight: 'bold' }}>{petCounts.small}마리</span>
+                        <span style={{ minWidth: '40px', textAlign: 'center', fontWeight: 'bold' }}>{petCounts.small}마리</span>
                         <button onClick={(e) => handleCountChange('small', 1, e)} style={{ width: '26px', height: '26px', border: '1px solid #cbd5e1', background: '#fff', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>+</button>
                       </div>
                     </div>
 
-                    {/* 중형견 카운터 */}
+                    {/* 중형견/묘 */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 6px' }}>
-                      <span>중형견</span>
+                      <span>중형견/묘</span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <button onClick={(e) => handleCountChange('medium', -1, e)} style={{ width: '26px', height: '26px', border: '1px solid #cbd5e1', background: '#fff', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>-</button>
-                        <span style={{ minWidth: '24px', textAlign: 'center', fontWeight: 'bold' }}>{petCounts.medium}마리</span>
+                        <span style={{ minWidth: '40px', textAlign: 'center', fontWeight: 'bold' }}>{petCounts.medium}마리</span>
                         <button onClick={(e) => handleCountChange('medium', 1, e)} style={{ width: '26px', height: '26px', border: '1px solid #cbd5e1', background: '#fff', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>+</button>
                       </div>
                     </div>
 
-                    {/* 대형견 카운터 */}
+                    {/* 대형견/묘 */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 6px' }}>
-                      <span>대형견</span>
+                      <span>대형견/묘</span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <button onClick={(e) => handleCountChange('large', -1, e)} style={{ width: '26px', height: '26px', border: '1px solid #cbd5e1', background: '#fff', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>-</button>
-                        <span style={{ minWidth: '24px', textAlign: 'center', fontWeight: 'bold' }}>{petCounts.large}마리</span>
+                        <span style={{ minWidth: '40px', textAlign: 'center', fontWeight: 'bold' }}>{petCounts.large}마리</span>
                         <button onClick={(e) => handleCountChange('large', 1, e)} style={{ width: '26px', height: '26px', border: '1px solid #cbd5e1', background: '#fff', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>+</button>
                       </div>
                     </div>
@@ -223,7 +220,7 @@ function HomePage() {
       <div style={{ maxWidth: '1100px', margin: '40px auto 0 auto', padding: '0 20px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
           <div>
-            <h2 style={{ fontSize: '24px', fontWeight: '800', color: '#1e293b', margin: '0 0 4px 0' }}>🌟 반려동물과 함께하는 관광지</h2>
+            <h2 style={{ fontSize: '24px', fontWeight: '800', color: '#1e293b', margin: '0 0 4px 0' }}>🌟 실시간 추천 동반 관광지</h2>
             <p style={{ fontSize: '14px', color: '#64748b', margin: 0 }}>지금 가장 인기 있는 반려동물 동반 장소입니다.</p>
           </div>
           <button 
