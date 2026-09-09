@@ -223,7 +223,7 @@ function SearchPage() {
                   <span>소형견/묘</span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <button onClick={(e) => handleCountChange('small', -1, e)} style={{ width: '26px', height: '26px', border: '1px solid #cbd5e1', background: '#fff', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>-</button>
-                    <span style={{ minWidth: '40px', textAlign: 'center', fontWeight: 'bold' }}>{petCounts.small}마리</span>
+                    <span style={{ minWidth: '40px', textAlign: 'center', fontWeight: 'bold' }}>{petCounts.small}</span>
                     <button onClick={(e) => handleCountChange('small', 1, e)} style={{ width: '26px', height: '26px', border: '1px solid #cbd5e1', background: '#fff', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>+</button>
                   </div>
                 </div>
@@ -233,7 +233,7 @@ function SearchPage() {
                   <span>중형견/묘</span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <button onClick={(e) => handleCountChange('medium', -1, e)} style={{ width: '26px', height: '26px', border: '1px solid #cbd5e1', background: '#fff', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>-</button>
-                    <span style={{ minWidth: '40px', textAlign: 'center', fontWeight: 'bold' }}>{petCounts.medium}마리</span>
+                    <span style={{ minWidth: '40px', textAlign: 'center', fontWeight: 'bold' }}>{petCounts.medium}</span>
                     <button onClick={(e) => handleCountChange('medium', 1, e)} style={{ width: '26px', height: '26px', border: '1px solid #cbd5e1', background: '#fff', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>+</button>
                   </div>
                 </div>
@@ -243,7 +243,7 @@ function SearchPage() {
                   <span>대형견/묘</span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <button onClick={(e) => handleCountChange('large', -1, e)} style={{ width: '26px', height: '26px', border: '1px solid #cbd5e1', background: '#fff', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>-</button>
-                    <span style={{ minWidth: '40px', textAlign: 'center', fontWeight: 'bold' }}>{petCounts.large}마리</span>
+                    <span style={{ minWidth: '40px', textAlign: 'center', fontWeight: 'bold' }}>{petCounts.large}</span>
                     <button onClick={(e) => handleCountChange('large', 1, e)} style={{ width: '26px', height: '26px', border: '1px solid #cbd5e1', background: '#fff', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>+</button>
                   </div>
                 </div>
