@@ -30,7 +30,6 @@ function App() {
     flow: 'auth-code',
     onSuccess: async (codeResponse) => {
       try {
-        console.log('구글 인가 코드 획득:', codeResponse.code);
         const backendData = await loginWithBackend(codeResponse.code);
         
         if (backendData && backendData.user) {
@@ -40,36 +39,34 @@ function App() {
             picture: backendData.user.picture
           };
           setUser(loggedUser);
+          localStorage.setItem('paw_pass_user', JSON.stringify(loggedUser));
           alert(`환영합니다, ${loggedUser.name}님! 🐾`);
+          window.location.reload();
         }
       } catch (error) {
-        console.error('백엔드 로그인 처리 실패:', error);
-        alert('구글 로그인 중 오류가 발생했습니다.');
+        console.error('로그인 실패:', error);
+        alert('구글 로그인에 실패했습니다.');
       }
-    },
-    onError: (errorResponse) => {
-      console.error('구글 로그인 실패:', errorResponse);
-      alert('구글 로그인에 실패했습니다. 다시 시도해 주세요.');
-    },
+    }
   });
 
   const handleLogout = () => {
     googleLogout();
     setUser(null);
     localStorage.removeItem('paw_pass_user');
+    localStorage.removeItem('paw_pass_pets_guest'); // 게스트 임시 데이터 초기화
     alert('로그아웃 되었습니다.');
+    window.location.href = '/';
   };
 
   return (
     <BrowserRouter>
       <div>
-        {/* 상단 네비게이션 바 */}
         <nav style={{ 
           display: 'flex', justifyContent: 'space-between', alignItems: 'center', 
           padding: '12px 25px', borderBottom: '1px solid #ddd', backgroundColor: '#fff',
           position: 'sticky', top: 0, zIndex: 1000 
         }}>
-          {/* 왼쪽: 로고 및 메뉴 (홈 글자 제거, 로고 클릭 시 홈으로 이동) */}
           <div style={{ display: 'flex', gap: '25px', alignItems: 'center' }}>
             <Link to="/" style={{ textDecoration: 'none', fontWeight: 'bold', fontSize: '20px', color: '#2196F3' }}>
               🐾 PawPass
@@ -79,7 +76,6 @@ function App() {
               <Link to="/search" style={{ textDecoration: 'none', color: '#333', fontWeight: '500' }}>관광지 탐색</Link>
               <Link to="/map" style={{ textDecoration: 'none', color: '#333', fontWeight: '500' }}>지도 및 동선</Link>
               
-              {/* 로그인이 되었을 때만 뜨는 즐겨찾기 메뉴 */}
               {user && (
                 <Link to="/favorites" style={{ textDecoration: 'none', color: '#ff4081', fontWeight: 'bold' }}>
                   즐겨찾기 ❤️
@@ -90,7 +86,6 @@ function App() {
             </div>
           </div>
 
-          {/* 오른쪽: 구글 로그인 버튼 / 유저 프로필 */}
           <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
             {user ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -121,7 +116,6 @@ function App() {
           </div>
         </nav>
 
-        {/* 페이지 라우팅 설정 */}
         <div style={{ padding: '20px' }}>
           <Routes>
             <Route path="/" element={<HomePage />} />

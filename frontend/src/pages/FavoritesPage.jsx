@@ -15,9 +15,10 @@ function FavoritesPage() {
 
       {favorites.length > 0 ? (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '20px' }}>
-          {favorites.map((spot) => (
+          {favorites.map((spot, index) => (
             <div 
-              key={spot.contentId} 
+              // 💡 contentId가 중복되거나 없을 때를 대비해 index 조합
+              key={spot.contentId ? `${spot.contentId}-${index}` : index} 
               style={{ 
                 border: '1px solid #ddd', borderRadius: '12px', backgroundColor: '#fff', 
                 overflow: 'hidden', boxShadow: '0 2px 5px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', position: 'relative' 

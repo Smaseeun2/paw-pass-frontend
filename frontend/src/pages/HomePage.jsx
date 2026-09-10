@@ -22,6 +22,19 @@ function HomePage() {
   const [activeDropdown, setActiveDropdown] = useState(null);
   const dropdownRef = useRef(null);
 
+  // 로그인된 계정의 반려동물 데이터 조회
+  const [myPets] = useState(() => {
+    try {
+      const savedUser = localStorage.getItem('paw_pass_user');
+      const user = savedUser ? JSON.parse(savedUser) : null;
+      if (!user?.email) return [];
+      const saved = localStorage.getItem(`paw_pass_pets_${user.email}`);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
@@ -173,7 +186,7 @@ function HomePage() {
                       <span>소형견/묘</span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <button onClick={(e) => handleCountChange('small', -1, e)} style={{ width: '26px', height: '26px', border: '1px solid #cbd5e1', background: '#fff', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>-</button>
-                        <span style={{ minWidth: '40px', textAlign: 'center', fontWeight: 'bold' }}>{petCounts.small}</span>
+                        <span style={{ minWidth: '40px', textAlign: 'center', fontWeight: 'bold' }}>{petCounts.small}마리</span>
                         <button onClick={(e) => handleCountChange('small', 1, e)} style={{ width: '26px', height: '26px', border: '1px solid #cbd5e1', background: '#fff', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>+</button>
                       </div>
                     </div>
@@ -183,7 +196,7 @@ function HomePage() {
                       <span>중형견/묘</span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <button onClick={(e) => handleCountChange('medium', -1, e)} style={{ width: '26px', height: '26px', border: '1px solid #cbd5e1', background: '#fff', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>-</button>
-                        <span style={{ minWidth: '40px', textAlign: 'center', fontWeight: 'bold' }}>{petCounts.medium}</span>
+                        <span style={{ minWidth: '40px', textAlign: 'center', fontWeight: 'bold' }}>{petCounts.medium}마리</span>
                         <button onClick={(e) => handleCountChange('medium', 1, e)} style={{ width: '26px', height: '26px', border: '1px solid #cbd5e1', background: '#fff', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>+</button>
                       </div>
                     </div>
@@ -193,7 +206,7 @@ function HomePage() {
                       <span>대형견/묘</span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <button onClick={(e) => handleCountChange('large', -1, e)} style={{ width: '26px', height: '26px', border: '1px solid #cbd5e1', background: '#fff', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>-</button>
-                        <span style={{ minWidth: '40px', textAlign: 'center', fontWeight: 'bold' }}>{petCounts.large}</span>
+                        <span style={{ minWidth: '40px', textAlign: 'center', fontWeight: 'bold' }}>{petCounts.large}마리</span>
                         <button onClick={(e) => handleCountChange('large', 1, e)} style={{ width: '26px', height: '26px', border: '1px solid #cbd5e1', background: '#fff', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>+</button>
                       </div>
                     </div>
