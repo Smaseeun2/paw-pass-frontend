@@ -122,3 +122,67 @@ export const deletePetInDB = async (petId) => {
   if (!res.ok) throw new Error('반려동물 삭제 실패');
 };
 
+// 9. 반려동물 정보 수정 (PUT /pets/{id})
+export const updatePetInDB = async (petId, petData) => {
+  const res = await authFetch(`${BASE_URL}/pets/${petId}`, {
+    method: 'PUT',
+    body: JSON.stringify(petData)
+  });
+  if (!res.ok) {
+    const errorText = await res.text();
+    console.error('반려동물 수정 실패 응답:', errorText);
+    throw new Error(errorText || '반려동물 수정 실패');
+  }
+  const result = await res.json();
+  return result.data || result;
+};
+
+// 10. 통합 관광지/문화시설 탐색 (추천: GET /explore)
+export const fetchExploreSpots = async ({ region_code = '', category = '', match_status = '', page = 1 } = {}) => {
+  const params = new URLSearchParams();
+  if (region_code) params.append('region_code', region_code);
+  if (category) params.append('category', category);
+  if (match_status) params.append('match_status', match_status);
+  if (page) params.append('page', page);
+
+  const res = await authFetch(`${BASE_URL}/explore?${params.toString()}`, {
+    method: 'GET'
+  });
+  if (!res.ok) {
+    const errorText = await res.text();
+    console.error('통합 탐색 조회 실패:', errorText);
+    throw new Error(errorText || '통합 탐색 조회 실패');
+  }
+  const result = await res.json();
+  return result.data || result;
+};
+
+// 11. 관광공사 실시간 관광지 검색 (GET /tours)
+export const fetchTours = async ({ region_code = '', category = '', page = 1 } = {}) => {
+  const params = new URLSearchParams();
+  if (region_code) params.append('region_code', region_code);
+  if (category) params.append('category', category);
+  if (page) params.append('page', page);
+
+  const res = await authFetch(`${BASE_URL}/tours?${params.toString()}`, {
+    method: 'GET'
+  });
+  if (!res.ok) throw new Error('관광지 목록 조회 실패');
+  const result = await res.json();
+  return result.data || result;
+};
+
+// 12. 문화시설(여행지) DB 검색 (GET /facilities)
+export const fetchFacilities = async ({ region_code = '', category = '', page = 1 } = {}) => {
+  const params = new URLSearchParams();
+  if (region_code) params.append('region_code', region_code);
+  if (category) params.append('category', category);
+  if (page) params.append('page', page);
+
+  const res = await authFetch(`${BASE_URL}/facilities?${params.toString()}`, {
+    method: 'GET'
+  });
+  if (!res.ok) throw new Error('문화시설 목록 조회 실패');
+  const result = await res.json();
+  return result.data || result;
+};

@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGoogleLogin } from '@react-oauth/google';
-import { loginWithGoogleCode, fetchPetsFromDB, createPetInDB, deletePetInDB } from '../services/api';
+import { loginWithGoogleCode, fetchPetsFromDB, createPetInDB, deletePetInDB, updatePetInDB } from '../services/api';
 import mockSpots from '../mocks/tourist-spots.json';
 
 function ProfilePage() {
@@ -29,6 +29,9 @@ function ProfilePage() {
       return [];
     }
   });
+
+  // 💡 수정 중인 반려동물 ID 추적 state (null이면 신규 등록 모드)
+  const [editingPetId, setEditingPetId] = useState(null);
 
   const [form, setForm] = useState({
     name: '',
@@ -58,7 +61,6 @@ function ProfilePage() {
 
   // 백엔드 명세에 맞춘 페이로드 변환
   const formatPayloadForDB = (pet) => {
-    // 💡 백엔드 Enum 규격 [SMALL, MEDIUM, LARGE] 매핑
     const sizeMap = {
       '소형': 'SMALL',
       '중형': 'MEDIUM',
@@ -73,7 +75,7 @@ function ProfilePage() {
       name: String(pet.name || '').trim(),
       breed: String(pet.breed || '').trim(),
       weight: parseFloat(pet.weight) || 0,
-      size: sizeMap[pet.size] || 'SMALL', // "소형" 대신 "SMALL" 전송
+      size: sizeMap[pet.size] || 'SMALL',
       has_carrier: hasCarrier,
       has_leash: hasLeash
     };
@@ -82,7 +84,6 @@ function ProfilePage() {
   // 데이터 동기화
   useEffect(() => {
     const loadPets = async () => {
-      // 영문 Enum -> 화면 표시용 한글 변환 맵
       const reverseSizeMap = {
         'SMALL': '소형',
         'MEDIUM': '중형',
@@ -122,7 +123,6 @@ function ProfilePage() {
         setPets(
           serverPets.map((p) => ({
             ...p,
-            // 💡 백엔드의 'SMALL', 'MEDIUM', 'LARGE'를 화면용 한글로 변환
             size: reverseSizeMap[p.size] || p.size || '소형',
             birthDate: p.birthDate || '생일 정보 없음',
             supplies: p.supplies || [
@@ -240,7 +240,7 @@ function ProfilePage() {
       : `${form.birthYear}.${form.birthMonth}.${form.birthDay}`;
 
     return {
-      id: Date.now(),
+      id: editingPetId || Date.now(),
       name: form.name.trim(),
       species: form.species,
       breed: form.breed.trim(),
@@ -252,41 +252,49 @@ function ProfilePage() {
     };
   };
 
-  const handleAddPet = async (e) => {
-    e.preventDefault();
-    if (!validateForm()) return;
+  // 💡 수정 모드 활성화 핸들러
+  const handleStartEdit = (pet) => {
+    setEditingPetId(pet.id);
 
-    const newPet = buildPetData();
+    let year = '2024';
+    let month = '01';
+    let day = '01';
+    let isUnknown = false;
 
-    if (user) {
-      try {
-        const payload = formatPayloadForDB(newPet);
-        const res = await createPetInDB(payload);
-        const createdPet = res?.data || res;
-
-        setPets((prev) => [
-          ...prev,
-          {
-            ...newPet,
-            id: createdPet.id || newPet.id
-          }
-        ]);
-      } catch (err) {
-        console.error('서버 저장 에러:', err);
-        alert('서버 저장 중 오류가 발생했습니다.');
-        return;
-      }
+    if (pet.birthDate === '생일 모름' || !pet.birthDate) {
+      isUnknown = true;
     } else {
-      const targetKey = getActiveKey(user);
-      const updatedPets = [...pets, newPet];
-      setPets(updatedPets);
-      localStorage.setItem(targetKey, JSON.stringify(updatedPets));
+      const parts = pet.birthDate.split('.');
+      if (parts.length === 3) {
+        year = parts[0];
+        month = parts[1];
+        day = parts[2];
+      }
     }
 
-    setRegisteredPetName(form.name);
-    setRecommendedSpots(mockSpots.slice(0, 3));
-    setShowModal(true);
+    setForm({
+      name: pet.name || '',
+      species: pet.species || 'DOG',
+      breed: pet.breed || '',
+      birthYear: year,
+      birthMonth: month,
+      birthDay: day,
+      unknownBirth: isUnknown,
+      weight: pet.weight ? String(pet.weight) : '',
+      size: pet.size || '소형',
+      image: pet.image || '🐶',
+      supplies: pet.supplies || []
+    });
 
+    const formElement = document.getElementById('pet-form-section');
+    if (formElement) {
+      formElement.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  // 💡 수정 모드 취소 핸들러
+  const handleCancelEdit = () => {
+    setEditingPetId(null);
     setForm({
       name: '',
       species: 'DOG',
@@ -302,6 +310,89 @@ function ProfilePage() {
     });
   };
 
+  // 💡 등록 및 수정 제출 분기 처리
+  const handleAddPet = async (e) => {
+    e.preventDefault();
+    if (!validateForm()) return;
+
+    const petData = buildPetData();
+
+    if (editingPetId) {
+      // ✏️ 수정 모드 (PUT)
+      if (user) {
+        try {
+          const payload = formatPayloadForDB(petData);
+          const res = await updatePetInDB(editingPetId, payload);
+          const updatedPet = res?.data || res;
+
+          const reverseSizeMap = { SMALL: '소형', MEDIUM: '중형', LARGE: '대형' };
+
+          setPets((prev) =>
+            prev.map((pet) =>
+              pet.id === editingPetId
+                ? {
+                    ...pet,
+                    ...updatedPet,
+                    size: reverseSizeMap[updatedPet.size] || petData.size,
+                    birthDate: petData.birthDate,
+                    supplies: petData.supplies,
+                    image: petData.image
+                  }
+                : pet
+            )
+          );
+        } catch (err) {
+          console.error('서버 수정 에러:', err);
+          alert('수정 중 오류가 발생했습니다.');
+          return;
+        }
+      } else {
+        const targetKey = getActiveKey(user);
+        const updatedPets = pets.map((p) => (p.id === editingPetId ? petData : p));
+        setPets(updatedPets);
+        localStorage.setItem(targetKey, JSON.stringify(updatedPets));
+      }
+
+      alert(`${petData.name}의 프로필이 수정되었습니다! 🐾`);
+      handleCancelEdit();
+    } else {
+      // ➕ 신규 등록 모드 (POST)
+      if (user) {
+        try {
+          const payload = formatPayloadForDB(petData);
+          const res = await createPetInDB(payload);
+          const createdPet = res?.data || res;
+
+          const reverseSizeMap = { SMALL: '소형', MEDIUM: '중형', LARGE: '대형' };
+
+          setPets((prev) => [
+            ...prev,
+            {
+              ...petData,
+              ...createdPet,
+              size: reverseSizeMap[createdPet.size] || petData.size,
+              id: createdPet.id || petData.id
+            }
+          ]);
+        } catch (err) {
+          console.error('서버 저장 에러:', err);
+          alert('서버 저장 중 오류가 발생했습니다.');
+          return;
+        }
+      } else {
+        const targetKey = getActiveKey(user);
+        const updatedPets = [...pets, petData];
+        setPets(updatedPets);
+        localStorage.setItem(targetKey, JSON.stringify(updatedPets));
+      }
+
+      setRegisteredPetName(form.name);
+      setRecommendedSpots(mockSpots.slice(0, 3));
+      setShowModal(true);
+      handleCancelEdit();
+    }
+  };
+
   const handleLoginAndSave = () => {
     if (!validateForm()) return;
     const newPet = buildPetData();
@@ -310,6 +401,10 @@ function ProfilePage() {
   };
 
   const handleDeletePet = async (id) => {
+    if (editingPetId === id) {
+      handleCancelEdit();
+    }
+
     if (user) {
       try {
         await deletePetInDB(id);
@@ -351,8 +446,23 @@ function ProfilePage() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '15px', marginTop: '15px' }}>
             {pets.map((pet) => {
               const isImageFile = typeof pet.image === 'string' && (pet.image.startsWith('data:') || pet.image.startsWith('http') || pet.image.startsWith('blob:'));
+              const isCurrentEditing = editingPetId === pet.id;
+
               return (
-                <div key={pet.id} style={{ border: '1px solid #ddd', padding: '15px', borderRadius: '10px', backgroundColor: '#fff', display: 'flex', gap: '15px', alignItems: 'flex-start', position: 'relative', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }}>
+                <div 
+                  key={pet.id} 
+                  style={{ 
+                    border: isCurrentEditing ? '2px solid #1976d2' : '1px solid #ddd', 
+                    padding: '15px', 
+                    borderRadius: '10px', 
+                    backgroundColor: isCurrentEditing ? '#f8faff' : '#fff', 
+                    display: 'flex', 
+                    gap: '15px', 
+                    alignItems: 'flex-start', 
+                    position: 'relative', 
+                    boxShadow: '0 2px 5px rgba(0,0,0,0.05)' 
+                  }}
+                >
                   <div style={{ width: '55px', height: '55px', borderRadius: '50%', backgroundColor: '#eee', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', overflow: 'hidden', flexShrink: 0 }}>
                     {isImageFile ? (
                       <img src={pet.image} alt="pet" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -375,12 +485,24 @@ function ProfilePage() {
                       </div>
                     )}
                   </div>
-                  <button 
-                    onClick={() => handleDeletePet(pet.id)}
-                    style={{ position: 'absolute', top: '10px', right: '10px', background: 'none', border: 'none', color: '#ff5252', cursor: 'pointer', fontWeight: 'bold' }}
-                  >
-                    ✕
-                  </button>
+
+                  {/* 💡 카드 우측 상단 수정/삭제 버튼 */}
+                  <div style={{ position: 'absolute', top: '10px', right: '10px', display: 'flex', gap: '4px' }}>
+                    <button 
+                      onClick={() => handleStartEdit(pet)}
+                      title="프로필 수정"
+                      style={{ background: 'none', border: 'none', color: '#1976d2', cursor: 'pointer', fontSize: '13px', padding: '2px 4px' }}
+                    >
+                      ✏️
+                    </button>
+                    <button 
+                      onClick={() => handleDeletePet(pet.id)}
+                      title="프로필 삭제"
+                      style={{ background: 'none', border: 'none', color: '#ff5252', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px', padding: '2px 4px' }}
+                    >
+                      ✕
+                    </button>
+                  </div>
                 </div>
               );
             })}
@@ -390,9 +512,22 @@ function ProfilePage() {
 
       <hr style={{ borderColor: '#eee', marginBottom: '30px' }} />
 
-      {/* 등록 폼 */}
-      <div style={{ backgroundColor: '#fff', border: '1px solid #ddd', padding: '30px', borderRadius: '12px', boxShadow: '0 4px 10px rgba(0,0,0,0.03)' }}>
-        <h3 style={{ marginTop: 0, marginBottom: '25px' }}>새 반려동물 등록하기</h3>
+      {/* 등록 및 수정 폼 */}
+      <div id="pet-form-section" style={{ backgroundColor: '#fff', border: editingPetId ? '2px solid #1976d2' : '1px solid #ddd', padding: '30px', borderRadius: '12px', boxShadow: '0 4px 10px rgba(0,0,0,0.03)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px' }}>
+          <h3 style={{ margin: 0, color: editingPetId ? '#1976d2' : '#111' }}>
+            {editingPetId ? `🐾 ${form.name || '반려동물'} 프로필 수정하기` : '새 반려동물 등록하기'}
+          </h3>
+          {editingPetId && (
+            <button 
+              type="button" 
+              onClick={handleCancelEdit}
+              style={{ padding: '6px 12px', backgroundColor: '#e2e8f0', color: '#475569', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: 'bold' }}
+            >
+              수정 취소
+            </button>
+          )}
+        </div>
         
         <form onSubmit={handleAddPet} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <div style={{ display: 'flex', gap: '20px', alignItems: 'center', flexWrap: 'wrap', backgroundColor: '#f9f9f9', padding: '15px', borderRadius: '8px' }}>
@@ -572,20 +707,23 @@ function ProfilePage() {
             <span style={{ fontSize: '12px', color: '#666' }}>* 장소별 출입 조건(입마개, 케이지 필수 등)을 판별할 때 활용됩니다.</span>
           </div>
 
+          {/* 하단 버튼 영역 */}
           <div style={{ display: 'flex', gap: '12px', marginTop: '15px', flexWrap: 'wrap' }}>
             <button 
               type="submit" 
               style={{ 
                 flex: 1, minWidth: '200px', padding: '14px', 
-                backgroundColor: user ? '#1976d2' : '#4b5563', 
+                backgroundColor: editingPetId ? '#16a34a' : (user ? '#1976d2' : '#4b5563'), 
                 color: 'white', border: 'none', borderRadius: '8px', 
                 fontSize: '15px', cursor: 'pointer', fontWeight: 'bold' 
               }}
             >
-              {user ? '프로필 등록 완료하기' : '체험용 프로필 등록하기 (임시)'}
+              {editingPetId 
+                ? '수정 완료하기 🐾' 
+                : (user ? '프로필 등록 완료하기' : '체험용 프로필 등록하기 (임시)')}
             </button>
 
-            {!user && (
+            {!user && !editingPetId && (
               <button 
                 type="button"
                 onClick={handleLoginAndSave}
@@ -600,10 +738,24 @@ function ProfilePage() {
                 구글 로그인하고 프로필 저장하기
               </button>
             )}
+
+            {editingPetId && (
+              <button 
+                type="button"
+                onClick={handleCancelEdit}
+                style={{ 
+                  padding: '14px 20px', backgroundColor: '#9ca3af', color: 'white', 
+                  border: 'none', borderRadius: '8px', fontSize: '15px', cursor: 'pointer', fontWeight: 'bold' 
+                }}
+              >
+                수정 취소
+              </button>
+            )}
           </div>
         </form>
       </div>
 
+      {/* 등록 완료 추천 관광지 팝업 모달 */}
       {showModal && (
         <div style={{
           position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
