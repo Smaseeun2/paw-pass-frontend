@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
 import { useGoogleLogin, googleLogout } from '@react-oauth/google';
-import { loginWithBackend } from './services/authService';
+import { loginWithGoogleCode, logoutBackend } from './services/api';
 
 import HomePage from './pages/HomePage';
 import ProfilePage from './pages/ProfilePage';
@@ -14,47 +14,57 @@ import SupportPage from './pages/SupportPage';
 
 function App() {
   const [user, setUser] = useState(() => {
-    const saved = localStorage.getItem('paw_pass_user');
-    return saved ? JSON.parse(saved) : null;
-  });
-
-  useEffect(() => {
-    if (user) {
-      localStorage.setItem('paw_pass_user', JSON.stringify(user));
-    } else {
-      localStorage.removeItem('paw_pass_user');
+    try {
+      const saved = localStorage.getItem('paw_pass_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
     }
-  }, [user]);
+  });
 
   const googleLogin = useGoogleLogin({
     flow: 'auth-code',
     onSuccess: async (codeResponse) => {
       try {
-        const backendData = await loginWithBackend(codeResponse.code);
-        
-        if (backendData && backendData.user) {
-          const loggedUser = {
-            name: backendData.user.name,
-            email: backendData.user.email,
-            picture: backendData.user.picture
-          };
-          setUser(loggedUser);
-          localStorage.setItem('paw_pass_user', JSON.stringify(loggedUser));
-          alert(`환영합니다, ${loggedUser.name}님! 🐾`);
+        const response = await loginWithGoogleCode(codeResponse.code);
+        // 백엔드 감싸기 구조 대응 (response.data 또는 response)
+        const result = response.data || response;
+
+        if (result.access_token) {
+          localStorage.setItem('paw_pass_access_token', result.access_token);
+        }
+        if (result.refresh_token) {
+          localStorage.setItem('paw_pass_refresh_token', result.refresh_token);
+        }
+
+        if (result.user) {
+          setUser(result.user);
+          localStorage.setItem('paw_pass_user', JSON.stringify(result.user));
+          alert(`환영합니다, ${result.user.name}님! 🐾`);
           window.location.reload();
         }
       } catch (error) {
         console.error('로그인 실패:', error);
-        alert('구글 로그인에 실패했습니다.');
+        alert('로그인 처리에 실패했습니다.');
       }
     }
   });
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    const refreshToken = localStorage.getItem('paw_pass_refresh_token');
+    if (refreshToken) {
+      await logoutBackend(refreshToken);
+    }
+
     googleLogout();
     setUser(null);
+
+    // 세션 및 토큰 정리
     localStorage.removeItem('paw_pass_user');
-    localStorage.removeItem('paw_pass_pets_guest'); // 게스트 임시 데이터 초기화
+    localStorage.removeItem('paw_pass_access_token');
+    localStorage.removeItem('paw_pass_refresh_token');
+    localStorage.removeItem('paw_pass_pets_guest');
+
     alert('로그아웃 되었습니다.');
     window.location.href = '/';
   };

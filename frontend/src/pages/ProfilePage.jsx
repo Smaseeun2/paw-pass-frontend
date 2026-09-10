@@ -1,14 +1,13 @@
 // src/pages/ProfilePage.jsx
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGoogleLogin } from '@react-oauth/google';
-import { loginWithBackend } from '../services/authService';
+import { loginWithGoogleCode, fetchPetsFromDB, createPetInDB, deletePetInDB } from '../services/api';
 import mockSpots from '../mocks/tourist-spots.json';
 
 function ProfilePage() {
   const navigate = useNavigate();
 
-  // 1. 현재 로그인 유저 상태
   const [user, setUser] = useState(() => {
     try {
       const saved = localStorage.getItem('paw_pass_user');
@@ -22,34 +21,11 @@ function ProfilePage() {
     return currentUser?.email ? `paw_pass_pets_${currentUser.email}` : 'paw_pass_pets_guest';
   };
 
-  // 2. 초기 펫 데이터 불러오기
   const [pets, setPets] = useState(() => {
     try {
-      const savedUser = localStorage.getItem('paw_pass_user');
-      const parsedUser = savedUser ? JSON.parse(savedUser) : null;
-
-      if (parsedUser?.email) {
-        const userKey = `paw_pass_pets_${parsedUser.email}`;
-        const userSaved = localStorage.getItem(userKey);
-        let userPets = userSaved ? JSON.parse(userSaved) : [];
-
-        // 게스트 데이터가 남아있다면 통합 승계
-        const guestSaved = localStorage.getItem('paw_pass_pets_guest');
-        if (guestSaved) {
-          const guestPets = JSON.parse(guestSaved);
-          if (guestPets && guestPets.length > 0) {
-            userPets = [...userPets, ...guestPets];
-            localStorage.setItem(userKey, JSON.stringify(userPets));
-            localStorage.removeItem('paw_pass_pets_guest');
-          }
-        }
-        return userPets;
-      } else {
-        const guestSaved = localStorage.getItem('paw_pass_pets_guest');
-        return guestSaved ? JSON.parse(guestSaved) : [];
-      }
-    } catch (e) {
-      console.error('스토리지 로드 에러:', e);
+      const guestSaved = localStorage.getItem('paw_pass_pets_guest');
+      return guestSaved ? JSON.parse(guestSaved) : [];
+    } catch {
       return [];
     }
   });
@@ -61,12 +37,13 @@ function ProfilePage() {
     birthYear: '2024',
     birthMonth: '01',
     birthDay: '01',
+    unknownBirth: false,
     weight: '',
     size: '소형',
-    image: '🐶'
+    image: '🐶',
+    supplies: []
   });
 
-  // 최신 form 상태를 OAuth 콜백에서도 참조할 수 있도록 ref 연결
   const formRef = useRef(form);
   formRef.current = form;
 
@@ -75,48 +52,126 @@ function ProfilePage() {
   const [recommendedSpots, setRecommendedSpots] = useState([]);
 
   const defaultIcons = ['🐶', '🐱', '🦮', '🐈‍⬛'];
+  const availableSupplies = ['목줄/하네스', '입마개', '배변봉투', '이동장/케이지', '유모차/웨건', '기저귀/매너벨트'];
+
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 30 }, (_, i) => currentYear - i);
   const months = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0'));
   const days = Array.from({ length: 31 }, (_, i) => String(i + 1).padStart(2, '0'));
 
-  // 3. 구글 로그인 및 작성 중이던 프로필 직행 저장 처리
+  // 백엔드 명세에 맞춘 페이로드 변환
+  const formatPayloadForDB = (pet) => {
+    // 💡 백엔드 Enum 규격 [SMALL, MEDIUM, LARGE] 매핑
+    const sizeMap = {
+      '소형': 'SMALL',
+      '중형': 'MEDIUM',
+      '대형': 'LARGE'
+    };
+
+    const hasCarrier = pet.supplies ? pet.supplies.includes('이동장/케이지') : Boolean(pet.has_carrier);
+    const hasLeash = pet.supplies ? pet.supplies.includes('목줄/하네스') : Boolean(pet.has_leash);
+
+    return {
+      species: pet.species || 'DOG',
+      name: String(pet.name || '').trim(),
+      breed: String(pet.breed || '').trim(),
+      weight: parseFloat(pet.weight) || 0,
+      size: sizeMap[pet.size] || 'SMALL', // "소형" 대신 "SMALL" 전송
+      has_carrier: hasCarrier,
+      has_leash: hasLeash
+    };
+  };
+
+  // 데이터 동기화
+  useEffect(() => {
+    const loadPets = async () => {
+      // 영문 Enum -> 화면 표시용 한글 변환 맵
+      const reverseSizeMap = {
+        'SMALL': '소형',
+        'MEDIUM': '중형',
+        'LARGE': '대형'
+      };
+
+      if (user) {
+        let serverPets = [];
+        try {
+          const res = await fetchPetsFromDB();
+          serverPets = Array.isArray(res) ? res : (res?.data || []);
+        } catch (err) {
+          console.warn('DB 목록 조회 실패 또는 등록된 데이터 없음:', err);
+        }
+
+        // 게스트 마이그레이션 격리 처리
+        const guestSaved = localStorage.getItem('paw_pass_pets_guest');
+        if (guestSaved) {
+          try {
+            const guestPets = JSON.parse(guestSaved);
+            for (const gPet of guestPets) {
+              const created = await createPetInDB(formatPayloadForDB(gPet));
+              const createdPet = created?.data || created;
+              serverPets.push({
+                ...createdPet,
+                birthDate: gPet.birthDate || '생일 모름',
+                supplies: gPet.supplies || []
+              });
+            }
+          } catch (mErr) {
+            console.error('게스트 데이터 마이그레이션 건너뜀:', mErr);
+          } finally {
+            localStorage.removeItem('paw_pass_pets_guest');
+          }
+        }
+
+        setPets(
+          serverPets.map((p) => ({
+            ...p,
+            // 💡 백엔드의 'SMALL', 'MEDIUM', 'LARGE'를 화면용 한글로 변환
+            size: reverseSizeMap[p.size] || p.size || '소형',
+            birthDate: p.birthDate || '생일 정보 없음',
+            supplies: p.supplies || [
+              ...(p.has_leash ? ['목줄/하네스'] : []),
+              ...(p.has_carrier ? ['이동장/케이지'] : []),
+              ...(p.has_stroller ? ['유모차/웨건'] : [])
+            ]
+          }))
+        );
+      } else {
+        const guestSaved = localStorage.getItem('paw_pass_pets_guest');
+        setPets(guestSaved ? JSON.parse(guestSaved) : []);
+      }
+    };
+
+    loadPets();
+  }, [user]);
+
+  // 구글 로그인 및 직행 저장
   const googleLogin = useGoogleLogin({
     flow: 'auth-code',
     onSuccess: async (codeResponse) => {
       try {
-        const backendData = await loginWithBackend(codeResponse.code);
-        if (backendData && backendData.user) {
-          const loggedUser = {
-            name: backendData.user.name,
-            email: backendData.user.email,
-            picture: backendData.user.picture
-          };
-          setUser(loggedUser);
-          localStorage.setItem('paw_pass_user', JSON.stringify(loggedUser));
+        const response = await loginWithGoogleCode(codeResponse.code);
+        const result = response.data || response;
 
-          const userKey = `paw_pass_pets_${loggedUser.email}`;
-          const existing = localStorage.getItem(userKey);
-          let currentList = existing ? JSON.parse(existing) : [];
+        if (result.access_token) localStorage.setItem('paw_pass_access_token', result.access_token);
+        if (result.refresh_token) localStorage.setItem('paw_pass_refresh_token', result.refresh_token);
 
-          // 💡 로그인 전에 작성 중이던 폼 데이터가 있다면 계정 목록에 즉시 추가
+        if (result.user) {
+          setUser(result.user);
+          localStorage.setItem('paw_pass_user', JSON.stringify(result.user));
+
           const pendingPetJson = localStorage.getItem('paw_pass_pending_pet');
           if (pendingPetJson) {
-            const pendingPet = JSON.parse(pendingPetJson);
-            currentList = [...currentList, pendingPet];
-            localStorage.removeItem('paw_pass_pending_pet');
+            try {
+              const pendingPet = JSON.parse(pendingPetJson);
+              await createPetInDB(formatPayloadForDB(pendingPet));
+            } catch (err) {
+              console.error('펜딩 프로필 DB 저장 실패:', err);
+            } finally {
+              localStorage.removeItem('paw_pass_pending_pet');
+            }
           }
 
-          // 게스트 데이터가 있었을 경우에도 함께 병합
-          const guestSaved = localStorage.getItem('paw_pass_pets_guest');
-          if (guestSaved) {
-            const guestPets = JSON.parse(guestSaved);
-            currentList = [...currentList, ...guestPets];
-            localStorage.removeItem('paw_pass_pets_guest');
-          }
-
-          localStorage.setItem(userKey, JSON.stringify(currentList));
-          alert(`환영합니다, ${loggedUser.name}님! 입력하신 반려동물 프로필이 계정에 저장되었습니다. 🐾`);
+          alert(`환영합니다, ${result.user.name}님! 정보가 저장되었습니다. 🐾`);
           window.location.reload();
         }
       } catch (error) {
@@ -135,7 +190,7 @@ function ProfilePage() {
     const val = e.target.value;
     let autoSize = form.size;
     const num = Number(val);
-    if (val !== '') {
+    if (val !== '' && !isNaN(num)) {
       if (num < 10) autoSize = '소형';
       else if (num < 25) autoSize = '중형';
       else autoSize = '대형';
@@ -158,38 +213,77 @@ function ProfilePage() {
     }
   };
 
-  // 반려동물 객체 생성 헬퍼 함수
+  const handleSupplyToggle = (item) => {
+    setForm((prev) => {
+      const exists = prev.supplies.includes(item);
+      const updated = exists ? prev.supplies.filter((s) => s !== item) : [...prev.supplies, item];
+      return { ...prev, supplies: updated };
+    });
+  };
+
+  const validateForm = () => {
+    if (!form.name.trim()) {
+      alert('반려동물 이름을 입력해주세요.');
+      return false;
+    }
+    if (!form.breed.trim()) {
+      alert('반려동물 품종을 입력해주세요.');
+      return false;
+    }
+    if (!form.weight || isNaN(Number(form.weight)) || Number(form.weight) <= 0) {
+      alert('올바른 체중(0보다 큰 숫자)을 입력해주세요.');
+      return false;
+    }
+    return true;
+  };
+
   const buildPetData = () => {
-    const formattedBirthDate = `${form.birthYear}.${form.birthMonth}.${form.birthDay}`;
+    const formattedBirthDate = form.unknownBirth 
+      ? '생일 모름' 
+      : `${form.birthYear}.${form.birthMonth}.${form.birthDay}`;
+
     return {
       id: Date.now(),
       name: form.name.trim(),
       species: form.species,
-      breed: form.breed.trim() || '믹스',
+      breed: form.breed.trim(),
       birthDate: formattedBirthDate,
-      weight: form.weight ? Number(form.weight) : 5,
+      weight: Number(form.weight),
       size: form.size,
-      image: form.image || '🐶'
+      image: form.image || '🐶',
+      supplies: form.supplies
     };
   };
 
-  // 1) 버튼 클릭 액션: 체험용 등록 (또는 로그인 회원 일반 등록)
-  const handleAddPet = (e) => {
+  const handleAddPet = async (e) => {
     e.preventDefault();
-    if (!form.name.trim()) {
-      alert('반려동물 이름을 입력해주세요!');
-      return;
-    }
+    if (!validateForm()) return;
 
     const newPet = buildPetData();
-    const targetKey = getActiveKey(user);
-    const updatedPets = [...pets, newPet];
 
-    setPets(updatedPets);
-    try {
+    if (user) {
+      try {
+        const payload = formatPayloadForDB(newPet);
+        const res = await createPetInDB(payload);
+        const createdPet = res?.data || res;
+
+        setPets((prev) => [
+          ...prev,
+          {
+            ...newPet,
+            id: createdPet.id || newPet.id
+          }
+        ]);
+      } catch (err) {
+        console.error('서버 저장 에러:', err);
+        alert('서버 저장 중 오류가 발생했습니다.');
+        return;
+      }
+    } else {
+      const targetKey = getActiveKey(user);
+      const updatedPets = [...pets, newPet];
+      setPets(updatedPets);
       localStorage.setItem(targetKey, JSON.stringify(updatedPets));
-    } catch (err) {
-      console.error('스토리지 저장 실패:', err);
     }
 
     setRegisteredPetName(form.name);
@@ -203,33 +297,35 @@ function ProfilePage() {
       birthYear: '2024',
       birthMonth: '01',
       birthDay: '01',
+      unknownBirth: false,
       weight: '',
       size: '소형',
-      image: '🐶'
+      image: '🐶',
+      supplies: []
     });
   };
 
-  // 2) 버튼 클릭 액션: 작성 중인 폼 내용을 들고 곧바로 구글 로그인하여 저장
   const handleLoginAndSave = () => {
-    if (!form.name.trim()) {
-      alert('저장할 반려동물의 이름을 먼저 입력해주세요!');
-      return;
-    }
-
-    // 작성 중이던 폼 데이터를 임시 펜딩 키에 저장 후 구글 로그인 트리거
+    if (!validateForm()) return;
     const newPet = buildPetData();
     localStorage.setItem('paw_pass_pending_pet', JSON.stringify(newPet));
     googleLogin();
   };
 
-  const handleDeletePet = (id) => {
-    const targetKey = getActiveKey(user);
-    const updated = pets.filter((pet) => pet.id !== id);
-    setPets(updated);
-    try {
+  const handleDeletePet = async (id) => {
+    if (user) {
+      try {
+        await deletePetInDB(id);
+        setPets((prev) => prev.filter((pet) => pet.id !== id));
+      } catch (err) {
+        console.error('서버 삭제 에러:', err);
+        alert('삭제 요청에 실패했습니다.');
+      }
+    } else {
+      const targetKey = getActiveKey(user);
+      const updated = pets.filter((pet) => pet.id !== id);
+      setPets(updated);
       localStorage.setItem(targetKey, JSON.stringify(updated));
-    } catch (err) {
-      console.error('스토리지 삭제 저장 실패:', err);
     }
   };
 
@@ -240,7 +336,6 @@ function ProfilePage() {
         {user ? `${user.name}님의 반려동물 프로필 관리` : '체험 모드로 등록하거나 구글 로그인 후 안전하게 보관하세요.'}
       </p>
 
-      {/* 비로그인 안내 배너 */}
       {!user && (
         <div style={{ backgroundColor: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: '12px', padding: '14px 18px', marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
           <div>
@@ -256,11 +351,11 @@ function ProfilePage() {
         {pets.length === 0 ? (
           <p style={{ color: '#888', marginTop: '15px' }}>등록된 아이가 없습니다. 아래 폼에서 첫 프로필을 등록해보세요!</p>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '15px', marginTop: '15px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '15px', marginTop: '15px' }}>
             {pets.map((pet) => {
               const isImageFile = typeof pet.image === 'string' && (pet.image.startsWith('data:') || pet.image.startsWith('http') || pet.image.startsWith('blob:'));
               return (
-                <div key={pet.id} style={{ border: '1px solid #ddd', padding: '15px', borderRadius: '10px', backgroundColor: '#fff', display: 'flex', gap: '15px', alignItems: 'center', position: 'relative', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }}>
+                <div key={pet.id} style={{ border: '1px solid #ddd', padding: '15px', borderRadius: '10px', backgroundColor: '#fff', display: 'flex', gap: '15px', alignItems: 'flex-start', position: 'relative', boxShadow: '0 2px 5px rgba(0,0,0,0.05)' }}>
                   <div style={{ width: '55px', height: '55px', borderRadius: '50%', backgroundColor: '#eee', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', overflow: 'hidden', flexShrink: 0 }}>
                     {isImageFile ? (
                       <img src={pet.image} alt="pet" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -270,8 +365,18 @@ function ProfilePage() {
                   </div>
                   <div style={{ flex: 1 }}>
                     <h4 style={{ margin: '0 0 4px 0', color: '#1976d2' }}>{pet.name}</h4>
-                    <p style={{ margin: '2px 0', fontSize: '13px', color: '#555' }}>{pet.breed} ({pet.size}견/묘)</p>
+                    <p style={{ margin: '2px 0', fontSize: '13px', color: '#555' }}>{pet.breed} ({pet.size}견/묘, {pet.weight}kg)</p>
                     <p style={{ margin: '2px 0', fontSize: '13px', color: '#777' }}>생일: {pet.birthDate}</p>
+                    
+                    {pet.supplies && pet.supplies.length > 0 && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '8px' }}>
+                        {pet.supplies.map((sup, idx) => (
+                          <span key={idx} style={{ fontSize: '11px', backgroundColor: '#f1f5f9', color: '#475569', padding: '2px 6px', borderRadius: '4px', border: '1px solid #e2e8f0' }}>
+                            ✓ {sup}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <button 
                     onClick={() => handleDeletePet(pet.id)}
@@ -331,7 +436,7 @@ function ProfilePage() {
           </div>
 
           <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontWeight: 'bold', fontSize: '14px' }}>
-            반려동물 이름
+            반려동물 이름 <span style={{ color: '#ef4444', fontSize: '12px' }}>*필수</span>
             <input 
               type="text" 
               name="name" 
@@ -343,13 +448,27 @@ function ProfilePage() {
           </label>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <label style={{ fontWeight: 'bold', fontSize: '14px' }}>반려동물 생일</label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <label style={{ fontWeight: 'bold', fontSize: '14px' }}>
+                반려동물 생일 <span style={{ color: '#ef4444', fontSize: '12px' }}>*필수</span>
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: '#4b5563', cursor: 'pointer' }}>
+                <input 
+                  type="checkbox" 
+                  checked={form.unknownBirth} 
+                  onChange={(e) => setForm((prev) => ({ ...prev, unknownBirth: e.target.checked }))} 
+                />
+                생일을 몰라요
+              </label>
+            </div>
+
             <div style={{ display: 'flex', gap: '10px' }}>
               <select 
                 name="birthYear" 
                 value={form.birthYear} 
                 onChange={handleChange} 
-                style={{ flex: 1, padding: '10px', borderRadius: '6px', border: '1px solid #ccc', fontSize: '14px' }}
+                disabled={form.unknownBirth}
+                style={{ flex: 1, padding: '10px', borderRadius: '6px', border: '1px solid #ccc', fontSize: '14px', backgroundColor: form.unknownBirth ? '#f3f4f6' : '#fff' }}
               >
                 {years.map((y) => (
                   <option key={y} value={y}>{y}년</option>
@@ -360,7 +479,8 @@ function ProfilePage() {
                 name="birthMonth" 
                 value={form.birthMonth} 
                 onChange={handleChange} 
-                style={{ flex: 1, padding: '10px', borderRadius: '6px', border: '1px solid #ccc', fontSize: '14px' }}
+                disabled={form.unknownBirth}
+                style={{ flex: 1, padding: '10px', borderRadius: '6px', border: '1px solid #ccc', fontSize: '14px', backgroundColor: form.unknownBirth ? '#f3f4f6' : '#fff' }}
               >
                 {months.map((m) => (
                   <option key={m} value={m}>{m}월</option>
@@ -371,7 +491,8 @@ function ProfilePage() {
                 name="birthDay" 
                 value={form.birthDay} 
                 onChange={handleChange} 
-                style={{ flex: 1, padding: '10px', borderRadius: '6px', border: '1px solid #ccc', fontSize: '14px' }}
+                disabled={form.unknownBirth}
+                style={{ flex: 1, padding: '10px', borderRadius: '6px', border: '1px solid #ccc', fontSize: '14px', backgroundColor: form.unknownBirth ? '#f3f4f6' : '#fff' }}
               >
                 {days.map((d) => (
                   <option key={d} value={d}>{d}일</option>
@@ -381,20 +502,20 @@ function ProfilePage() {
           </div>
 
           <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontWeight: 'bold', fontSize: '14px' }}>
-            반려동물 품종
+            반려동물 품종 <span style={{ color: '#ef4444', fontSize: '12px' }}>*필수</span>
             <input 
               type="text" 
               name="breed" 
               value={form.breed} 
               onChange={handleChange} 
-              placeholder="예: 말티즈, 푸들, 코숏 등" 
+              placeholder="예: 말티즈, 푸들, 코숏 등 (모를 경우 '믹스' 입력)" 
               style={{ padding: '10px', borderRadius: '6px', border: '1px solid #ccc', fontSize: '14px' }}
             />
           </label>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <label style={{ fontWeight: 'bold', fontSize: '14px' }}>
-              체중 (kg) 및 크기 분류
+              체중 (kg) 및 크기 분류 <span style={{ color: '#ef4444', fontSize: '12px' }}>*필수</span>
             </label>
             <div style={{ display: 'flex', gap: '15px', alignItems: 'center', flexWrap: 'wrap' }}>
               <input 
@@ -432,7 +553,28 @@ function ProfilePage() {
             <span style={{ fontSize: '12px', color: '#666' }}>* 체중을 직접 입력하면 크기가 자동 분류되며, 버튼을 눌러 직접 변경할 수도 있습니다.</span>
           </div>
 
-          {/* 버튼 영역 */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '5px' }}>
+            <label style={{ fontWeight: 'bold', fontSize: '14px' }}>
+              동반 시 구비 가능한 용품 선택 (선택)
+            </label>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px', backgroundColor: '#f8fafc', padding: '15px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+              {availableSupplies.map((item) => {
+                const checked = form.supplies.includes(item);
+                return (
+                  <label key={item} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#334155', cursor: 'pointer' }}>
+                    <input 
+                      type="checkbox" 
+                      checked={checked} 
+                      onChange={() => handleSupplyToggle(item)} 
+                    />
+                    {item}
+                  </label>
+                );
+              })}
+            </div>
+            <span style={{ fontSize: '12px', color: '#666' }}>* 장소별 출입 조건(입마개, 케이지 필수 등)을 판별할 때 활용됩니다.</span>
+          </div>
+
           <div style={{ display: 'flex', gap: '12px', marginTop: '15px', flexWrap: 'wrap' }}>
             <button 
               type="submit" 
@@ -465,7 +607,6 @@ function ProfilePage() {
         </form>
       </div>
 
-      {/* 추천 팝업 */}
       {showModal && (
         <div style={{
           position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
