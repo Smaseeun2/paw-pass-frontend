@@ -1,5 +1,5 @@
 // src/pages/ProfilePage.jsx
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGoogleLogin } from '@react-oauth/google';
 import { loginWithGoogleCode, fetchPetsFromDB, createPetInDB, deletePetInDB } from '../services/api';
@@ -43,9 +43,6 @@ function ProfilePage() {
     image: '🐶',
     supplies: []
   });
-
-  const formRef = useRef(form);
-  formRef.current = form;
 
   const [showModal, setShowModal] = useState(false);
   const [registeredPetName, setRegisteredPetName] = useState('');
