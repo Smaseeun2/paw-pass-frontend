@@ -42,20 +42,47 @@ export const refreshAccessToken = async () => {
   throw new Error('새 액세스 토큰 수신 실패');
 };
 
-// 3. 토큰 만료 시 자동 갱신 인터셉터 Fetch
-// authFetch 내부 headers 기본값에도 추가
+// src/services/api.js
+
+// 3. 인터셉터 Fetch 보완
 export const authFetch = async (url, options = {}) => {
   let token = localStorage.getItem('paw_pass_access_token');
 
   const headers = {
     'Content-Type': 'application/json',
-    'ngrok-skip-browser-warning': '69420', // 💡 ngrok 안내 화면 강제 스킵
+    'ngrok-skip-browser-warning': '69420',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...options.headers
   };
 
   let res = await fetch(url, { ...options, headers });
-  // ... (기존 로직 유지)
+
+  // 401 Unauthorized 또는 403 Forbidden 발생 시
+  if (res.status === 401 || res.status === 403) {
+    const refreshToken = localStorage.getItem('paw_pass_refresh_token');
+
+    // 1) 리프레시 토큰이 있다면 토큰 갱신 시도
+    if (refreshToken) {
+      try {
+        const newToken = await refreshAccessToken();
+        headers.Authorization = `Bearer ${newToken}`;
+        return await fetch(url, { ...options, headers });
+      } catch (err) {
+        console.warn('토큰 자동 갱신 실패:', err);
+      }
+    }
+
+    // 2) 토큰 갱신 실패 시 로컬 스토리지 토큰 제거
+    localStorage.removeItem('paw_pass_access_token');
+    localStorage.removeItem('paw_pass_refresh_token');
+
+    // 3) explore/tours 같은 공개 API는 토큰을 떼고 1회 재요청 시도
+    if (url.includes('/explore') || url.includes('/tours') || url.includes('/facilities')) {
+      delete headers.Authorization;
+      res = await fetch(url, { ...options, headers });
+    }
+  }
+
   return res;
 };
 

@@ -46,7 +46,14 @@ export const useTouristSpots = () => {
       });
 
       if (isAppend) {
-        setSpots(prev => [...prev, ...mappedSpots]);
+        setSpots(prev => {
+          const map = new Map();
+          // 기존 항목 먼저 삽입
+          prev.forEach(item => map.set(item.contentId, item));
+          // 새로 불러온 항목 병합 (중복 키 자동 방지)
+          mappedSpots.forEach(item => map.set(item.contentId, item));
+          return Array.from(map.values());
+        });
       } else {
         setSpots(mappedSpots);
         setCurrentCondition(condition);

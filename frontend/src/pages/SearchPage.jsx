@@ -32,7 +32,7 @@ function SearchPage() {
   const [selectedType, setSelectedType] = useState(queryState.type || '');
   const [selectedTypeName, setSelectedTypeName] = useState('');
   
-  // 직접 추가하는 소/중/대형 마리수 (지인 강아지 등 추가 동반용)
+  // 직접 추가하는 소/중/대형 마리수 (추가 동반용)
   const [petCounts, setPetCounts] = useState(queryState.petCounts || {
     small: 0,
     medium: 0,
@@ -51,6 +51,8 @@ function SearchPage() {
   const [selectedSpotId, setSelectedSpotId] = useState(null);
 
   const dropdownRef = useRef(null);
+  // 💡 무한 스크롤 감지 타깃 ref
+  const observerTarget = useRef(null);
 
   // 드롭다운 바깥 클릭 감지
   useEffect(() => {
@@ -63,17 +65,21 @@ function SearchPage() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // 로그인 상태일 때 백엔드 DB에서 내 반려동물 목록 불러오기
+  // 💡 [방어 처리] 로그인 유저 & 유효 토큰이 모두 있을 때만 /pets 호출
   useEffect(() => {
     const loadUserPets = async () => {
-      if (user) {
+      const token = localStorage.getItem('paw_pass_access_token');
+      if (user && token) {
         try {
           const res = await fetchPetsFromDB();
           const serverPets = Array.isArray(res) ? res : (res?.data || []);
           setMyPets(serverPets);
         } catch (err) {
           console.warn('내 반려동물 목록 로드 실패:', err);
+          setMyPets([]);
         }
+      } else {
+        setMyPets([]);
       }
     };
     loadUserPets();
@@ -91,6 +97,24 @@ function SearchPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // 💡 [무한 스크롤] 화면 하단 도달 시 자동으로 loadMore 실행
+  useEffect(() => {
+    const target = observerTarget.current;
+    if (!target) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !isLoading && hasMore) {
+          loadMore();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [loadMore, isLoading, hasMore]);
+
   const handleCountChange = (size, delta, e) => {
     e.stopPropagation();
     setPetCounts(prev => {
@@ -106,11 +130,10 @@ function SearchPage() {
     );
   };
 
-  // 버튼에 노출될 라벨 문자열 생성 (내 아이 이름 + 추가 마리수 통합)
+  // 버튼에 노출될 라벨 문자열 생성
   const getPetFilterLabel = () => {
     const parts = [];
 
-    // 1. 선택된 내 등록 반려동물 이름
     if (user && myPets.length > 0 && selectedPetIds.length > 0) {
       const selectedNames = myPets
         .filter(p => selectedPetIds.includes(p.id))
@@ -120,7 +143,6 @@ function SearchPage() {
       }
     }
 
-    // 2. 추가 선택한 소/중/대형 마리수
     const extraParts = [];
     if (petCounts.small > 0) extraParts.push(`소형 ${petCounts.small}`);
     if (petCounts.medium > 0) extraParts.push(`중형 ${petCounts.medium}`);
@@ -267,7 +289,7 @@ function SearchPage() {
           )}
         </div>
 
-        {/* 4. 반려동물 선택 드롭다운 (등록 프로필 + 마리수 동시 지원) */}
+        {/* 4. 반려동물 선택 드롭다운 */}
         <div style={{ position: 'relative', flex: 1, minWidth: '190px' }}>
           <button 
             onClick={() => setActiveDropdown(activeDropdown === 'pet' ? null : 'pet')}
@@ -289,7 +311,7 @@ function SearchPage() {
                 + 반려동물 프로필 관리 / 등록
               </div>
 
-              {/* [섹션 1] 로그인했고 등록된 아이가 있을 때: 등록된 반려동물 카드 리스트 */}
+              {/* 등록된 우리 아이 목록 */}
               {user && myPets.length > 0 && (
                 <div style={{ marginBottom: '14px' }}>
                   <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#64748b', marginBottom: '8px' }}>
@@ -336,7 +358,7 @@ function SearchPage() {
                 </div>
               )}
 
-              {/* [섹션 2] 기본 소/중/대형 수량 카운터 (비로그인 시 단독 / 로그인 시 추가 동반용) */}
+              {/* 추가 마리수 카운터 */}
               <div>
                 {user && myPets.length > 0 && (
                   <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#64748b', marginBottom: '8px', borderTop: '1px solid #f1f5f9', paddingTop: '10px' }}>
@@ -345,7 +367,6 @@ function SearchPage() {
                 )}
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px' }}>
-                  {/* 소형견/묘 */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#333' }}>
                     <span>소형견/묘 (10kg 미만)</span>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -355,7 +376,6 @@ function SearchPage() {
                     </div>
                   </div>
 
-                  {/* 중형견/묘 */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#333' }}>
                     <span>중형견/묘 (10~25kg)</span>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -365,7 +385,6 @@ function SearchPage() {
                     </div>
                   </div>
 
-                  {/* 대형견/묘 */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#333' }}>
                     <span>대형견/묘 (25kg 이상)</span>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -398,20 +417,21 @@ function SearchPage() {
       </div>
 
       {/* --- 메인 콘텐츠 영역 --- */}
-      {isLoading ? (
+      {isLoading && spots.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '50px', color: '#6b7280' }}>관광지 정보를 불러오는 중입니다...</div>
       ) : (
         <div style={{ display: 'flex', gap: '24px', alignItems: 'flex-start' }}>
           
           <div style={{ flex: 2, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '20px' }}>
             {filteredSpots.length > 0 ? (
-              filteredSpots.map((spot) => {
+              // 💡 index를 받아 key를 고유하게 조합합니다.
+              filteredSpots.map((spot, idx) => {
                 const isSelected = selectedSpotId === spot.contentId;
                 const liked = isFavorite(spot.contentId);
 
                 return (
                   <div 
-                    key={spot.contentId}
+                    key={`${spot.contentId}-${idx}`} // 💡 고유 key 조합
                     onClick={() => handleItemClick(spot.contentId)}
                     style={{
                       border: isSelected ? '2px solid #4b5563' : '1px solid #d1d5db',
@@ -483,25 +503,24 @@ function SearchPage() {
               <p style={{ gridColumn: '1 / -1', textAlign: 'center', color: '#6b7280', padding: '40px' }}>검색 조건에 일치하는 관광지가 없습니다.</p>
             )}
 
-            {filteredSpots.length > 0 && hasMore && (
-              <div style={{ gridColumn: '1 / -1', textAlign: 'center', marginTop: '20px' }}>
-                <button
-                  onClick={loadMore}
-                  disabled={isLoading}
-                  style={{
-                    padding: '12px 30px',
-                    backgroundColor: '#fff',
-                    border: '1.5px solid #cbd5e1',
-                    borderRadius: '8px',
-                    fontWeight: 'bold',
-                    fontSize: '14px',
-                    color: '#334155',
-                    cursor: isLoading ? 'not-allowed' : 'pointer',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.04)'
-                  }}
-                >
-                  {isLoading ? '불러오는 중...' : '관광지 더보기 (40개 더 불러오기) ▾'}
-                </button>
+            {/* 💡 무한 스크롤 타깃 감지 영역 (버튼 클릭 없이 스크롤만 내리면 자동 트리거) */}
+            {filteredSpots.length > 0 && (
+              <div 
+                ref={observerTarget} 
+                style={{ 
+                  gridColumn: '1 / -1', 
+                  textAlign: 'center', 
+                  padding: '28px 0', 
+                  color: '#94a3b8',
+                  fontSize: '14px',
+                  fontWeight: '500'
+                }}
+              >
+                {isLoading ? (
+                  <span>⏳ 추가 관광지를 불러오는 중...</span>
+                ) : !hasMore ? (
+                  <span>✨ 모든 관광지를 다 확인하셨습니다!</span>
+                ) : null}
               </div>
             )}
           </div>
