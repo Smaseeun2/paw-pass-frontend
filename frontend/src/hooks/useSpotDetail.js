@@ -1,6 +1,6 @@
 // src/hooks/useSpotDetail.js
 import { useState, useEffect } from 'react';
-import { fetchTourDetail, fetchFacilityDetail } from '../services/api';
+import { fetchTourDetail, fetchFacilityDetail, fetchFacilityImage } from '../services/api';
 
 export const useSpotDetail = (id, source = 'tourapi') => {
   const [detail, setDetail] = useState(null);
@@ -15,42 +15,77 @@ export const useSpotDetail = (id, source = 'tourapi') => {
       setError(null);
 
       try {
-        let rawData;
         if (source === 'kcisa') {
-          rawData = await fetchFacilityDetail(id);
-        } else {
-          rawData = await fetchTourDetail(id);
-        }
+          // 1. KCISA 문화시설: 본문 + 사진 API 각각 안전하게 호출
+          let f = {};
+          let imgData = {};
 
-        const data = rawData.data || rawData;
-        const petCond = data.pet_condition || {};
-
-        // 화면에서 쉽게 쓰도록 통합 포맷 정규화
-        const normalized = {
-          contentId: String(id),
-          source,
-          name: data.title || '장소명 없음',
-          address: data.addr || '주소 정보 없음',
-          phone: data.tel || '',
-          hours: data.hours || petCond.operating_hours || '정보 미제공',
-          images: Array.isArray(data.images) ? data.images : (data.images ? [data.images] : []),
-          imageUrl: (Array.isArray(data.images) && data.images[0]) || data.image || '',
-          description: data.description || '',
-          // 반려동물 동반 상세 조건
-          petCondition: {
-            acmpyType: petCond.acmpyTypeCd || '', // 동반 가능 유형
-            possibleBreeds: petCond.acmpyPsblCpam || '', // 동반 가능 동물/견종 크기
-            needItem: petCond.acmpyNeedMtr || '', // 필수 준비물 (목줄, 이동장 등)
-            etcInfo: petCond.etcAcmpyInfo || '', // 기타 안내
-            petRestriction: petCond.pet_restriction || '', // 제한 사항
-            parkingAvailable: petCond.parking_available || '' // 주차 가능 여부
+          try {
+            const facilityRes = await fetchFacilityDetail(id);
+            f = facilityRes.data || facilityRes;
+          } catch (e) {
+            console.warn('문화시설 본문 조회 실패:', e);
           }
-        };
 
-        setDetail(normalized);
+          try {
+            const imageRes = await fetchFacilityImage(id);
+            imgData = imageRes.data || imageRes;
+          } catch (e) {
+            console.warn('문화시설 이미지 조회 실패 (선택 사항):', e);
+          }
+
+          const cond = f.pet_condition || f.petCondition || {};
+
+          setDetail({
+            id: String(f.id || id),
+            name: f.facility_name || f.title || '시설명 없음',
+            address: f.address || f.addr || '주소 정보 없음',
+            phone: f.tel || f.phone || '',
+            hours: cond.operating_hours || f.operating_hours || '정보 미제공',
+            imageUrl: imgData.image || imgData.url || f.image || f.google_photo_url || '',
+            imageAttribution: imgData.image_attribution || f.image_attribution || '',
+            lat: f.lat || f.latitude,
+            lng: f.lng || f.longitude,
+            source: 'kcisa',
+            description: f.description || '',
+            petCondition: {
+              operatingHours: cond.operating_hours || '',
+              petRestriction: cond.pet_restriction || '',
+              parkingAvailable: cond.parking_available ? '주차 가능' : '주차 정보 없음',
+              allowedPetSize: cond.allowed_pet_size || '',
+              petExclusive: cond.pet_exclusive || '',
+              additionalPetFee: cond.additional_pet_fee || ''
+            }
+          });
+        } else {
+          // 2. TourAPI 관광공사: 단건 호출
+          const res = await fetchTourDetail(id);
+          const t = res.data || res;
+          const cond = t.pet_condition || t.petCondition || {};
+
+          setDetail({
+            id: String(t.content_id || t.id || id),
+            name: t.title || '장소명 없음',
+            address: t.addr1 || t.addr || '주소 정보 없음',
+            phone: t.tel || '',
+            hours: t.usetime || '정보 미제공',
+            imageUrl: t.firstimage || t.image || '',
+            imageAttribution: t.image_attribution || '',
+            lat: t.mapy || t.lat,
+            lng: t.mapx || t.lng,
+            source: 'tourapi',
+            description: t.overview || '',
+            petCondition: {
+              acmpyTypeCd: cond.acmpy_type_cd || cond.acmpyTypeCd || '',
+              acmpyPsblCpam: cond.acmpy_psbl_cpam || cond.acmpyPsblCpam || '',
+              acmpyNeedMtr: cond.acmpy_need_mtr || cond.acmpyNeedMtr || '',
+              etcAcmpyInfo: cond.etc_acmpy_info || cond.etcAcmpyInfo || ''
+            }
+          });
+        }
       } catch (err) {
-        console.error('상세 정보 로드 실패:', err);
-        setError(err);
+        console.error('상세 정보 조회 실패:', err);
+        setError('상세 정보를 불러오는 중 오류가 발생했습니다.');
       } finally {
         setIsLoading(false);
       }

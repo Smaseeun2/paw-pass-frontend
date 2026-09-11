@@ -64,6 +64,9 @@ function SearchPage() {
   // 검색 키워드 State
   const [keyword, setKeyword] = useState(queryState.keyword || '');
 
+  // 출입 판정 필터 State
+  const [selectedMatchStatus, setSelectedMatchStatus] = useState('');
+
   // 지역 State
   const initialRegion = REGION_OPTIONS.find(r => r.code === queryState.region || r.label === queryState.region || r.code === queryState.regionCode);
   const [selectedRegionCode, setSelectedRegionCode] = useState(initialRegion ? initialRegion.code : '');
@@ -186,10 +189,19 @@ function SearchPage() {
   };
 
   const goToDetail = (spotId) => {
-    const targetSpot = spots.find(s => String(s.id) === String(spotId));
-    const source = targetSpot?.source || 'tourapi';
-    navigate(`/detail/${spotId}?source=${source}`);
-  };
+  const targetSpot = spots.find(s => String(s.id) === String(spotId));
+  if (!targetSpot) return;
+
+  const source = targetSpot.source || 'tourapi';
+  const currentPetId = selectedPetIds[0] || ''; 
+
+  navigate(`/detail/${spotId}?source=${source}&petId=${currentPetId}`, {
+    state: { 
+      previewImage: targetSpot.imageUrl || '',
+      petId: currentPetId // state로도 안전하게 동시 전달
+    }
+  });
+};
 
   const selectedSpotDetail = spots.find(s => String(s.id) === String(selectedSpotId));
 
@@ -397,7 +409,49 @@ function SearchPage() {
           </button>
         </div>
       </div>
-
+      
+        {/* 1. 기존 검색 필터 바 내부 또는 아래쪽에 출입 상태 필터 추가 */}
+        <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#4b5563' }}>출입 판정:</span>
+          {[
+            { label: '전체', value: '' },
+            { label: '🟢 방문 가능', value: '가능' },
+            { label: '🟡 조건부', value: '조건부' },
+            { label: '🔴 방문 불가', value: '불가' }
+          ].map((filter) => {
+            const isSelected = selectedMatchStatus === filter.value;
+            return (
+              <button
+                key={filter.value}
+                type="button"
+                onClick={() => {
+                  setSelectedMatchStatus(filter.value);
+                  // 상태 변경 즉시 검색 API 호출
+                  fetchSpots({
+                    regionCode: selectedRegionCode,
+                    category: selectedCategory,
+                    matchStatus: filter.value, // 💡 백엔드 matchStatus 필터 전달
+                    petId: selectedPetIds[0] || '',
+                    keyword: keyword.trim()
+                  }, false);
+                }}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: '20px',
+                  border: isSelected ? '1.5px solid #2563eb' : '1px solid #cbd5e1',
+                  backgroundColor: isSelected ? '#eff6ff' : '#fff',
+                  color: isSelected ? '#2563eb' : '#374151',
+                  fontSize: '13px',
+                  fontWeight: isSelected ? 'bold' : 'normal',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+              >
+                {filter.label}
+              </button>
+            );
+          })}
+        </div>
       {/* --- 콘텐츠 목록 영역 --- */}
       {isLoading && spots.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '50px', color: '#6b7280' }}>장소 정보를 불러오는 중입니다...</div>
@@ -432,7 +486,20 @@ function SearchPage() {
                       overflow: 'hidden' 
                     }}>
                       {spot.imageUrl ? (
-                        <img src={spot.imageUrl} alt={spot.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+                          <img src={spot.imageUrl} alt={spot.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          {/* 구글 이미지 저작자 표기 정책 반영 */}
+                          {spot.imageAttribution && (
+                            <span style={{ 
+                              position: 'absolute', bottom: '4px', right: '4px', 
+                              fontSize: '9px', backgroundColor: 'rgba(0,0,0,0.6)', color: '#fff', 
+                              padding: '2px 4px', borderRadius: '4px', maxWidth: '90%', 
+                              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' 
+                            }}>
+                              {spot.imageAttribution}
+                            </span>
+                          )}
+                        </div>
                       ) : (
                         <>
                           <span style={{ fontSize: '32px', marginBottom: '4px' }}>
@@ -447,7 +514,7 @@ function SearchPage() {
                       <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); toggleFavorite(spot); }}
-                        style={{ position: 'absolute', top: '10px', right: '10px', backgroundColor: 'rgba(255, 255, 255, 0.9)', border: 'none', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer' }}
+                        style={{ position: 'absolute', top: '10px', right: '10px', backgroundColor: 'rgba(255, 255, 255, 0.9)', border: 'none', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', zIndex: 2 }}
                       >
                         {liked ? '❤️' : '🤍'}
                       </button>
@@ -490,9 +557,21 @@ function SearchPage() {
                 <h3 style={{ marginTop: '0', marginBottom: '16px', fontSize: '20px', borderBottom: '1px solid #e5e7eb', paddingBottom: '10px', color: '#1f2937' }}>
                   {selectedSpotDetail.name}
                 </h3>
-                <div style={{ width: '100%', height: '160px', backgroundColor: '#e5e7eb', borderRadius: '8px', marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6b7280', overflow: 'hidden' }}>
+                <div style={{ width: '100%', height: '160px', backgroundColor: '#e5e7eb', borderRadius: '8px', marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6b7280', overflow: 'hidden', position: 'relative' }}>
                   {selectedSpotDetail.imageUrl ? (
-                    <img src={selectedSpotDetail.imageUrl} alt={selectedSpotDetail.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <>
+                      <img src={selectedSpotDetail.imageUrl} alt={selectedSpotDetail.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      {selectedSpotDetail.imageAttribution && (
+                        <span style={{ 
+                          position: 'absolute', bottom: '4px', right: '4px', 
+                          fontSize: '9px', backgroundColor: 'rgba(0,0,0,0.6)', color: '#fff', 
+                          padding: '2px 4px', borderRadius: '4px', maxWidth: '90%', 
+                          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' 
+                        }}>
+                          {selectedSpotDetail.imageAttribution}
+                        </span>
+                      )}
+                    </>
                   ) : (
                     <span>🖼️ 대표 이미지 준비중</span>
                   )}

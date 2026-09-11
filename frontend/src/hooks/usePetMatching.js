@@ -1,39 +1,65 @@
 // src/hooks/usePetMatching.js
+import { useState, useEffect } from 'react';
+import { authFetch } from '../services/api';
 
-export const usePetMatching = (spotPetInfo) => {
-  // 로컬 스토리지에 저장된 사용자 반려동물 프로필을 불러옵니다
-  const getStoredPetProfile = () => {
-    const saved = localStorage.getItem('paw_pass_pet_profile');
-    return saved ? JSON.parse(saved) : { size: '소형', weight: 5 };
-  };
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://172.30.1.29:8080';
 
-  const pet = getStoredPetProfile();
+export const usePetMatching = (id, source = 'tourapi', petId = '') => {
+  const [matchResult, setMatchResult] = useState({
+    status: '조회 중...',
+    color: '#64748b',
+    reason: '판정 결과를 불러오는 중입니다.'
+  });
+  const [isLoading, setIsLoading] = useState(true);
 
-  // 관광지 조건과 반려동물 프로필을 비교하는 로직
-  const calculateMatchStatus = () => {
-    if (!spotPetInfo) return { status: '직접 확인 필요', color: '#777', reason: '정보 없음' };
+  useEffect(() => {
+    if (!id) return;
 
-    // 1. 동반 가능 여부 기본 체크
-    if (!spotPetInfo.allowed) {
-      return { status: '방문 불가', color: 'red', reason: '반려동물 동반이 불가능한 시설입니다.' };
-    }
+    const fetchMatching = async () => {
+      setIsLoading(true);
+      try {
+        // 💡 source에 따른 엔드포인트 분기 처리 (kcisa vs tourapi)
+        const endpoint = source === 'kcisa' 
+          ? `${BASE_URL}/facilities/${id}/match` 
+          : `${BASE_URL}/tours/${id}/match`;
 
-    // 2. 최대 무게 제한 체크 (백틱 및 올바른 변수명으로 수정)
-    if (spotPetInfo.maxWeight && pet.weight > spotPetInfo.maxWeight) {
-      return { 
-        status: '조건부 방문 불가', 
-        color: '#ff9800', 
-        reason: `제한 체중(${spotPetInfo.maxWeight}kg)을 초과합니다.` 
-      };
-    }
+        const query = petId ? `?petId=${petId}` : '';
 
-    // 3. 기본 통과 시
-    return { 
-      status: spotPetInfo.indoor ? '방문 가능' : '조건부 방문 가능', 
-      color: spotPetInfo.indoor ? 'green' : '#ff9800', 
-      reason: spotPetInfo.indoor ? '실내 및 야외 모두 동반 가능합니다.' : '야외 공간만 동반 가능합니다.' 
+        const res = await authFetch(`${endpoint}${query}`, { method: 'GET' });
+        
+        if (!res.ok) {
+          throw new Error('매칭 판정 조회 실패');
+        }
+
+        const result = await res.json();
+        const data = result.data || result;
+
+        const statusText = data.match_status || data.status || '직접 확인 필요';
+        
+        let color = '#64748b';
+        if (statusText === '가능' || statusText === '방문 가능') color = 'green';
+        else if (statusText === '조건부' || statusText === '조건부 방문 가능') color = '#ff9800';
+        else if (statusText === '불가' || statusText === '방문 불가') color = 'red';
+
+        setMatchResult({
+          status: statusText,
+          color: color,
+          reason: data.reason || data.description || '반려동물 동반 조건에 따른 판정 결과입니다.'
+        });
+      } catch (err) {
+        console.error('펫 매칭 API 호출 에러:', err);
+        setMatchResult({
+          status: '판정 불가',
+          color: 'red',
+          reason: '반려동물 맞춤 판정을 불러오지 못했습니다.'
+        });
+      } finally {
+        setIsLoading(false);
+      }
     };
-  };
 
-  return { matchResult: calculateMatchStatus() };
+    fetchMatching();
+  }, [id, source, petId]);
+
+  return { matchResult, isLoading };
 };

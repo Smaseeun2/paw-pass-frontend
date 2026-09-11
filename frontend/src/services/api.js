@@ -238,3 +238,11 @@ export const fetchFacilityDetail = async (id) => {
   const result = await res.json();
   return result.data || result;
 };
+
+// 15. 문화시설 이미지 단건 조회 (GET /facilities/{id}/image)
+export const fetchFacilityImage = async (id) => {
+  const res = await authFetch(`${BASE_URL}/facilities/${id}/image`, { method: 'GET' });
+  if (!res.ok) throw new Error('문화시설 이미지 조회 실패');
+  const result = await res.json();
+  return result.data || result;
+};
