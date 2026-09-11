@@ -6,7 +6,7 @@ export const getHeaders = () => {
   const token = localStorage.getItem('paw_pass_access_token');
   return {
     'Content-Type': 'application/json',
-    'ngrok-skip-browser-warning': '69420', // 💡 ngrok 안내 화면 강제 스킵
+    'ngrok-skip-browser-warning': '69420', // ngrok 안내 화면 강제 스킵
     ...(token ? { Authorization: `Bearer ${token}` } : {})
   };
 };
@@ -42,9 +42,7 @@ export const refreshAccessToken = async () => {
   throw new Error('새 액세스 토큰 수신 실패');
 };
 
-// src/services/api.js
-
-// 3. 인터셉터 Fetch 보완
+// 3. 인터셉터 Fetch
 export const authFetch = async (url, options = {}) => {
   let token = localStorage.getItem('paw_pass_access_token');
 
@@ -57,7 +55,7 @@ export const authFetch = async (url, options = {}) => {
 
   let res = await fetch(url, { ...options, headers });
 
-  // 401 Unauthorized 또는 403 Forbidden 발생 시
+  // 401 Unauthorized 또는 403 Forbidden 발생 시 처리
   if (res.status === 401 || res.status === 403) {
     const refreshToken = localStorage.getItem('paw_pass_refresh_token');
 
@@ -76,7 +74,7 @@ export const authFetch = async (url, options = {}) => {
     localStorage.removeItem('paw_pass_access_token');
     localStorage.removeItem('paw_pass_refresh_token');
 
-    // 3) explore/tours 같은 공개 API는 토큰을 떼고 1회 재요청 시도
+    // 3) 공개 API(/explore, /tours, /facilities)는 토큰 없이 1회 재시도
     if (url.includes('/explore') || url.includes('/tours') || url.includes('/facilities')) {
       delete headers.Authorization;
       res = await fetch(url, { ...options, headers });
@@ -97,7 +95,7 @@ export const loginWithGoogleCode = async (code) => {
   return res.json();
 };
 
-// 5. 백엔드 로그아웃 (💡 App.jsx가 필요로 하는 export 추가)
+// 5. 백엔드 로그아웃
 export const logoutBackend = async (refreshToken) => {
   try {
     await fetch(`${BASE_URL}/auth/logout`, {
@@ -157,17 +155,45 @@ export const updatePetInDB = async (petId, petData) => {
   return result.data || result;
 };
 
-// 10. 통합 관광지/문화시설 탐색 (추천: GET /explore)
-export const fetchExploreSpots = async ({ region_code = '', category = '', match_status = '', page = 1 } = {}) => {
+// 10. 통합 관광지/문화시설 탐색 (GET /explore)
+// 백엔드 명세: regionCode, category, matchStatus, petId, page
+export const fetchExploreSpots = async ({
+  regionCode = '',
+  category = '',
+  matchStatus = '',
+  match_status = '', // 이전 파라미터 호환용
+  petId = '',
+  keyword = '',
+  page = 1
+} = {}) => {
   const params = new URLSearchParams();
-  if (region_code) params.append('region_code', region_code);
-  if (category) params.append('category', category);
-  if (match_status) params.append('match_status', match_status);
-  if (page) params.append('page', page);
 
-  const res = await authFetch(`${BASE_URL}/explore?${params.toString()}`, { method: 'GET' });
-  if (!res.ok) throw new Error('통합 탐색 조회 실패');
-  return res.json();
+  // 지역명 (서울, 경기 등 한글 지명)
+  if (regionCode) params.append('regionCode', regionCode);
+
+  // 카테고리 (NATURE, CAFE, FOOD, CULTURE, STAY)
+  if (category) params.append('category', category);
+
+  // 출입 판정 필터 (matchStatus 우선, 없으면 match_status)
+  const finalMatchStatus = matchStatus || match_status;
+  if (finalMatchStatus) params.append('matchStatus', finalMatchStatus);
+
+  // 특정 반려동물 ID (개인화 출입 판정용)
+  if (petId) params.append('petId', petId);
+
+  // 검색 키워드
+  if (keyword) params.append('keyword', keyword);
+
+  // 페이징 번호
+  params.append('page', page);
+
+  const res = await authFetch(`${BASE_URL}/explore?${params.toString()}`, {
+    method: 'GET'
+  });
+
+  if (!res.ok) throw new Error('장소 목록 조회 실패');
+  const result = await res.json();
+  return result.data || result;
 };
 
 // 11. 관광공사 실시간 관광지 검색 (GET /tours)
@@ -175,7 +201,7 @@ export const fetchTours = async ({ region_code = '', category = '', page = 1 } =
   const params = new URLSearchParams();
   if (region_code) params.append('region_code', region_code);
   if (category) params.append('category', category);
-  if (page) params.append('page', page);
+  params.append('page', page);
 
   const res = await authFetch(`${BASE_URL}/tours?${params.toString()}`, { method: 'GET' });
   if (!res.ok) throw new Error('관광지 목록 조회 실패');
@@ -187,12 +213,28 @@ export const fetchFacilities = async ({ region_code = '', category = '', page = 
   const params = new URLSearchParams();
   if (region_code) params.append('region_code', region_code);
   if (category) params.append('category', category);
-  if (page) params.append('page', page);
+  params.append('page', page);
 
   const res = await authFetch(`${BASE_URL}/facilities?${params.toString()}`, {
     method: 'GET'
   });
   if (!res.ok) throw new Error('문화시설 목록 조회 실패');
+  const result = await res.json();
+  return result.data || result;
+};
+
+// 13. 관광공사 관광지 상세 단건 조회 (GET /tours/{contentId})
+export const fetchTourDetail = async (contentId) => {
+  const res = await authFetch(`${BASE_URL}/tours/${contentId}`, { method: 'GET' });
+  if (!res.ok) throw new Error('관광지 상세 정보 조회 실패');
+  const result = await res.json();
+  return result.data || result;
+};
+
+// 14. 문화시설 상세 단건 조회 (GET /facilities/{id})
+export const fetchFacilityDetail = async (id) => {
+  const res = await authFetch(`${BASE_URL}/facilities/${id}`, { method: 'GET' });
+  if (!res.ok) throw new Error('문화시설 상세 정보 조회 실패');
   const result = await res.json();
   return result.data || result;
 };

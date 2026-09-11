@@ -1,5 +1,5 @@
 // src/hooks/useTouristSpots.js
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { fetchExploreSpots } from '../services/api';
 
 export const useTouristSpots = () => {
@@ -7,40 +7,59 @@ export const useTouristSpots = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [page, setPage] = useState(1);
-  const [currentCondition, setCurrentCondition] = useState({});
+
+  const currentConditionRef = useRef({});
 
   const fetchSpots = useCallback(async (condition = {}, isAppend = false) => {
     setIsLoading(true);
 
-    const targetPage = isAppend ? (condition.page || page + 1) : 1;
-    const queryCondition = isAppend ? currentCondition : condition;
+    const targetPage = isAppend ? (currentConditionRef.current.page || 1) + 1 : 1;
+
+    if (!isAppend) {
+      currentConditionRef.current = { ...condition, page: 1 };
+      setPage(1);
+    } else {
+      currentConditionRef.current.page = targetPage;
+      setPage(targetPage);
+    }
+
+    const queryCondition = isAppend ? currentConditionRef.current : condition;
+
+    const regionCode = queryCondition.regionCode || '';
+    const category = queryCondition.category || '';
+    const petId = queryCondition.petId || '';
+    const matchStatus = queryCondition.matchStatus || '';
 
     try {
       const data = await fetchExploreSpots({
-        region_code: queryCondition.region || '',
-        category: queryCondition.type || '',
-        match_status: queryCondition.matchStatus || '',
+        regionCode,
+        category,
+        matchStatus,
+        petId,
         page: targetPage
       });
 
       const rawSpots = Array.isArray(data) ? data : (data?.data || []);
 
-      const mappedSpots = rawSpots.map((spot, idx) => {
+      const mappedSpots = rawSpots.map((spot) => {
+        const spotId = String(spot.id);
         const contactTel = spot.tel || '정보 미제공';
+
         return {
-          contentId: String(spot.id || `${targetPage}-${idx + 1}`),
+          id: spotId,
+          contentId: spotId,
           name: spot.title || '장소명 없음',
           address: spot.addr || '주소 정보 없음',
-          imageUrl: spot.image || spot.first_image || '',
+          imageUrl: spot.image || '',
           tel: contactTel,
           phone: contactTel,
           lat: spot.lat,
           lng: spot.lng,
           source: spot.source || 'tourapi',
-          matchStatus: spot.match_status || '',
-          description: spot.description || '',
+          dedupKey: spot.dedup_key,
+          matchStatus: spot.match_status || '확인필요',
           petInfoDescription: spot.match_status 
-            ? `출입 조건 판별: ${spot.match_status}` 
+            ? `출입 판정: ${spot.match_status}` 
             : (spot.source === 'kcisa' ? '반려동물 편의시설' : '반려동물 동반 여행지')
         };
       });
@@ -48,33 +67,28 @@ export const useTouristSpots = () => {
       if (isAppend) {
         setSpots(prev => {
           const map = new Map();
-          // 기존 항목 먼저 삽입
-          prev.forEach(item => map.set(item.contentId, item));
-          // 새로 불러온 항목 병합 (중복 키 자동 방지)
-          mappedSpots.forEach(item => map.set(item.contentId, item));
+          prev.forEach(item => map.set(item.id, item));
+          mappedSpots.forEach(item => map.set(item.id, item));
           return Array.from(map.values());
         });
       } else {
         setSpots(mappedSpots);
-        setCurrentCondition(condition);
       }
 
-      // 받아온 데이터가 40개 미만이면 더 이상 데이터가 없다고 판단
       setHasMore(rawSpots.length >= 40);
-      setPage(targetPage);
     } catch (err) {
-      console.error('관광지 목록 조회 실패:', err);
+      console.error('장소 목록 조회 실패:', err);
       if (!isAppend) setSpots([]);
     } finally {
       setIsLoading(false);
     }
-  }, [page, currentCondition]);
+  }, []);
 
-  const loadMore = () => {
+  const loadMore = useCallback(() => {
     if (!isLoading && hasMore) {
-      fetchSpots(currentCondition, true);
+      fetchSpots(currentConditionRef.current, true);
     }
-  };
+  }, [fetchSpots, isLoading, hasMore]);
 
   return { spots, isLoading, hasMore, fetchSpots, loadMore };
 };

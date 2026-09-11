@@ -1,45 +1,68 @@
 // src/pages/DetailPage.jsx
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useSpotDetail } from '../hooks/useSpotDetail';
 import { useFavorites } from '../hooks/useFavorites';
-import { usePetMatching } from '../hooks/usePetMatching'; // 매칭 훅 불러오기
+import { usePetMatching } from '../hooks/usePetMatching';
 
 function DetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { detail } = useSpotDetail(id);
-  const { toggleFavorite, isFavorite } = useFavorites();
-  
-  // 관광지의 petInfo를 매칭 훅에 전달
-  const { matchResult } = usePetMatching(detail?.petInfo);
+  const [searchParams] = useSearchParams();
+  const source = searchParams.get('source') || 'tourapi';
 
-  if (!detail) {
+  const { detail, isLoading } = useSpotDetail(id, source);
+  const { toggleFavorite, isFavorite } = useFavorites();
+  const { matchResult } = usePetMatching(detail?.petCondition);
+
+  if (isLoading) {
     return (
-      <div style={{ padding: '20px' }}>
-        <button onClick={() => navigate(-1)} style={{ marginBottom: '20px', padding: '5px 10px', cursor: 'pointer' }}>
-          ← 뒤로 가기
-        </button>
-        <p>관광지 정보를 찾을 수 없습니다.</p>
+      <div style={{ padding: '60px 20px', textAlign: 'center', color: '#64748b' }}>
+        장소 상세 정보를 실시간으로 불러오는 중입니다...
       </div>
     );
   }
 
-  const liked = isFavorite(detail.contentId);
+  if (!detail) {
+    return (
+      <div style={{ padding: '40px 20px', maxWidth: '600px', margin: '0 auto', textAlign: 'center' }}>
+        <p style={{ color: '#64748b', marginBottom: '20px' }}>장소 정보를 찾을 수 없습니다.</p>
+        <button 
+          onClick={() => navigate(-1)} 
+          style={{ padding: '10px 18px', backgroundColor: '#3b82f6', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}
+        >
+          ← 뒤로 가기
+        </button>
+      </div>
+    );
+  }
+
+  const liked = isFavorite(detail.contentId || detail.id);
+  const cond = detail.petCondition;
+
+  // 지도 바로가기 URL 생성 (좌표가 있을 때 네이버지도/카카오맵 검색 연결)
+  const mapSearchUrl = detail.lat && detail.lng 
+    ? `https://map.kakao.com/link/map/${encodeURIComponent(detail.name)},${detail.lat},${detail.lng}`
+    : `https://map.kakao.com/link/search/${encodeURIComponent(detail.address || detail.name)}`;
 
   return (
-    <div style={{ padding: '0 20px', paddingBottom: '50px', maxWidth: '600px', margin: '0 auto' }}>
+    <div style={{ padding: '0 20px', paddingBottom: '60px', maxWidth: '680px', margin: '0 auto', fontFamily: 'sans-serif' }}>
+      
+      {/* 상단 네비게이션 */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '20px 0' }}>
-        <button onClick={() => navigate(-1)} style={{ padding: '8px 12px', cursor: 'pointer' }}>
+        <button 
+          onClick={() => navigate(-1)} 
+          style={{ padding: '8px 14px', backgroundColor: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', color: '#334155' }}
+        >
           ← 뒤로 가기
         </button>
         
         <button 
-          onClick={() => toggleFavorite(detail)} // 👈 detail.contentId 가 아니라 detail 객체 전체를 전달해야 합니다!
+          onClick={() => toggleFavorite(detail)}
           style={{ 
-            padding: '8px 15px', 
-            backgroundColor: liked ? '#ff4081' : '#fff', 
-            color: liked ? '#fff' : '#333', 
-            border: '1px solid #ff4081', 
+            padding: '8px 16px', 
+            backgroundColor: liked ? '#ef4444' : '#fff', 
+            color: liked ? '#fff' : '#ef4444', 
+            border: '1.5px solid #ef4444', 
             borderRadius: '20px', 
             cursor: 'pointer',
             fontWeight: 'bold'
@@ -49,42 +72,95 @@ function DetailPage() {
         </button>
       </div>
 
-      <h2>{detail.name}</h2>
-      
-      {detail.imageUrl && (
+      {/* 장소 타이틀 & 출처 뱃지 */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+        <h2 style={{ margin: 0, fontSize: '26px', color: '#1e293b' }}>{detail.name}</h2>
+        <span style={{ 
+          fontSize: '12px', 
+          padding: '4px 8px', 
+          borderRadius: '6px', 
+          backgroundColor: detail.source === 'kcisa' ? '#e0f2fe' : '#fef3c7', 
+          color: detail.source === 'kcisa' ? '#0369a1' : '#b45309', 
+          fontWeight: 'bold' 
+        }}>
+          {detail.source === 'kcisa' ? '반려동물 시설' : '관광공사 여행지'}
+        </span>
+      </div>
+
+      {/* 대표 이미지 & 미등록 플레이스홀더 */}
+      {detail.imageUrl ? (
         <img 
           src={detail.imageUrl} 
           alt={detail.name} 
-          style={{ width: '100%', height: '250px', objectFit: 'cover', borderRadius: '8px', marginBottom: '20px' }} 
+          style={{ width: '100%', height: '320px', objectFit: 'cover', borderRadius: '12px', marginBottom: '20px', backgroundColor: '#f1f5f9' }} 
         />
+      ) : (
+        <div style={{ width: '100%', height: '180px', backgroundColor: '#f8fafc', borderRadius: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', marginBottom: '20px', border: '1px dashed #cbd5e1' }}>
+          <span style={{ fontSize: '32px', marginBottom: '8px' }}>🖼️</span>
+          <span style={{ fontSize: '14px', fontWeight: 'bold' }}>등록된 대표 이미지가 없습니다</span>
+        </div>
       )}
-      
-      <div style={{ lineHeight: '1.6', backgroundColor: '#fdfdfd', padding: '15px', border: '1px solid #eee', borderRadius: '8px' }}>
-        <p><strong>📍 주소:</strong> {detail.address}</p>
-        <p><strong>📞 전화번호:</strong> {detail.phone || '정보 없음'}</p>
-        <p><strong>📝 설명:</strong> {detail.description}</p>
+
+      {/* 기본 이용 정보 */}
+      <div style={{ lineHeight: '1.7', backgroundColor: '#fff', padding: '18px 20px', border: '1px solid #e2e8f0', borderRadius: '12px', marginBottom: '24px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <p style={{ margin: '0 0 8px 0', flex: 1 }}><strong>📍 주소:</strong> {detail.address}</p>
+          <a 
+            href={mapSearchUrl} 
+            target="_blank" 
+            rel="noreferrer" 
+            style={{ fontSize: '13px', color: '#2563eb', fontWeight: 'bold', textDecoration: 'none', marginLeft: '12px', whiteSpace: 'nowrap' }}
+          >
+            지도 보기 ↗
+          </a>
+        </div>
+        <p style={{ margin: '0 0 8px 0' }}><strong>📞 전화번호:</strong> {detail.phone || '정보 미제공'}</p>
+        <p style={{ margin: '0 0 8px 0' }}><strong>⏰ 운영시간:</strong> {detail.hours}</p>
+        {cond.parkingAvailable && (
+          <p style={{ margin: '0 0 8px 0' }}><strong>🚗 주차 정보:</strong> {cond.parkingAvailable}</p>
+        )}
+        {detail.description && (
+          <p style={{ margin: '8px 0 0 0', color: '#475569', borderTop: '1px solid #f1f5f9', paddingTop: '8px' }}>
+            {detail.description}
+          </p>
+        )}
       </div>
 
-      <hr style={{ margin: '20px 0', borderColor: '#eee' }} />
+      {/* 내 반려동물 맞춤 판정 */}
+      {matchResult && (
+        <div style={{ marginBottom: '24px' }}>
+          <h3 style={{ fontSize: '18px', color: '#1e293b', marginBottom: '10px' }}>🐾 내 반려동물 맞춤 방문 판정</h3>
+          <div style={{ backgroundColor: '#f0f9ff', padding: '16px', borderRadius: '12px', border: '1px solid #bae6fd' }}>
+            <p style={{ fontSize: '15px', fontWeight: 'bold', color: matchResult.color || '#0284c7', margin: '0 0 6px 0' }}>
+              판정 결과: {matchResult.status}
+            </p>
+            <p style={{ fontSize: '13px', color: '#334155', margin: 0 }}>
+              근거: {matchResult.reason}
+            </p>
+          </div>
+        </div>
+      )}
 
-      {/* --- 개인별 맞춤 매칭 결과 영역 (기능명세서 반영) --- */}
-      <h3>🐾 내 반려동물 맞춤 방문 판정</h3>
-      <div style={{ backgroundColor: '#f0f4f8', padding: '15px', borderRadius: '8px', border: '1px solid #d0e1fd', marginBottom: '20px' }}>
-        <p style={{ fontSize: '16px', fontWeight: 'bold', color: matchResult.color, margin: '0 0 8px 0' }}>
-          판정 결과: {matchResult.status}
-        </p>
-        <p style={{ fontSize: '14px', color: '#444', margin: 0 }}>
-          근거: {matchResult.reason}
-        </p>
+      {/* 반려동물 동반 조건 상세 */}
+      <h3 style={{ fontSize: '18px', color: '#1e293b', marginBottom: '10px' }}>🐶 반려동물 동반 조건 안내</h3>
+      <div style={{ backgroundColor: '#f0fdf4', padding: '18px 20px', borderRadius: '12px', border: '1px solid #bbf7d0', lineHeight: '1.7', color: '#166534' }}>
+        {detail.source === 'tourapi' ? (
+          <>
+            <p style={{ margin: '0 0 8px 0' }}><strong>동반 가능 유형:</strong> {cond.acmpyType || '현장 문의 필요'}</p>
+            <p style={{ margin: '0 0 8px 0' }}><strong>입장 가능 동물/크기:</strong> {cond.possibleBreeds || '제한 없음 (현장 확인 권장)'}</p>
+            <p style={{ margin: '0 0 8px 0' }}><strong>필수 준비물:</strong> {cond.needItem || '목줄 및 배변봉투 지참'}</p>
+            {cond.etcInfo && (
+              <p style={{ margin: '0' }}><strong>기타 안내:</strong> {cond.etcInfo}</p>
+            )}
+          </>
+        ) : (
+          <>
+            <p style={{ margin: '0 0 8px 0' }}><strong>제한 사항:</strong> {cond.petRestriction || '현장 규정 확인 필요'}</p>
+            <p style={{ margin: '0' }}><strong>기타 편의:</strong> {cond.parkingAvailable ? `주차 가능 여부: ${cond.parkingAvailable}` : '안내 사항 준수'}</p>
+          </>
+        )}
       </div>
 
-      <h3>🐶 반려동물 동반 상세 안내</h3>
-      <div style={{ backgroundColor: '#f4f9f4', padding: '15px', borderRadius: '8px', border: '1px solid #d4edda' }}>
-        <p><strong>실내 출입:</strong> {detail.petInfo?.indoor ? '실내 동반 가능' : '야외만 가능'}</p>
-        <p><strong>목줄 필요 여부:</strong> {detail.petInfo?.needLeash ? '필수' : '필요 없음'}</p>
-        <p><strong>입장 가능 동물:</strong> {detail.petInfo?.allowedTypes?.join(', ') || '정보 없음'}</p>
-        <p><strong>필수 준비물:</strong> {detail.petInfo?.preparation?.join(', ') || '없음'}</p>
-      </div>
     </div>
   );
 }
