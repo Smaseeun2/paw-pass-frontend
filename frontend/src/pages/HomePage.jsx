@@ -3,16 +3,32 @@ import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import mockSpots from '../mocks/tourist-spots.json';
 import { useFavorites } from '../hooks/useFavorites';
+import { fetchPetsFromDB } from '../services/api';
 
 function HomePage() {
   const navigate = useNavigate();
   const { toggleFavorite, isFavorite } = useFavorites();
+
+  // 로그인 유저 정보
+  const [user] = useState(() => {
+    try {
+      const saved = localStorage.getItem('paw_pass_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  // DB에 등록된 내 반려동물 목록 & 선택된 아이 ID
+  const [myPets, setMyPets] = useState([]);
+  const [selectedPetIds, setSelectedPetIds] = useState([]);
 
   const [keyword, setKeyword] = useState('');
   const [selectedRegion, setSelectedRegion] = useState('');
   const [selectedType, setSelectedType] = useState('');
   const [selectedTypeName, setSelectedTypeName] = useState('');
   
+  // 직접 추가하는 소/중/대형 마리수 (추가 동반용)
   const [petCounts, setPetCounts] = useState({
     small: 0,
     medium: 0,
@@ -22,19 +38,23 @@ function HomePage() {
   const [activeDropdown, setActiveDropdown] = useState(null);
   const dropdownRef = useRef(null);
 
-  // 로그인된 계정의 반려동물 데이터 조회
-  const [myPets] = useState(() => {
-    try {
-      const savedUser = localStorage.getItem('paw_pass_user');
-      const user = savedUser ? JSON.parse(savedUser) : null;
-      if (!user?.email) return [];
-      const saved = localStorage.getItem(`paw_pass_pets_${user.email}`);
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
+  // 로그인된 계정의 반려동물 데이터 백엔드 DB에서 실시간 조회
+  useEffect(() => {
+    const loadUserPets = async () => {
+      if (user) {
+        try {
+          const res = await fetchPetsFromDB();
+          const serverPets = Array.isArray(res) ? res : (res?.data || []);
+          setMyPets(serverPets);
+        } catch (err) {
+          console.warn('홈 내 반려동물 로드 실패:', err);
+        }
+      }
+    };
+    loadUserPets();
+  }, [user]);
 
+  // 바깥 클릭 시 드롭다운 닫기
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
@@ -45,8 +65,17 @@ function HomePage() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // 검색 실행: 선택한 반려동물 ID와 마리수를 모두 들고 검색 페이지로 이동
   const handleSearch = () => {
-    navigate('/search', { state: { keyword, region: selectedRegion, type: selectedType, petCounts } });
+    navigate('/search', { 
+      state: { 
+        keyword, 
+        region: selectedRegion, 
+        type: selectedType, 
+        selectedPetIds,
+        petCounts 
+      } 
+    });
   };
 
   const handleCountChange = (size, delta, e) => {
@@ -57,15 +86,36 @@ function HomePage() {
     });
   };
 
+  const handlePetToggle = (petId, e) => {
+    e.stopPropagation();
+    setSelectedPetIds(prev => 
+      prev.includes(petId) ? prev.filter(id => id !== petId) : [...prev, petId]
+    );
+  };
+
+  // 버튼에 노출될 라벨 문자열 생성 (내 아이 이름 + 추가 마리수 통합)
   const getPetFilterLabel = () => {
-    const { small, medium, large } = petCounts;
-    const total = small + medium + large;
-    if (total === 0) return '반려동물 선택';
-    
     const parts = [];
-    if (small > 0) parts.push(`소형견/묘 ${small}마리`);
-    if (medium > 0) parts.push(`중형견/묘 ${medium}마리`);
-    if (large > 0) parts.push(`대형견/묘 ${large}마리`);
+
+    // 1. 선택된 내 등록 반려동물 이름
+    if (user && myPets.length > 0 && selectedPetIds.length > 0) {
+      const selectedNames = myPets
+        .filter(p => selectedPetIds.includes(p.id))
+        .map(p => p.name);
+      if (selectedNames.length > 0) {
+        parts.push(selectedNames.join(', '));
+      }
+    }
+
+    // 2. 추가 선택한 소/중/대형 마리수
+    const extraParts = [];
+    if (petCounts.small > 0) extraParts.push(`소형 ${petCounts.small}`);
+    if (petCounts.medium > 0) extraParts.push(`중형 ${petCounts.medium}`);
+    if (petCounts.large > 0) extraParts.push(`대형 ${petCounts.large}`);
+
+    if (extraParts.length > 0) {
+      parts.push(extraParts.join('+'));
+    }
 
     return parts.length > 0 ? parts.join(' + ') : '반려동물 선택';
   };
@@ -104,20 +154,20 @@ function HomePage() {
               flexWrap: 'nowrap', overflow: 'visible'
             }}
           >
-            {/* 검색어 입력 */}
+            {/* 1. 검색어 입력 */}
             <div style={{ flex: '2 1 220px', position: 'relative' }}>
               <input 
                 type="text"
                 value={keyword}
                 onChange={(e) => setKeyword(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') handleSearch(); }}
-                placeholder="관광지 검색 예시 글 ~~"
+                placeholder="관광지나 편의시설 검색"
                 style={{ width: '100%', padding: '12px 14px 12px 36px', backgroundColor: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '10px', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }}
               />
               <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }}>🔍</span>
             </div>
 
-            {/* 지역 선택 */}
+            {/* 2. 지역 선택 */}
             <div style={{ position: 'relative', flex: '1 1 140px' }}>
               <button 
                 onClick={() => setActiveDropdown(activeDropdown === 'region' ? null : 'region')}
@@ -129,14 +179,14 @@ function HomePage() {
               {activeDropdown === 'region' && (
                 <div style={{ position: 'absolute', top: 'calc(100% + 8px)', left: 0, width: '100%', backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '10px', boxShadow: '0 10px 20px rgba(0,0,0,0.1)', zIndex: 50, padding: '6px', boxSizing: 'border-box' }}>
                   <div onClick={() => { setSelectedRegion(''); setActiveDropdown(null); }} style={{ padding: '8px 10px', cursor: 'pointer', borderRadius: '6px', backgroundColor: !selectedRegion ? '#f1f5f9' : 'transparent', fontSize: '14px' }}>전체 지역</div>
-                  {['서울', '강릉', '제주'].map((reg) => (
+                  {['서울', '강릉', '제주', '경기도', '부산'].map((reg) => (
                     <div key={reg} onClick={() => { setSelectedRegion(reg); setActiveDropdown(null); }} style={{ padding: '8px 10px', cursor: 'pointer', borderRadius: '6px', backgroundColor: selectedRegion === reg ? '#f1f5f9' : 'transparent', fontSize: '14px' }}>{reg}</div>
                   ))}
                 </div>
               )}
             </div>
 
-            {/* 장소 카테고리 */}
+            {/* 3. 장소 카테고리 */}
             <div style={{ position: 'relative', flex: '1 1 150px' }}>
               <button 
                 onClick={() => setActiveDropdown(activeDropdown === 'type' ? null : 'type')}
@@ -160,63 +210,121 @@ function HomePage() {
               )}
             </div>
 
-            {/* 반려동물 선택 드롭다운 */}
+            {/* 4. 반려동물 선택 드롭다운 (내 프로필 + 추가 마리수 통합) */}
             <div style={{ position: 'relative', flex: '1 1 200px' }}>
               <button 
                 onClick={() => setActiveDropdown(activeDropdown === 'pet' ? null : 'pet')}
                 style={{ width: '100%', padding: '12px 14px', backgroundColor: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '10px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: '500', fontSize: '13px', color: '#1e293b', boxSizing: 'border-box' }}
               >
-                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{getPetFilterLabel()}</span>
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  🐾 {getPetFilterLabel()}
+                </span>
                 <span>▾</span>
               </button>
 
               {activeDropdown === 'pet' && (
-                <div style={{ position: 'absolute', top: 'calc(100% + 8px)', left: 0, width: '240px', backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '10px', boxShadow: '0 10px 20px rgba(0,0,0,0.1)', zIndex: 50, padding: '12px', boxSizing: 'border-box' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '14px' }}>
-                    
-                    <div 
-                      onClick={() => navigate('/profile')} 
-                      style={{ padding: '8px', cursor: 'pointer', borderRadius: '6px', color: '#2563eb', fontWeight: 'bold', borderBottom: '1px solid #f1f5f9', textAlign: 'center', backgroundColor: '#f8fafc' }}
-                    >
-                      + 반려동물 프로필 등록하기
-                    </div>
-
-                    {/* 소형견/묘 */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 6px' }}>
-                      <span>소형견/묘</span>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <button onClick={(e) => handleCountChange('small', -1, e)} style={{ width: '26px', height: '26px', border: '1px solid #cbd5e1', background: '#fff', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>-</button>
-                        <span style={{ minWidth: '40px', textAlign: 'center', fontWeight: 'bold' }}>{petCounts.small}마리</span>
-                        <button onClick={(e) => handleCountChange('small', 1, e)} style={{ width: '26px', height: '26px', border: '1px solid #cbd5e1', background: '#fff', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>+</button>
-                      </div>
-                    </div>
-
-                    {/* 중형견/묘 */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 6px' }}>
-                      <span>중형견/묘</span>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <button onClick={(e) => handleCountChange('medium', -1, e)} style={{ width: '26px', height: '26px', border: '1px solid #cbd5e1', background: '#fff', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>-</button>
-                        <span style={{ minWidth: '40px', textAlign: 'center', fontWeight: 'bold' }}>{petCounts.medium}마리</span>
-                        <button onClick={(e) => handleCountChange('medium', 1, e)} style={{ width: '26px', height: '26px', border: '1px solid #cbd5e1', background: '#fff', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>+</button>
-                      </div>
-                    </div>
-
-                    {/* 대형견/묘 */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 6px' }}>
-                      <span>대형견/묘</span>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <button onClick={(e) => handleCountChange('large', -1, e)} style={{ width: '26px', height: '26px', border: '1px solid #cbd5e1', background: '#fff', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>-</button>
-                        <span style={{ minWidth: '40px', textAlign: 'center', fontWeight: 'bold' }}>{petCounts.large}마리</span>
-                        <button onClick={(e) => handleCountChange('large', 1, e)} style={{ width: '26px', height: '26px', border: '1px solid #cbd5e1', background: '#fff', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>+</button>
-                      </div>
-                    </div>
-
+                <div style={{ position: 'absolute', top: 'calc(100% + 8px)', left: 0, width: '280px', backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px', boxShadow: '0 10px 20px rgba(0,0,0,0.12)', zIndex: 50, padding: '14px', boxSizing: 'border-box' }}>
+                  
+                  <div 
+                    onClick={() => navigate('/profile')} 
+                    style={{ padding: '8px', cursor: 'pointer', borderRadius: '6px', color: '#2563eb', fontWeight: 'bold', borderBottom: '1px solid #f1f5f9', textAlign: 'center', backgroundColor: '#f8fafc', marginBottom: '12px', fontSize: '13px' }}
+                  >
+                    + 반려동물 프로필 관리 / 등록
                   </div>
+
+                  {/* [섹션 1] 로그인했고 등록된 아이가 있을 때: 등록된 반려동물 카드 리스트 */}
+                  {user && myPets.length > 0 && (
+                    <div style={{ marginBottom: '14px' }}>
+                      <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#64748b', marginBottom: '8px' }}>
+                        등록된 우리 아이
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '150px', overflowY: 'auto' }}>
+                        {myPets.map((pet) => {
+                          const isSelected = selectedPetIds.includes(pet.id);
+                          const isImageFile = typeof pet.image === 'string' && (pet.image.startsWith('data:') || pet.image.startsWith('http'));
+
+                          return (
+                            <div 
+                              key={pet.id}
+                              onClick={(e) => handlePetToggle(pet.id, e)}
+                              style={{
+                                display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 10px',
+                                borderRadius: '8px', cursor: 'pointer',
+                                backgroundColor: isSelected ? '#eff6ff' : '#f8fafc',
+                                border: isSelected ? '1.5px solid #2563eb' : '1px solid #e2e8f0'
+                              }}
+                            >
+                              <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', overflow: 'hidden', flexShrink: 0 }}>
+                                {isImageFile ? (
+                                  <img src={pet.image} alt={pet.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                ) : (
+                                  <span>{pet.image || '🐶'}</span>
+                                )}
+                              </div>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <p style={{ margin: 0, fontWeight: 'bold', fontSize: '13px', color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                  {pet.name}
+                                </p>
+                                <p style={{ margin: 0, fontSize: '11px', color: '#64748b' }}>
+                                  {pet.breed} · {pet.weight}kg
+                                </p>
+                              </div>
+                              <span style={{ fontSize: '15px', color: isSelected ? '#2563eb' : '#cbd5e1', fontWeight: 'bold' }}>
+                                {isSelected ? '✓' : '○'}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* [섹션 2] 기본 소/중/대형 수량 카운터 (비로그인 시 단독 / 로그인 시 추가 동반용) */}
+                  <div>
+                    {user && myPets.length > 0 && (
+                      <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#64748b', marginBottom: '8px', borderTop: '1px solid #f1f5f9', paddingTop: '10px' }}>
+                        함께 가는 다른 반려동물 (추가)
+                      </div>
+                    )}
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px' }}>
+                      {/* 소형견/묘 */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#333' }}>
+                        <span>소형견/묘 (10kg 미만)</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <button onClick={(e) => handleCountChange('small', -1, e)} style={{ width: '24px', height: '24px', border: '1px solid #cbd5e1', background: '#fff', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>-</button>
+                          <span style={{ minWidth: '24px', textAlign: 'center', fontWeight: 'bold' }}>{petCounts.small}</span>
+                          <button onClick={(e) => handleCountChange('small', 1, e)} style={{ width: '24px', height: '24px', border: '1px solid #cbd5e1', background: '#fff', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>+</button>
+                        </div>
+                      </div>
+
+                      {/* 중형견/묘 */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#333' }}>
+                        <span>중형견/묘 (10~25kg)</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <button onClick={(e) => handleCountChange('medium', -1, e)} style={{ width: '24px', height: '24px', border: '1px solid #cbd5e1', background: '#fff', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>-</button>
+                          <span style={{ minWidth: '24px', textAlign: 'center', fontWeight: 'bold' }}>{petCounts.medium}</span>
+                          <button onClick={(e) => handleCountChange('medium', 1, e)} style={{ width: '24px', height: '24px', border: '1px solid #cbd5e1', background: '#fff', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>+</button>
+                        </div>
+                      </div>
+
+                      {/* 대형견/묘 */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#333' }}>
+                        <span>대형견/묘 (25kg 이상)</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <button onClick={(e) => handleCountChange('large', -1, e)} style={{ width: '24px', height: '24px', border: '1px solid #cbd5e1', background: '#fff', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>-</button>
+                          <span style={{ minWidth: '24px', textAlign: 'center', fontWeight: 'bold' }}>{petCounts.large}</span>
+                          <button onClick={(e) => handleCountChange('large', 1, e)} style={{ width: '24px', height: '24px', border: '1px solid #cbd5e1', background: '#fff', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>+</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
                 </div>
               )}
             </div>
 
-            {/* 검색 버튼 */}
+            {/* 5. 검색 버튼 */}
             <div style={{ flex: '0 0 auto' }}>
               <button 
                 onClick={handleSearch}
