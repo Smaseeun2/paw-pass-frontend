@@ -6,7 +6,7 @@ export const useTouristSpots = () => {
   const [spots, setSpots] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
-  const [page, setPage] = useState(1);
+  const [setPage] = useState(1);
 
   const currentConditionRef = useRef({});
 

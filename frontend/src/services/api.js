@@ -246,3 +246,45 @@ export const fetchFacilityImage = async (id) => {
   const result = await res.json();
   return result.data || result;
 };
+
+// 16. 즐겨찾기 등록 (POST /favorites)
+export const addFavoriteInDB = async (source, contentId) => {
+  const res = await authFetch(`${BASE_URL}/favorites`, {
+    method: 'POST',
+    body: JSON.stringify({ 
+      source: source, 
+      content_id: String(contentId) 
+    })
+  });
+  
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(errorText || '즐겨찾기 등록 실패');
+  }
+  
+  const result = await res.json();
+  return result.data || result;
+};
+
+// 17. 즐겨찾기 목록 조회 (GET /favorites - 필요 시 활용)
+export const fetchFavoritesFromDB = async () => {
+  const res = await authFetch(`${BASE_URL}/favorites`, {
+    method: 'GET'
+  });
+  
+  if (!res.ok) throw new Error('즐겨찾기 목록 조회 실패');
+  const result = await res.json();
+  return result.data || result;
+};
+
+
+// 18. 즐겨찾기 해제 / 삭제 (DELETE /favorites/{id})
+export const deleteFavoriteInDB = async (favoriteId) => {
+  const res = await authFetch(`${BASE_URL}/favorites/${favoriteId}`, {
+    method: 'DELETE'
+  });
+  // 204 No Content 성공 처리
+  if (!res.ok && res.status !== 204) {
+    throw new Error('즐겨찾기 삭제 실패');
+  }
+};
