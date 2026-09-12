@@ -107,7 +107,7 @@ function HomePage() {
           const res = await fetchPetsFromDB();
           const serverPets = Array.isArray(res) ? res : (res?.data || []);
           setMyPets(serverPets);
-        } catch (err) {
+        } catch (error) {
           setMyPets([]);
         }
       }

@@ -253,7 +253,8 @@ export const addFavoriteInDB = async (source, contentId) => {
     method: 'POST',
     body: JSON.stringify({ 
       source: source, 
-      content_id: String(contentId) 
+      content_id: String(contentId), // 혹은 백엔드가 contentId를 원한다면 contentId: String(contentId) 로 변경
+      contentId: String(contentId)   // 안전하게 둘 다 동봉해서 보낼 수도 있습니다.
     })
   });
   
@@ -287,4 +288,21 @@ export const deleteFavoriteInDB = async (favoriteId) => {
   if (!res.ok && res.status !== 204) {
     throw new Error('즐겨찾기 삭제 실패');
   }
+};
+
+
+// 19. 최적 동선 추천 조회 (POST /route/suggest)
+export const fetchSuggestedRoute = async (points) => {
+  const res = await authFetch(`${BASE_URL}/route/suggest`, {
+    method: 'POST',
+    body: JSON.stringify({ points })
+  });
+  
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(errorText || '동선 추천 조회 실패');
+  }
+  
+  const result = await res.json();
+  return result.data || result;
 };

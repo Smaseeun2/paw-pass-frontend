@@ -16,7 +16,6 @@ export const useFavorites = () => {
     }
   };
 
-  // 서버에서 즐겨찾기 목록 동기화
   const loadFavorites = useCallback(async () => {
     const email = getUserEmail();
     if (!email) {
@@ -44,10 +43,10 @@ export const useFavorites = () => {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadFavorites();
   }, [loadFavorites]);
 
-  // 즐겨찾기 추가 / 삭제 토글
   const toggleFavorite = async (spot) => {
     const email = getUserEmail();
     if (!email) {
@@ -58,7 +57,6 @@ export const useFavorites = () => {
     const contentId = spot.content_id || spot.contentId || spot.id;
     const source = spot.source || 'tourapi';
 
-    // 이미 등록되어 있는지 확인 (서버 객체의 id 또는 content_id 기준)
     const existingItem = favorites.find(
       (item) => String(item.content_id || item.contentId || item.id) === String(contentId) &&
                 item.source === source
@@ -66,14 +64,11 @@ export const useFavorites = () => {
 
     try {
       if (existingItem) {
-        // 1. 이미 있다면 삭제 (DELETE /favorites/{id})
         const targetId = existingItem.favorite_id || existingItem.id;
         await deleteFavoriteInDB(targetId);
       } else {
-        // 2. 없다면 등록 (POST /favorites)
         await addFavoriteInDB(source, contentId);
       }
-      // 변경 후 서버 목록 최신화
       await loadFavorites();
     } catch (err) {
       console.error('즐겨찾기 처리 중 오류 발생:', err);
@@ -81,7 +76,6 @@ export const useFavorites = () => {
     }
   };
 
-  // 특정 contentId로 직접 삭제
   const removeFavorite = async (contentId) => {
     const targetItem = favorites.find(
       (item) => String(item.content_id || item.contentId || item.id) === String(contentId)

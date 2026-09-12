@@ -1,146 +1,212 @@
 // src/pages/MapPage.jsx
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useMapSpots } from '../hooks/useMapSpots';
-import { useTrips } from '../hooks/useTrips';
-import { useRouteOptimizer } from '../hooks/useRouteOptimizer'; // 동선 최적화 훅 불러오기
-import mockSpots from '../mocks/tourist-spots.json';
+import { useEffect, useRef, useState, useCallback } from 'react';
+import { fetchSuggestedRoute } from '../services/api';
+import { useFavorites } from '../hooks/useFavorites';
 
 function MapPage() {
-  const { spots, selectedSpot, handleMarkerClick } = useMapSpots();
-  const { trips, addTrip, deleteTrip } = useTrips();
-  const navigate = useNavigate();
-  const [tripTitle, setTripTitle] = useState('');
+  const mapContainerRef = useRef(null);
+  const mapInstanceRef = useRef(null);
+  const markersRef = useRef([]);
+  const polylineRef = useRef(null);
 
-  // 현재 모의 관광지 전체를 대상으로 최적화된 동선 순서를 계산해 둠
-  const optimizedSpots = useRouteOptimizer(mockSpots);
+  // 즐겨찾기 또는 사용자가 선택한 장소 목록 (예시로 즐겨찾기 연동 혹은 자체 상태 관리)
+  const { favorites } = useFavorites();
+  const [selectedSpots, setSelectedSpots] = useState([]);
+  const [routeResult, setRouteResult] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSaveTrip = () => {
-    if (!selectedSpot) return;
-    addTrip(tripTitle, selectedSpot.name);
-    setTripTitle('');
+  // 즐겨찾기 목록을 기본 선택 장소로 세팅 (최대 8개 제한)
+  useEffect(() => {
+    if (favorites.length > 0 && selectedSpots.length === 0) {
+      // 위도, 경도가 유효한 장소만 필터링
+      const validSpots = favorites.filter(spot => spot.lat && spot.lng).slice(0, 8);
+      setSelectedSpots(validSpots);
+    }
+  }, [favorites, selectedSpots.length]);
+
+  // 카카오 지도 초기화
+  useEffect(() => {
+    if (!window.kakao || !window.kakao.maps) return;
+
+    const container = mapContainerRef.current;
+    const options = {
+      center: new window.kakao.maps.LatLng(37.566826, 126.978656), // 서울 중심 좌표
+      level: 5
+    };
+
+    const map = new window.kakao.maps.Map(container, options);
+    mapInstanceRef.current = map;
+  }, []);
+
+  // 지도 위에 마커 및 경로 렌더링 함수
+  const renderMapElements = useCallback((spotsToRender, orderedIndices = []) => {
+    const map = mapInstanceRef.current;
+    if (!map || !window.kakao) return;
+
+    // 기존 마커 및 폴리라인 제거
+    markersRef.current.forEach(marker => marker.setMap(null));
+    markersRef.current = [];
+    if (polylineRef.current) {
+      polylineRef.current.setMap(null);
+      polylineRef.current = null;
+    }
+
+    if (spotsToRender.length === 0) return;
+
+    const bounds = new window.kakao.maps.LatLngBounds();
+    const pathCoordinates = [];
+
+    // 정렬된 순서가 있으면 그 순서대로, 아니면 기본 순서대로 처리
+    const displayList = orderedIndices.length > 0 
+      ? orderedIndices.map(idx => spotsToRender[idx]).filter(Boolean)
+      : spotsToRender;
+
+    displayList.forEach((spot, index) => {
+      const lat = Number(spot.lat);
+      const lng = Number(spot.lng);
+      if (isNaN(lat) || isNaN(lng)) return;
+
+      const position = new window.kakao.maps.LatLng(lat, lng);
+      bounds.extend(position);
+      pathCoordinates.push(position);
+
+      // 번호 마커 생성 (1번, 2번...)
+      const markerContent = document.createElement('div');
+      markerContent.style.cssText = `
+        background-color: #1976d2; color: white; width: 28px; height: 28px;
+        border-radius: 50%; display: flex; align-items: center; justify-content: center;
+        font-weight: bold; font-size: 13px; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+      `;
+      markerContent.innerText = index + 1;
+
+      const customOverlay = new window.kakao.maps.CustomOverlay({
+        position: position,
+        content: markerContent,
+        yAnchor: 1
+      });
+
+      customOverlay.setMap(map);
+      markersRef.current.push(customOverlay);
+    });
+
+    // 경로(Polyline) 그리기
+    if (pathCoordinates.length > 1) {
+      const polyline = new window.kakao.maps.Polyline({
+        path: pathCoordinates,
+        strokeWeight: 5,
+        strokeColor: '#2563eb',
+        strokeOpacity: 0.8,
+        strokeStyle: 'solid'
+      });
+      polyline.setMap(map);
+      polylineRef.current = polyline;
+    }
+
+    // 모든 마커가 보이도록 지도 범위 재설정
+    map.setBounds(bounds);
+  }, []);
+
+  // 컴포넌트 마운트 및 선택 장소 변경 시 기본 마커 렌더링
+  useEffect(() => {
+    if (!routeResult) {
+      renderMapElements(selectedSpots);
+    }
+  }, [selectedSpots, routeResult, renderMapElements]);
+
+  // 동선 추천 API 호출 핸들러
+  const handleSuggestRoute = async () => {
+    if (selectedSpots.length < 2) {
+      alert('최적 동선을 추천받으려면 최소 2개 이상의 장소가 필요합니다. (최대 8개)');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const points = selectedSpots.map(spot => ({
+        id: String(spot.id || spot.contentId),
+        lat: Number(spot.lat),
+        lng: Number(spot.lng)
+      }));
+
+      const result = await fetchSuggestedRoute(points);
+      setRouteResult(result);
+
+      // 백엔드가 내려준 순서(order) 배열을 바탕으로 지도 재렌더링
+      if (result && Array.isArray(result.order)) {
+        renderMapElements(selectedSpots, result.order);
+      }
+    } catch (err) {
+      console.error('동선 추천 실패:', err);
+      alert('최적 동선을 계산하는 중 오류가 발생했습니다.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
-    <div style={{ padding: '0 20px', paddingBottom: '50px', maxWidth: '1100px', margin: '0 auto' }}>
-      <h2>🗺️ 반려동물 동반 지도 및 최적 동선 관리</h2>
-      <p style={{ color: 'gray', marginBottom: '20px' }}>
-        위경도 데이터를 기반으로 계산된 최적의 방문 순서를 확인하고 나만의 동선을 짜보세요.
+    <div style={{ padding: '0 20px', paddingBottom: '60px', maxWidth: '1000px', margin: '0 auto' }}>
+      <h2 style={{ textAlign: 'center', marginBottom: '10px' }}>🗺️ 맞춤 지도 및 최적 동선</h2>
+      <p style={{ textAlign: 'center', color: 'gray', marginBottom: '25px' }}>
+        저장한 장소들을 한눈에 확인하고 인공지능 최적 방문 동선을 추천받아 보세요.
       </p>
 
-      <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
-        
-        {/* 왼쪽: 지도 시뮬레이터 및 알고리즘 적용된 추천 순서 안내 */}
-        <div style={{ flex: 2, display: 'flex', flexDirection: 'column', gap: '20px', minWidth: '320px' }}>
-          
-          <div style={{ 
-            height: '380px', border: '2px solid #2196F3', borderRadius: '12px', 
-            backgroundColor: '#eef6fc', position: 'relative', overflow: 'hidden',
-            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'
-          }}>
-            <div style={{ position: 'absolute', top: '15px', left: '15px', backgroundColor: 'white', padding: '8px 12px', borderRadius: '6px', fontSize: '13px', fontWeight: 'bold', color: '#1976d2' }}>
-              📍 PawPass 스마트 동선 시뮬레이터
-            </div>
+      {/* 상단 액션 바 */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+        <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#333' }}>
+          선택된 장소: <span style={{ color: '#1976d2' }}>{selectedSpots.length}개</span> (2~8개 가능)
+        </span>
+        <button
+          type="button"
+          onClick={handleSuggestRoute}
+          disabled={isLoading || selectedSpots.length < 2}
+          style={{
+            padding: '10px 20px', backgroundColor: selectedSpots.length >= 2 ? '#2563eb' : '#cbd5e1',
+            color: 'white', border: 'none', borderRadius: '8px', cursor: selectedSpots.length >= 2 ? 'pointer' : 'not-allowed',
+            fontWeight: 'bold', fontSize: '14px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+          }}
+        >
+          {isLoading ? '동선 계산 중...' : '✨ 최적 동선 추천받기'}
+        </button>
+      </div>
 
-            {/* 알고리즘으로 최적화된 순서대로 핀 버튼 배치 */}
-            <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap', justifyContent: 'center', padding: '20px', maxWidth: '90%' }}>
-              {optimizedSpots.map((spot, index) => {
-                const isSelected = selectedSpot?.contentId === spot.contentId;
-                return (
-                  <button
-                    key={spot.contentId}
-                    onClick={() => handleMarkerClick(spot)}
-                    style={{
-                      padding: '10px 14px',
-                      backgroundColor: isSelected ? '#ff4081' : '#fff',
-                      color: isSelected ? '#fff' : '#333',
-                      border: '2px solid #1976d2',
-                      borderRadius: '25px',
-                      cursor: 'pointer',
-                      fontWeight: 'bold',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                      fontSize: '13px'
-                    }}
-                  >
-                    🚗 추천 순서 #{index + 1}. {spot.name}
-                  </button>
-                );
-              })}
-            </div>
-            <span style={{ position: 'absolute', bottom: '10px', fontSize: '12px', color: '#555' }}>
-              * 위경도 거리 계산 알고리즘(Haversine)에 의해 이동 거리가 최소화되도록 자동 정렬되었습니다.
-            </span>
-          </div>
-
-          {/* 저장된 내 여행 동선 목록 */}
-          <div style={{ backgroundColor: '#fff', border: '1px solid #ddd', borderRadius: '12px', padding: '20px' }}>
-            <h3 style={{ marginTop: 0, color: '#333' }}>🎒 저장된 나의 여행 동선 목록</h3>
-            {trips.length > 0 ? (
-              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {trips.map((trip) => (
-                  <li key={trip.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', backgroundColor: '#f9f9f9', borderRadius: '8px', border: '1px solid #eee' }}>
-                    <div>
-                      <strong>{trip.title}</strong>
-                      <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#666' }}>경유지: {trip.spots.join(', ')} | 날짜: {trip.date}</p>
-                    </div>
-                    <button 
-                      onClick={() => deleteTrip(trip.id)}
-                      style={{ background: 'none', border: 'none', color: '#ff5252', cursor: 'pointer', fontWeight: 'bold' }}
-                    >
-                      삭제
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p style={{ color: '#888', margin: 0 }}>저장된 여행 동선이 없습니다.</p>
-            )}
-          </div>
-
+      {/* 동선 결과 요약 패널 */}
+      {routeResult && (
+        <div style={{ backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '10px', padding: '15px 20px', marginBottom: '20px' }}>
+          <h4 style={{ margin: '0 0 5px 0', color: '#1d4ed8', fontSize: '15px' }}>🎉 최적 동선 추천 완료!</h4>
+          <p style={{ margin: 0, fontSize: '14px', color: '#334155' }}>
+            총 이동 거리: <strong>{routeResult.total_distance_km ?? 0} km</strong>
+          </p>
         </div>
+      )}
 
-        {/* 오른쪽: 선택된 장소 정보 및 동선 추가 패널 */}
-        <div style={{ 
-          flex: 1, minWidth: '300px', border: '1px solid #ddd', borderRadius: '12px', 
-          padding: '20px', backgroundColor: '#fafafa'
-        }}>
-          {selectedSpot ? (
-            <div>
-              <h3 style={{ marginTop: 0, color: '#333' }}>📌 선택된 관광지</h3>
-              <h4 style={{ margin: '0 0 5px 0', fontSize: '18px' }}>{selectedSpot.name}</h4>
-              <p style={{ fontSize: '13px', color: '#555', margin: '0 0 15px 0' }}>📍 {selectedSpot.address}</p>
-              
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', backgroundColor: '#fff', padding: '15px', borderRadius: '8px', border: '1px solid #eee' }}>
-                <label style={{ fontSize: '13px', fontWeight: 'bold' }}>새 동선 이름 입력:</label>
-                <input 
-                  type="text" 
-                  value={tripTitle} 
-                  onChange={(e) => setTripTitle(e.target.value)} 
-                  placeholder="예: 주말 댕댕이 나들이" 
-                  style={{ padding: '8px', borderRadius: '4px', border: '1px solid #ccc', fontSize: '13px' }}
-                />
-                <button 
-                  onClick={handleSaveTrip}
-                  style={{ padding: '10px', backgroundColor: '#ff4081', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}
-                >
-                  + 이 장소를 동선에 추가하기
-                </button>
-              </div>
+      {/* 지도 영역 + 장소 리스트 레이아웃 */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: '20px' }}>
+        {/* 카카오 지도 컨테이너 */}
+        <div 
+          ref={mapContainerRef} 
+          style={{ width: '1000px', height: '500px', borderRadius: '12px', border: '1px solid #cbd5e1', backgroundColor: '#e2e8f0' }} 
+        />
 
-              <button 
-                onClick={() => navigate(`/detail/${selectedSpot.contentId}`)}
-                style={{ width: '100%', marginTop: '15px', padding: '10px', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}
-              >
-                상세 정보 및 조건 확인하기 →
-              </button>
+        {/* 장소 목록 사이드바 */}
+        <div style={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '15px', maxHeight: '500px', overflowY: 'auto' }}>
+          <h4 style={{ margin: '0 0 12px 0', fontSize: '15px', color: '#1e293b' }}>📍 탐색 및 찜한 장소</h4>
+          {selectedSpots.length > 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {selectedSpots.map((spot, index) => (
+                <div key={spot.id || index} style={{ padding: '10px', backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #f1f5f9' }}>
+                  <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#334155', marginBottom: '4px' }}>
+                    {index + 1}. {spot.name || spot.title}
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#64748b' }}>{spot.address || spot.addr}</div>
+                </div>
+              ))}
             </div>
           ) : (
-            <div style={{ textAlign: 'center', color: '#888', marginTop: '100px' }}>
-              <p>🗺️ 지도 시뮬레이터에서 핀을 클릭하시면<br/>해당 장소를 동선에 추가할 수 있습니다.</p>
-            </div>
+            <p style={{ fontSize: '13px', color: '#94a3b8', textAlign: 'center', marginTop: '40px' }}>
+              즐겨찾기에 등록된 장소가 없습니다.
+            </p>
           )}
         </div>
-
       </div>
     </div>
   );

@@ -6,8 +6,8 @@ export const useTouristSpots = () => {
   const [spots, setSpots] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
-  const [setPage] = useState(1);
 
+  // 페이지는 ref로 관리하므로 useState 관련 불필요한 코드는 제거했습니다.
   const currentConditionRef = useRef({});
 
   const fetchSpots = useCallback(async (condition = {}, isAppend = false) => {
@@ -17,10 +17,8 @@ export const useTouristSpots = () => {
 
     if (!isAppend) {
       currentConditionRef.current = { ...condition, page: 1 };
-      setPage(1);
     } else {
       currentConditionRef.current.page = targetPage;
-      setPage(targetPage);
     }
 
     const queryCondition = isAppend ? currentConditionRef.current : condition;
@@ -29,6 +27,7 @@ export const useTouristSpots = () => {
     const category = queryCondition.category || '';
     const petId = queryCondition.petId || '';
     const matchStatus = queryCondition.matchStatus || '';
+    const keyword = queryCondition.keyword || '';
 
     try {
       const data = await fetchExploreSpots({
@@ -36,6 +35,7 @@ export const useTouristSpots = () => {
         category,
         matchStatus,
         petId,
+        keyword,
         page: targetPage
       });
 

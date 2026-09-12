@@ -1,5 +1,5 @@
 // src/App.jsx
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
 import { useGoogleLogin, googleLogout } from '@react-oauth/google';
 import { loginWithGoogleCode, logoutBackend } from './services/api';
@@ -21,6 +21,15 @@ function App() {
       return null;
     }
   });
+  
+  const kakaoAppKey = import.meta.env.VITE_KAKAO_APP_KEY;
+  if (kakaoAppKey && !document.getElementById('kakao-map-sdk')) {
+    const script = document.createElement('script');
+    script.id = 'kakao-map-sdk';
+    script.type = 'text/javascript';
+    script.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=${kakaoAppKey}&autoload=false&libraries=services`;
+    document.head.appendChild(script);
+  }
 
   const googleLogin = useGoogleLogin({
     flow: 'auth-code',
