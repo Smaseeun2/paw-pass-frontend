@@ -157,6 +157,13 @@ function DetailPage() {
     }
   };
 
+  // 💡 공유 버튼 핸들러 (현재 페이지 URL 클립보드 복사)
+  const handleShare = () => {
+    navigator.clipboard.writeText(window.location.href)
+      .then(() => alert('📋 현재 장소 링크가 복사되었습니다!'))
+      .catch(() => alert('링크 복사에 실패했습니다.'));
+  };
+
   if (isLoading) {
     return (
       <div style={{ padding: '80px 20px', textAlign: 'center', color: '#64748b' }}>
@@ -209,6 +216,8 @@ function DetailPage() {
     ? `https://map.kakao.com/link/map/${encodeURIComponent(detail.name)},${currentLat},${currentLng}`
     : `https://map.kakao.com/link/search/${encodeURIComponent(detail.address || detail.name)}`;
 
+  const naverMapUrl = `https://map.naver.com/p/search/${encodeURIComponent(detail.name)}`;
+
   return (
     <div style={{ padding: '0 20px', paddingBottom: '60px', maxWidth: '680px', margin: '0 auto', fontFamily: 'sans-serif' }}>
       
@@ -221,21 +230,41 @@ function DetailPage() {
           ← 뒤로 가기
         </button>
         
-        <button 
-          type="button"
-          onClick={() => toggleFavorite(detail)}
-          style={{ 
-            padding: '8px 16px', 
-            backgroundColor: liked ? '#ef4444' : '#fff', 
-            color: liked ? '#fff' : '#ef4444', 
-            border: '1.5px solid #ef4444', 
-            borderRadius: '20px', 
-            cursor: 'pointer',
-            fontWeight: 'bold'
-          }}
-        >
-          {liked ? '❤️ 찜 완료' : '🤍 찜하기'}
-        </button>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          {/* 💡 공유 버튼 */}
+          <button 
+            type="button"
+            onClick={handleShare}
+            style={{ 
+              padding: '8px 14px', 
+              backgroundColor: '#fff', 
+              color: '#334155', 
+              border: '1.5px solid #cbd5e1', 
+              borderRadius: '20px', 
+              cursor: 'pointer',
+              fontWeight: 'bold',
+              fontSize: '13px'
+            }}
+          >
+            🔗 공유
+          </button>
+
+          <button 
+            type="button"
+            onClick={() => toggleFavorite(detail)}
+            style={{ 
+              padding: '8px 16px', 
+              backgroundColor: liked ? '#ef4444' : '#fff', 
+              color: liked ? '#fff' : '#ef4444', 
+              border: '1.5px solid #ef4444', 
+              borderRadius: '20px', 
+              cursor: 'pointer',
+              fontWeight: 'bold'
+            }}
+          >
+            {liked ? '❤️ 찜 완료' : '🤍 찜하기'}
+          </button>
+        </div>
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
@@ -327,17 +356,30 @@ function DetailPage() {
       )}
 
       <div style={{ lineHeight: '1.7', backgroundColor: '#fff', padding: '18px 20px', border: '1px solid #e2e8f0', borderRadius: '12px', marginBottom: '24px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '10px' }}>
           <p style={{ margin: '0 0 8px 0', flex: 1 }}><strong>📍 주소:</strong> {detail.address}</p>
-          <a 
-            href={mapSearchUrl} 
-            target="_blank" 
-            rel="noreferrer" 
-            style={{ fontSize: '13px', color: '#2563eb', fontWeight: 'bold', textDecoration: 'none', marginLeft: '12px', whiteSpace: 'nowrap' }}
-          >
-            카카오맵 크게보기 ↗
-          </a>
+          
+          {/* 💡 지도 바로가기 버튼 그룹 */}
+          <div style={{ display: 'flex', gap: '6px' }}>
+            <a 
+              href={mapSearchUrl} 
+              target="_blank" 
+              rel="noreferrer" 
+              style={{ fontSize: '12px', padding: '4px 10px', backgroundColor: '#2563eb', color: '#fff', fontWeight: 'bold', textDecoration: 'none', borderRadius: '6px' }}
+            >
+              카카오맵 ↗
+            </a>
+            <a 
+              href={naverMapUrl} 
+              target="_blank" 
+              rel="noreferrer" 
+              style={{ fontSize: '12px', padding: '4px 10px', backgroundColor: '#10b981', color: '#fff', fontWeight: 'bold', textDecoration: 'none', borderRadius: '6px' }}
+            >
+              네이버 지도(리뷰) ↗
+            </a>
+          </div>
         </div>
+
         <p style={{ margin: '0 0 8px 0' }}><strong>📞 전화번호:</strong> {detail.phone || '정보 미제공'}</p>
         <p style={{ margin: '0 0 8px 0' }}><strong>⏰ 운영시간:</strong> {detail.hours || '현장 또는 전화 문의'}</p>
         {cond.parkingAvailable && (
