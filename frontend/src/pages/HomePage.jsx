@@ -66,39 +66,7 @@ function HomePage() {
   const [activeDropdown, setActiveDropdown] = useState(null);
   const dropdownRef = useRef(null);
 
-  // 실시간 추천 관광지 6개 로드
-  useEffect(() => {
-    const loadTopSpots = async () => {
-      setIsLoadingSpots(true);
-      try {
-        const data = await fetchExploreSpots({ page: 1 });
-        const rawSpots = Array.isArray(data) ? data : (data?.data || []);
-
-        const mapped = rawSpots.slice(0, 6).map((spot) => {
-          const spotId = String(spot.id);
-          return {
-            id: spotId,
-            name: spot.title || '장소명 없음',
-            address: spot.addr || '주소 정보 없음',
-            imageUrl: spot.image || '',
-            tel: spot.tel || '정보 미제공',
-            source: spot.source || 'tourapi',
-            matchStatus: spot.match_status || ''
-          };
-        });
-
-        setRecommendedSpots(mapped);
-      } catch (err) {
-        console.warn('홈 추천 장소 로드 실패:', err);
-      } finally {
-        setIsLoadingSpots(false);
-      }
-    };
-
-    loadTopSpots();
-  }, []);
-
-  // 로그인 유저 반려동물 로드
+  // 1. 로그인 유저 반려동물 로드 및 대표 펫 자동 지정 (폴백 처리 포함)
   useEffect(() => {
     const loadUserPets = async () => {
       const token = localStorage.getItem('paw_pass_access_token');
@@ -107,13 +75,62 @@ function HomePage() {
           const res = await fetchPetsFromDB();
           const serverPets = Array.isArray(res) ? res : (res?.data || []);
           setMyPets(serverPets);
+
+          // 등록된 펫이 있고 아직 선택된 펫이 없다면 대표 펫(혹은 첫 번째 펫)을 기본 선택
+          if (serverPets.length > 0 && selectedPetIds.length === 0) {
+            const representativePet = serverPets.find(p => p.isRepresentative || p.is_representative) || serverPets[0];
+            if (representativePet) {
+              setSelectedPetIds([representativePet.id]);
+            }
+          }
         } catch (error) {
           setMyPets([]);
         }
+      } else {
+        setMyPets([]);
+        setSelectedPetIds([]);
       }
     };
     loadUserPets();
   }, [user]);
+
+  // 2. 실시간 추천 관광지 6개 로드 (대표 펫 ID가 있으면 펫 맞춤 파라미터 함께 전달)
+  useEffect(() => {
+    const loadTopSpots = async () => {
+      setIsLoadingSpots(true);
+      try {
+        const primaryPetId = selectedPetIds[0] || '';
+        const data = await fetchExploreSpots({ page: 1, petId: primaryPetId });
+        const rawSpots = Array.isArray(data) ? data : (data?.data || []);
+
+        const mapped = rawSpots.slice(0, 6).map((spot) => {
+          const spotId = String(spot.id || spot.content_id);
+          const rawMatch = spot.match_status || spot.matchStatus;
+          // 로그아웃 상태이거나 펫 정보가 없으면 '동반 확인 필요'로 표기
+          const assignedMatchStatus = primaryPetId && rawMatch ? rawMatch : '동반 확인 필요';
+
+          return {
+            id: spotId,
+            name: spot.title || spot.name || '장소명 없음',
+            address: spot.addr || spot.address || '주소 정보 없음',
+            imageUrl: spot.image || spot.imageUrl || spot.first_image || '',
+            tel: spot.tel || '정보 미제공',
+            source: spot.source || 'tourapi',
+            matchStatus: assignedMatchStatus
+          };
+        });
+
+        setRecommendedSpots(mapped);
+      } catch (err) {
+        console.warn('홈 추천 장소 로드 실패:', err);
+        setRecommendedSpots([]);
+      } finally {
+        setIsLoadingSpots(false);
+      }
+    };
+
+    loadTopSpots();
+  }, [selectedPetIds]);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -350,7 +367,12 @@ function HomePage() {
                       </button>
                     </div>
                     <div style={{ padding: '18px 20px' }}>
-                      <h4 style={{ margin: '0 0 6px 0', fontSize: '17px', fontWeight: '700', color: '#1e293b' }}>{spot.name}</h4>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
+                        <h4 style={{ margin: 0, fontSize: '17px', fontWeight: '700', color: '#1e293b' }}>{spot.name}</h4>
+                        <span style={{ fontSize: '11px', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold', backgroundColor: '#f1f5f9', color: '#64748b' }}>
+                          {spot.matchStatus}
+                        </span>
+                      </div>
                       <p style={{ margin: 0, fontSize: '13px', color: '#64748b' }}>📍 {spot.address}</p>
                     </div>
                   </div>
@@ -361,7 +383,7 @@ function HomePage() {
         </div>
       </div>
 
-      {/* 💡 Footer 영역 (공공데이터 출처 표기) */}
+      {/* Footer 영역 (공공데이터 출처 표기) */}
       <footer style={{ 
         borderTop: '1px solid #e2e8f0', backgroundColor: '#f8fafc', 
         padding: '30px 20px', marginTop: '60px', textAlign: 'center', 

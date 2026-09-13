@@ -433,43 +433,86 @@ function SearchPage() {
                 const liked = isFavorite(spot.id);
                 const spotImg = spot.image || spot.imageUrl || spot.first_image || '';
 
+                // 카카오맵 및 네이버 지도 링크 생성
+                const lat = Number(spot.lat);
+                const lng = Number(spot.lng);
+                const kakaoMapUrl = (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0)
+                  ? `https://map.kakao.com/link/map/${encodeURIComponent(spot.name)},${lat},${lng}`
+                  : `https://map.kakao.com/link/search/${encodeURIComponent(spot.address || spot.name)}`;
+
+                const naverMapUrl = `https://map.naver.com/p/search/${encodeURIComponent(spot.name)}`;
+
                 return (
                   <div 
                     key={`${spot.id}-${idx}`}
                     onClick={() => setSelectedSpotId(spot.id)}
-                    style={{ border: isSelected ? '2px solid #4b5563' : '1px solid #d1d5db', borderRadius: '12px', backgroundColor: isSelected ? '#f3f4f6' : '#fff', padding: '16px', cursor: 'pointer', transition: 'all 0.2s' }}
+                    style={{ border: isSelected ? '2px solid #4b5563' : '1px solid #d1d5db', borderRadius: '12px', backgroundColor: isSelected ? '#f3f4f6' : '#fff', padding: '16px', cursor: 'pointer', transition: 'all 0.2s', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}
                   >
-                    <div style={{ position: 'relative', width: '100%', height: '140px', backgroundColor: spotImg ? '#f1f5f9' : '#f8fafc', borderRadius: '8px', marginBottom: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', border: '1px solid #e2e8f0' }}>
-                      {spotImg ? (
-                        <img src={spotImg} alt={spot.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                      ) : (
-                        <div style={{ color: '#94a3b8', fontSize: '13px', fontWeight: 'bold', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-                          <span style={{ fontSize: '24px' }}>🖼️</span>
-                          <span>대표 이미지 준비중</span>
-                        </div>
-                      )}
+                    <div>
+                      <div style={{ position: 'relative', width: '100%', height: '140px', backgroundColor: spotImg ? '#f1f5f9' : '#f8fafc', borderRadius: '8px', marginBottom: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', border: '1px solid #e2e8f0' }}>
+                        {spotImg ? (
+                          <img src={spotImg} alt={spot.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : (
+                          <div style={{ color: '#94a3b8', fontSize: '13px', fontWeight: 'bold', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                            <span style={{ fontSize: '24px' }}>🖼️</span>
+                            <span>대표 이미지 준비중</span>
+                          </div>
+                        )}
 
-                      <button
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); toggleFavorite(spot); }}
-                        style={{ position: 'absolute', top: '10px', right: '10px', backgroundColor: 'rgba(255, 255, 255, 0.9)', border: 'none', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', zIndex: 2 }}
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); toggleFavorite(spot); }}
+                          style={{ position: 'absolute', top: '10px', right: '10px', backgroundColor: 'rgba(255, 255, 255, 0.9)', border: 'none', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', zIndex: 2 }}
+                        >
+                          {liked ? '❤️' : '🤍'}
+                        </button>
+                      </div>
+
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
+                        <h4 style={{ margin: 0, fontSize: '16px', fontWeight: 'bold', color: '#1f2937' }}>{spot.name}</h4>
+                        <span style={{ 
+                          fontSize: '11px', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold', 
+                          backgroundColor: spot.matchStatus === '가능' ? '#dcfce7' : spot.matchStatus === '조건부' ? '#fef9c3' : '#f1f5f9', 
+                          color: spot.matchStatus === '가능' ? '#15803d' : spot.matchStatus === '조건부' ? '#a16207' : '#64748b' 
+                        }}>
+                          {spot.matchStatus}
+                        </span>
+                      </div>
+
+                      <p style={{ margin: '0 0 12px 0', fontSize: '13px', color: '#6b7280' }}>📍 {spot.address}</p>
+                    </div>
+
+                    {/* 💡 카드 하단 지도 연동 버튼 그룹 (파란색 카카오맵 + 초록색 네이버 지도) */}
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '6px' }}>
+                      <a 
+                        href={kakaoMapUrl} 
+                        target="_blank" 
+                        rel="noreferrer" 
+                        onClick={(e) => e.stopPropagation()}
+                        style={{ 
+                          display: 'inline-block', padding: '6px 10px', 
+                          backgroundColor: '#2563eb', color: '#fff', borderRadius: '6px', 
+                          fontSize: '11px', fontWeight: 'bold', textDecoration: 'none', 
+                          boxSizing: 'border-box' 
+                        }}
                       >
-                        {liked ? '❤️' : '🤍'}
-                      </button>
+                        카카오맵 ↗
+                      </a>
+                      <a 
+                        href={naverMapUrl} 
+                        target="_blank" 
+                        rel="noreferrer" 
+                        onClick={(e) => e.stopPropagation()}
+                        style={{ 
+                          display: 'inline-block', padding: '6px 10px', 
+                          backgroundColor: '#10b981', color: '#fff', borderRadius: '6px', 
+                          fontSize: '11px', fontWeight: 'bold', textDecoration: 'none', 
+                          boxSizing: 'border-box' 
+                        }}
+                      >
+                        네이버 지도 & 리뷰 ↗
+                      </a>
                     </div>
-
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
-                      <h4 style={{ margin: 0, fontSize: '16px', fontWeight: 'bold', color: '#1f2937' }}>{spot.name}</h4>
-                      <span style={{ 
-                        fontSize: '11px', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold', 
-                        backgroundColor: spot.matchStatus === '가능' ? '#dcfce7' : spot.matchStatus === '조건부' ? '#fef9c3' : '#f1f5f9', 
-                        color: spot.matchStatus === '가능' ? '#15803d' : spot.matchStatus === '조건부' ? '#a16207' : '#64748b' 
-                      }}>
-                        {spot.matchStatus}
-                      </span>
-                    </div>
-
-                    <p style={{ margin: '0 0 8px 0', fontSize: '13px', color: '#6b7280' }}>📍 {spot.address}</p>
                   </div>
                 );
               })
