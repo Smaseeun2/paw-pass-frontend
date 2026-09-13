@@ -1,4 +1,5 @@
 // src/pages/DetailPage.jsx
+import { useState } from 'react';
 import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useSpotDetail } from '../hooks/useSpotDetail';
 import { useFavorites } from '../hooks/useFavorites';
@@ -15,9 +16,8 @@ function DetailPage() {
   const { toggleFavorite, isFavorite } = useFavorites();
   const { matchResult } = usePetMatching(detail?.petCondition);
 
-  // 1순위: 목록 카드에서 미리 넘어온 사진, 2순위: API가 가져온 대표 이미지
-  const previewImage = location.state?.previewImage;
-  const displayImage = previewImage || detail?.imageUrl || '';
+  // 💡 슬라이더 현재 이미지 인덱스 상태
+  const [currentImageIdx, setCurrentImageIdx] = useState(0);
 
   if (isLoading) {
     return (
@@ -46,6 +46,25 @@ function DetailPage() {
 
   const liked = isFavorite(detail.id || detail.contentId);
   const cond = detail.petCondition || {};
+
+  // 💡 이미지 목록 구성
+  const previewImage = location.state?.previewImage;
+  let imageList = Array.isArray(detail.images) ? [...detail.images] : [];
+  if (previewImage && !imageList.includes(previewImage)) {
+    imageList.unshift(previewImage);
+  }
+  if (imageList.length === 0 && detail.imageUrl) {
+    imageList = [detail.imageUrl];
+  }
+
+  // 슬라이더 좌우 이동 핸들러
+  const handlePrevImage = () => {
+    setCurrentImageIdx((prev) => (prev === 0 ? imageList.length - 1 : prev - 1));
+  };
+
+  const handleNextImage = () => {
+    setCurrentImageIdx((prev) => (prev === imageList.length - 1 ? 0 : prev + 1));
+  };
 
   const mapSearchUrl = detail.lat && detail.lng 
     ? `https://map.kakao.com/link/map/${encodeURIComponent(detail.name)},${detail.lat},${detail.lng}`
@@ -96,20 +115,56 @@ function DetailPage() {
         </span>
       </div>
 
-      {/* 대표 이미지 및 저작자 표시 */}
-      {displayImage ? (
-        <div style={{ position: 'relative', width: '100%', height: '320px', marginBottom: '20px', borderRadius: '12px', overflow: 'hidden', backgroundColor: '#f1f5f9' }}>
+      {/* 💡 큰 대표 이미지 슬라이더 영역 */}
+      {imageList.length > 0 ? (
+        <div style={{ position: 'relative', width: '100%', height: '340px', marginBottom: '12px', borderRadius: '12px', overflow: 'hidden', backgroundColor: '#1e293b', boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}>
           <img 
-            src={displayImage} 
-            alt={detail.name} 
+            src={imageList[currentImageIdx]} 
+            alt={`${detail.name} 슬라이더 이미지 ${currentImageIdx + 1}`} 
             style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
           />
+
+          {/* 사진이 2장 이상일 때만 좌우 화살표 및 인디케이터 노출 */}
+          {imageList.length > 1 && (
+            <>
+              <button 
+                type="button" 
+                onClick={handlePrevImage}
+                style={{
+                  position: 'absolute', top: '50%', left: '12px', transform: 'translateY(-50%)',
+                  backgroundColor: 'rgba(0,0,0,0.5)', color: '#fff', border: 'none', borderRadius: '50%',
+                  width: '36px', height: '36px', cursor: 'pointer', fontSize: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10
+                }}
+              >
+                ‹
+              </button>
+              <button 
+                type="button" 
+                onClick={handleNextImage}
+                style={{
+                  position: 'absolute', top: '50%', right: '12px', transform: 'translateY(-50%)',
+                  backgroundColor: 'rgba(0,0,0,0.5)', color: '#fff', border: 'none', borderRadius: '50%',
+                  width: '36px', height: '36px', cursor: 'pointer', fontSize: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10
+                }}
+              >
+                ›
+              </button>
+              <div style={{
+                position: 'absolute', bottom: '12px', left: '50%', transform: 'translateX(-50%)',
+                backgroundColor: 'rgba(0,0,0,0.6)', color: '#fff', padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: 'bold', zIndex: 10
+              }}>
+                {currentImageIdx + 1} / {imageList.length}
+              </div>
+            </>
+          )}
+
+          {/* 저작자 표시 */}
           {detail.imageAttribution && (
             <span style={{ 
-              position: 'absolute', bottom: '8px', right: '8px', 
+              position: 'absolute', top: '12px', right: '12px', 
               fontSize: '11px', backgroundColor: 'rgba(0,0,0,0.6)', color: '#fff', 
-              padding: '3px 6px', borderRadius: '4px', maxWidth: '90%', 
-              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' 
+              padding: '3px 6px', borderRadius: '4px', maxWidth: '80%', 
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', zIndex: 10
             }}>
               {detail.imageAttribution}
             </span>
@@ -122,16 +177,21 @@ function DetailPage() {
         </div>
       )}
 
-      {/* 다중 이미지(갤러리)가 존재할 경우 추가 가로 스크롤 노출 */}
-      {Array.isArray(detail.images) && detail.images.length > 1 && (
-        <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', marginBottom: '24px', paddingBottom: '8px' }}>
-          {detail.images.map((imgUrl, idx) => (
-            <img 
-              key={idx} 
-              src={imgUrl} 
-              alt={`${detail.name} 추가이미지 ${idx + 1}`} 
-              style={{ width: '120px', height: '90px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #e2e8f0', flexShrink: 0 }} 
-            />
+      {/* 💡 하단 썸네일 목록 */}
+      {imageList.length > 1 && (
+        <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', marginBottom: '24px', paddingBottom: '6px' }}>
+          {imageList.map((imgUrl, idx) => (
+            <button 
+              key={idx}
+              type="button"
+              onClick={() => setCurrentImageIdx(idx)}
+              style={{
+                width: '70px', height: '54px', padding: 0, border: currentImageIdx === idx ? '2px solid #2563eb' : '1px solid #cbd5e1',
+                borderRadius: '6px', overflow: 'hidden', cursor: 'pointer', flexShrink: 0, backgroundColor: '#f1f5f9'
+              }}
+            >
+              <img src={imgUrl} alt={`썸네일 ${idx + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            </button>
           ))}
         </div>
       )}
