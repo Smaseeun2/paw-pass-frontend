@@ -54,7 +54,8 @@ export const useFavorites = () => {
       return;
     }
 
-    const contentId = spot.content_id || spot.contentId || spot.id;
+    // 💡 content_id, contentId, id 모두 대응하여 실제 고유 ID 추출
+    const contentId = String(spot.content_id || spot.contentId || spot.id || '');
     const source = spot.source || 'tourapi';
 
     const existingItem = favorites.find(
