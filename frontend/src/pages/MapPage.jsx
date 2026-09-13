@@ -5,6 +5,17 @@ import { fetchSuggestedRoute, fetchExploreSpots } from '../services/api';
 
 const KAKAO_APP_KEY = import.meta.env.VITE_KAKAO_APP_KEY || '';
 
+// 💡 현재 로그인된 유저의 이메일(또는 식별자)을 가져오는 헬퍼 함수
+const getCurrentUserEmail = () => {
+  try {
+    const saved = localStorage.getItem('paw_pass_user');
+    const user = saved ? JSON.parse(saved) : null;
+    return user?.email || user?.id || null;
+  } catch {
+    return null;
+  }
+};
+
 function MapPage() {
   const navigate = useNavigate();
   const mapContainerRef = useRef(null);
@@ -12,10 +23,15 @@ function MapPage() {
   const markersRef = useRef([]);
   const polylineRef = useRef(null);
 
-  // 로컬 스토리지(paw_pass_routes)에서 동선 데이터 로드
+  // 💡 유저별 고유 동선 스토리지 키 생성 (로그아웃 상태면 null)
+  const userEmail = getCurrentUserEmail();
+  const storageKey = userEmail ? `paw_pass_routes_${userEmail}` : null;
+
+  // 💡 로그인된 유저의 전용 키로 로컬 스토리지(paw_pass_routes_*)에서 동선 데이터 로드
   const [selectedSpots, setSelectedSpots] = useState(() => {
+    if (!storageKey) return []; // 로그아웃 상태면 빈 배열 반환
     try {
-      const savedRoutes = JSON.parse(localStorage.getItem('paw_pass_routes') || '[]');
+      const savedRoutes = JSON.parse(localStorage.getItem(storageKey) || '[]');
       return savedRoutes.filter(spot => {
         const lat = Number(spot.lat || spot.latitude);
         const lng = Number(spot.lng || spot.longitude);
@@ -116,7 +132,6 @@ function MapPage() {
       bounds.extend(position);
       pathCoordinates.push(position);
 
-      // 숫자 핀(마커) 컨테이너 생성
       const markerContent = document.createElement('div');
       markerContent.style.cssText = `
         background-color: #2563eb; color: white; width: 32px; height: 32px;
@@ -132,7 +147,6 @@ function MapPage() {
         yAnchor: 1.2
       });
 
-      // 💡 [개선] 공용 클래스명(.map-info-card)을 부여하여 항상 '오직 하나'만 열리도록 제어
       const infoCardContent = document.createElement('div');
       infoCardContent.className = 'map-info-card';
       infoCardContent.style.cssText = `
@@ -158,29 +172,24 @@ function MapPage() {
 
       infoOverlay.setMap(map);
 
-      // 이벤트 리스너: 핀 클릭 시 다른 말풍선은 모두 끄고 현재 것만 토글
       markerContent.addEventListener('click', (e) => {
         e.stopPropagation();
         const isCurrentlyOpen = infoCardContent.style.display === 'block';
 
-        // 화면에 있는 모든 말풍선 숨기기
         document.querySelectorAll('.map-info-card').forEach(el => {
           el.style.display = 'none';
         });
 
-        // 닫혀있던 상태였다면 현재 것만 켜기
         if (!isCurrentlyOpen) {
           infoCardContent.style.display = 'block';
         }
       });
 
-      // 말풍선 내부 닫기 버튼
       infoCardContent.querySelector('.close-card').addEventListener('click', (e) => {
         e.stopPropagation();
         infoCardContent.style.display = 'none';
       });
 
-      // 말풍선 내부 상세보기 버튼
       infoCardContent.querySelector('.go-detail').addEventListener('click', (e) => {
         e.stopPropagation();
         const source = spot.source || 'tourapi';
@@ -233,7 +242,11 @@ function MapPage() {
 
     setDraggedItemIndex(null);
     setSelectedSpots(updated);
-    localStorage.setItem('paw_pass_routes', JSON.stringify(updated));
+    
+    // 💡 유저별 고유 키로 저장
+    if (storageKey) {
+      localStorage.setItem(storageKey, JSON.stringify(updated));
+    }
     setRouteResult(null);
     renderMapElements(updated);
   };
@@ -268,6 +281,11 @@ function MapPage() {
   };
 
   const handleAddSpotToRoute = (spot) => {
+    if (!storageKey) {
+      alert('로그인 후 동선을 추가할 수 있습니다.');
+      return;
+    }
+
     if (selectedSpots.length >= 8) {
       alert('동선은 최대 8개까지 추가할 수 있습니다.');
       return;
@@ -282,7 +300,7 @@ function MapPage() {
 
     const updated = [...selectedSpots, spot];
     setSelectedSpots(updated);
-    localStorage.setItem('paw_pass_routes', JSON.stringify(updated));
+    localStorage.setItem(storageKey, JSON.stringify(updated));
     setRouteResult(null);
     renderMapElements(updated);
     alert(`❤️ "${spot.name}"이(가) 동선에 추가되었습니다!`);
@@ -320,7 +338,10 @@ function MapPage() {
     try {
       const updated = selectedSpots.filter(item => String(item.id || item.contentId) !== String(spotId));
       setSelectedSpots(updated);
-      localStorage.setItem('paw_pass_routes', JSON.stringify(updated));
+      
+      if (storageKey) {
+        localStorage.setItem(storageKey, JSON.stringify(updated));
+      }
       setRouteResult(null);
 
       if (updated.length > 0) {

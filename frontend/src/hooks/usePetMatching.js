@@ -4,7 +4,7 @@ import { authFetch } from '../services/api';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://172.30.1.29:8080';
 
-// 💡 1. 펫 ID 검증 헬퍼 (13자리 타임스탬프 등 비정상 값 차단)
+// 펫 ID 검증 헬퍼 (13자리 타임스탬프 등 비정상 값 차단)
 const resolvePetId = (paramPetId) => {
   if (paramPetId && String(paramPetId).length < 10 && !isNaN(Number(paramPetId))) {
     return String(paramPetId);
@@ -32,15 +32,15 @@ const resolvePetId = (paramPetId) => {
   return '';
 };
 
-export const usePetMatching = (id, source = 'tourapi', paramPetId = '') => {
-  // 💡 2. id가 객체({})로 통째로 넘어오는 버그 원천 차단 (contentId, id 등 안전 추출)
+// 💡 인자 순서 변경: (spotId, source, paramPetId)
+export const usePetMatching = (spotId, source = 'tourapi', paramPetId = '') => {
   const resolvedId = useMemo(() => {
-    if (!id) return '';
-    if (typeof id === 'object') {
-      return String(id.contentId || id.content_id || id.id || '');
+    if (!spotId) return '';
+    if (typeof spotId === 'object') {
+      return String(spotId.contentId || spotId.content_id || spotId.id || '');
     }
-    return String(id);
-  }, [id]);
+    return String(spotId);
+  }, [spotId]);
 
   const petId = useMemo(() => resolvePetId(paramPetId), [paramPetId]);
 
@@ -62,9 +62,17 @@ export const usePetMatching = (id, source = 'tourapi', paramPetId = '') => {
   const [isLoading, setIsLoading] = useState(Boolean(resolvedId && petId));
 
   useEffect(() => {
-    if (!resolvedId || !petId) return;
+    if (!resolvedId || !petId) {
+      if (!petId) {
+        setMatchResult({
+          status: '반려동물 선택 필요',
+          color: '#64748b',
+          reason: '맞춤 방문 판정을 위해 프로필에서 반려동물을 등록하거나 선택해주세요.'
+        });
+      }
+      return;
+    }
 
-    // 💡 디버깅용 로그 (서버로 나가는 최종 파라미터 확인)
     console.log(`🐾 [usePetMatching] 요청 ID: "${resolvedId}", Source: "${source}", PetID: "${petId}"`);
 
     let isMounted = true;

@@ -1,6 +1,8 @@
 // src/hooks/useTouristSpots.js
 import { useState, useCallback, useRef } from 'react';
-import { fetchExploreSpots } from '../services/api';
+import { fetchExploreSpots, authFetch } from '../services/api';
+
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://172.30.1.29:8080';
 
 export const useTouristSpots = () => {
   const [spots, setSpots] = useState([]);
@@ -28,7 +30,7 @@ export const useTouristSpots = () => {
     const matchStatus = queryCondition.matchStatus || queryCondition.match_status || '';
 
     try {
-      const data = await fetchExploreSpots({
+      const response = await fetchExploreSpots({
         regionCode,
         category,
         matchStatus,
@@ -36,43 +38,59 @@ export const useTouristSpots = () => {
         page: targetPage
       });
 
-      const rawSpots = Array.isArray(data) ? data : (data?.data || []);
-      
-      const mappedSpots = rawSpots.map((spot) => {
+      const rawSpots = Array.isArray(response) ? response : (response?.data || response?.content || []);
+
+      const mappedSpotsPromises = rawSpots.map(async (spot) => {
         const spotId = String(spot.id || spot.content_id);
         const contactTel = spot.tel || '정보 미제공';
 
-        // 💡 [핵심 수정] 백엔드가 내려주는 이미지 관련 다양한 필드명 완벽 대응
-        const foundImage = 
+        let spotImage = 
           spot.image || 
-          spot.first_image || 
+          spot.imageUrl || 
           spot.firstimage || 
+          spot.first_image || 
           spot.thumbnail || 
-          spot.imgUrl || 
-          spot.imageUrl || '';
+          spot.imgUrl || '';
 
-        // 백엔드 수정 사항에 맞춘 위도(lat/map_y), 경도(lng/map_x) 추출
+        if (!spotImage && (spot.source === 'kcisa' || !spot.source)) {
+          try {
+            const imgRes = await authFetch(`${BASE_URL}/facilities/${spotId}/image`, { method: 'GET' });
+            if (imgRes.ok) {
+              const imgResult = await imgRes.json();
+              const imgData = imgResult.data || imgResult;
+              spotImage = imgData.image || '';
+            }
+          } catch (e) {
+            // 무시
+          }
+        }
+
         const parsedLat = Number(spot.lat || spot.map_y || spot.mapy || spot.y || spot.latitude);
         const parsedLng = Number(spot.lng || spot.map_x || spot.mapx || spot.x || spot.longitude);
+
+        // 💡 펫이 선택되지 않았거나 판정값이 없으면 기본으로 '동반 확인 필요' 할당
+        const rawMatch = spot.match_status || spot.matchStatus;
+        const assignedMatchStatus = petId && rawMatch ? rawMatch : '동반 확인 필요';
 
         return {
           id: spotId,
           contentId: spotId,
           name: spot.title || spot.name || '장소명 없음',
           address: spot.addr || spot.address || '주소 정보 없음',
-          imageUrl: foundImage, // 추출된 이미지 URL
+          image: spotImage,
+          imageUrl: spotImage,
           tel: contactTel,
           phone: contactTel,
           lat: !isNaN(parsedLat) ? parsedLat : null,
           lng: !isNaN(parsedLng) ? parsedLng : null,
           source: spot.source || 'tourapi',
           rawCategory: spot.category, 
-          matchStatus: spot.match_status || '확인필요',
-          petInfoDescription: spot.match_status 
-            ? `출입 판정: ${spot.match_status}` 
-            : (spot.source === 'kcisa' ? '반려동물 편의시설' : '반려동물 동반 여행지')
+          matchStatus: assignedMatchStatus,
+          petInfoDescription: `출입 판정: ${assignedMatchStatus}`
         };
       });
+
+      const mappedSpots = await Promise.all(mappedSpotsPromises);
 
       if (isAppend) {
         setSpots(prev => {

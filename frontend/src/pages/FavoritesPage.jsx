@@ -2,7 +2,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFavorites } from '../hooks/useFavorites';
-import { fetchTourDetail, fetchFacilityDetail } from '../services/api';
+import { fetchTourDetail, fetchFacilityDetail, authFetch } from '../services/api';
+
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://172.30.1.29:8080';
 
 // 개별 즐겨찾기 카드 (이미지 개별 로딩 래퍼)
 function FavoriteCard({ spot, onRemove }) {
@@ -15,20 +17,30 @@ function FavoriteCard({ spot, onRemove }) {
   const spotName = spot.name || spot.title || '장소명 없음';
   const spotAddress = spot.address || spot.addr || '주소 정보 없음';
 
-  // 만약 즐겨찾기 목록에 이미지가 없다면, 상세 API를 살짝 찔러서 이미지를 가져옴
+  // 만약 즐겨찾기 목록에 이미지가 없다면, 상세/이미지 API를 호출하여 가져옴
   useEffect(() => {
     if (imageUrl) return; // 이미지가 이미 있으면 패스
 
     const fetchImageIfNeeded = async () => {
       try {
-        let res;
+        let foundImg = '';
         if (spotSource === 'kcisa') {
-          res = await fetchFacilityDetail(spotId);
+          // KCISA 시설은 전용 이미지 API 호출 반영
+          const imgRes = await authFetch(`${BASE_URL}/facilities/${spotId}/image`, { method: 'GET' });
+          if (imgRes.ok) {
+            const imgResult = await imgRes.json();
+            const imgData = imgResult.data || imgResult;
+            foundImg = imgData.image || '';
+            if (imgData.image_attribution) {
+              setImageAttr(imgData.image_attribution);
+            }
+          }
         } else {
-          res = await fetchTourDetail(spotId);
+          const res = await fetchTourDetail(spotId);
+          const data = res.data || res;
+          foundImg = (Array.isArray(data.images) && data.images[0]) || data.firstimage || data.image || '';
         }
-        const data = res.data || res;
-        const foundImg = (Array.isArray(data.images) && data.images[0]) || data.firstimage || data.image || '';
+
         if (foundImg) setImageUrl(foundImg);
       } catch (e) {
         console.warn('즐겨찾기 카드 이미지 추가 로드 실패:', e);
@@ -51,15 +63,16 @@ function FavoriteCard({ spot, onRemove }) {
         ) : (
           <span>🖼️ 이미지 준비중</span>
         )}
+        
+        {/* 💡 "이미지 출처 : ~~" 형태 반영 */}
         {imageAttr && (
-          <span style={{ 
-            position: 'absolute', bottom: '4px', right: '4px', 
-            fontSize: '9px', backgroundColor: 'rgba(0,0,0,0.6)', color: '#fff', 
-            padding: '2px 4px', borderRadius: '4px', maxWidth: '90%', 
-            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' 
+          <div style={{ 
+            position: 'absolute', bottom: '6px', left: '8px', right: '8px',
+            fontSize: '11px', color: '#fff', textShadow: '0 1px 2px rgba(0,0,0,0.8)',
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', pointerEvents: 'none'
           }}>
-            {imageAttr}
-          </span>
+            이미지 출처 : {imageAttr}
+          </div>
         )}
       </div>
       

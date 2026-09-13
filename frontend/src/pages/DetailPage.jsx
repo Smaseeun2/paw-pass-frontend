@@ -5,7 +5,18 @@ import { useSpotDetail } from '../hooks/useSpotDetail';
 import { useFavorites } from '../hooks/useFavorites';
 import { usePetMatching } from '../hooks/usePetMatching';
 
-const KAKAO_APP_KEY = import.meta.env.VITE_KAKAO_APP_KEY || '';
+const KAKAO_APP_KEY = import.meta.env.VITE_KAKAO_APP_KEY || '5e3d8dcdeefc4e5b167e67e';
+
+// 💡 현재 로그인된 유저의 이메일(또는 식별자)을 가져오는 헬퍼 함수
+const getCurrentUserEmail = () => {
+  try {
+    const saved = localStorage.getItem('paw_pass_user');
+    const user = saved ? JSON.parse(saved) : null;
+    return user?.email || user?.id || null;
+  } catch {
+    return null;
+  }
+};
 
 function DetailPage() {
   const { id } = useParams();
@@ -13,46 +24,54 @@ function DetailPage() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const source = searchParams.get('source') || 'tourapi';
+  
+  const petIdFromQuery = searchParams.get('petId') || location.state?.petId || '';
 
   const { detail, isLoading, error } = useSpotDetail(id, source);
   const { toggleFavorite, isFavorite } = useFavorites();
-  const { matchResult } = usePetMatching(detail?.petCondition);
+  const { matchResult } = usePetMatching(id, source, petIdFromQuery);
 
   const [currentImageIdx, setCurrentImageIdx] = useState(0);
   const mapContainerRef = useRef(null);
 
+  // 💡 유저별 고유 동선 스토리지 키 생성
+  const userEmail = getCurrentUserEmail();
+  const storageKey = userEmail ? `paw_pass_routes_${userEmail}` : null;
+
   const [isRouteAdded, setIsRouteAdded] = useState(() => {
-    if (!id) return false;
+    if (!id || !storageKey) return false;
     try {
-      const savedRoutes = JSON.parse(localStorage.getItem('paw_pass_routes') || '[]');
+      const savedRoutes = JSON.parse(localStorage.getItem(storageKey) || '[]');
       return savedRoutes.some(item => String(item.id || item.contentId) === String(id));
     } catch {
       return false;
     }
   });
 
-  // 카카오맵 SDK 로드 및 정확한 좌표 기반 핀 렌더링 (주소 기반 Geocoder 자동 변환 지원)
   useEffect(() => {
     if (!detail || !mapContainerRef.current) return;
 
-    const initMap = () => {
-      if (!window.kakao || !window.kakao.maps || !mapContainerRef.current) return;
-      
-      window.kakao.maps.load(() => {
-        if (!mapContainerRef.current) return;
+    let isMounted = true;
 
-        // 우선순위: 1. 이전 페이지(목록 등)에서 넘겨준 state 좌표 -> 2. 상세 API의 각종 위경도 필드
+    const renderMap = () => {
+      if (!isMounted || !window.kakao || !window.kakao.maps || !mapContainerRef.current) return;
+
+      window.kakao.maps.load(() => {
+        if (!isMounted || !mapContainerRef.current) return;
+
         const stateLat = location.state?.lat;
         const stateLng = location.state?.lng;
 
-        const apiLat = Number(stateLat || detail.lat || detail.latitude || detail.mapy || detail.y || detail.mapY);
-        const apiLng = Number(stateLng || detail.lng || detail.longitude || detail.mapx || detail.x || detail.mapX);
+        const apiLat = Number(stateLat || detail.lat || detail.map_y || detail.mapy || detail.y);
+        const apiLng = Number(stateLng || detail.lng || detail.map_x || detail.mapx || detail.x);
 
         const hasValidCoords = !isNaN(apiLat) && !isNaN(apiLng) && apiLat !== 0 && apiLng !== 0;
 
-        const renderMapAt = (targetLat, targetLng) => {
+        const createMapInstance = (lat, lng) => {
           if (!mapContainerRef.current) return;
-          const centerLatLng = new window.kakao.maps.LatLng(targetLat, targetLng);
+          mapContainerRef.current.innerHTML = '';
+
+          const centerLatLng = new window.kakao.maps.LatLng(lat, lng);
           const options = { center: centerLatLng, level: 4 };
           
           const map = new window.kakao.maps.Map(mapContainerRef.current, options);
@@ -61,45 +80,57 @@ function DetailPage() {
         };
 
         if (hasValidCoords) {
-          // 1. 유효한 위경도가 있는 경우 즉시 핀 생성
-          renderMapAt(apiLat, apiLng);
+          createMapInstance(apiLat, apiLng);
         } else if (detail.address && window.kakao.maps.services) {
-          // 2. 위경도가 없더라도 주소(address)가 있다면 카카오 Geocoder로 주소를 좌표로 자동 변환
           const geocoder = new window.kakao.maps.services.Geocoder();
           geocoder.addressSearch(detail.address, (result, status) => {
+            if (!isMounted) return;
             if (status === window.kakao.maps.services.Status.OK && result[0]) {
-              renderMapAt(Number(result[0].y), Number(result[0].x));
+              createMapInstance(Number(result[0].y), Number(result[0].x));
             } else {
-              // 주소 변환도 실패할 경우에만 기본 서울시청 좌표 적용
-              renderMapAt(37.566826, 126.978656);
+              createMapInstance(37.566826, 126.978656);
             }
           });
         } else {
-          renderMapAt(37.566826, 126.978656);
+          createMapInstance(37.566826, 126.978656);
         }
       });
     };
 
     if (window.kakao && window.kakao.maps) {
-      initMap();
+      renderMap();
     } else {
-      const script = document.createElement('script');
-      script.type = 'text/javascript';
-      // 💡 libraries=services 추가하여 주소->좌표 변환(Geocoder) 기능 활성화
-      script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${KAKAO_APP_KEY}&autoload=false&libraries=services`;
-      script.async = true;
-      script.onload = () => initMap();
-      document.head.appendChild(script);
+      const existingScript = document.getElementById('kakao-sdk');
+      if (existingScript) {
+        existingScript.onload = renderMap;
+      } else {
+        const script = document.createElement('script');
+        script.id = 'kakao-sdk';
+        script.type = 'text/javascript';
+        script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${KAKAO_APP_KEY}&autoload=false&libraries=services`;
+        script.async = true;
+        script.onload = renderMap;
+        document.head.appendChild(script);
+      }
     }
+
+    return () => {
+      isMounted = false;
+    };
   }, [detail, location.state]);
 
   const handleToggleRoute = () => {
+    if (!storageKey) {
+      alert('로그인 후 동선을 추가할 수 있습니다.');
+      return;
+    }
+
     try {
-      const savedRoutes = JSON.parse(localStorage.getItem('paw_pass_routes') || '[]');
+      const savedRoutes = JSON.parse(localStorage.getItem(storageKey) || '[]');
       const spotId = String(detail.id || detail.contentId);
       
-      const targetLat = Number(detail.lat || detail.latitude || detail.mapy || detail.y) || 37.566826;
-      const targetLng = Number(detail.lng || detail.longitude || detail.mapx || detail.x) || 126.978656;
+      const targetLat = Number(detail.lat || detail.map_y || detail.mapy || detail.y) || 37.566826;
+      const targetLng = Number(detail.lng || detail.map_x || detail.mapx || detail.x) || 126.978656;
 
       let updated;
       if (isRouteAdded) {
@@ -114,13 +145,13 @@ function DetailPage() {
           address: detail.address,
           lat: targetLat,
           lng: targetLng,
-          imageUrl: detail.imageUrl || '',
+          imageUrl: detail.image || detail.imageUrl || '',
           source: detail.source
         }];
         setIsRouteAdded(true);
         alert('❤️ 나의 동선에 추가되었습니다!');
       }
-      localStorage.setItem('paw_pass_routes', JSON.stringify(updated));
+      localStorage.setItem(storageKey, JSON.stringify(updated));
     } catch (err) {
       console.error('동선 저장 중 오류 발생:', err);
     }
@@ -159,8 +190,9 @@ function DetailPage() {
   if (previewImage && !imageList.includes(previewImage)) {
     imageList.unshift(previewImage);
   }
-  if (imageList.length === 0 && detail.imageUrl) {
-    imageList = [detail.imageUrl];
+  const mainImage = detail.image || detail.imageUrl;
+  if (imageList.length === 0 && mainImage) {
+    imageList = [mainImage];
   }
 
   const handlePrevImage = () => {
@@ -171,8 +203,8 @@ function DetailPage() {
     setCurrentImageIdx((prev) => (prev === imageList.length - 1 ? 0 : prev + 1));
   };
 
-  const currentLat = Number(detail.lat || detail.latitude || detail.mapy || detail.y);
-  const currentLng = Number(detail.lng || detail.longitude || detail.mapx || detail.x);
+  const currentLat = Number(detail.lat || detail.map_y || detail.mapy || detail.y);
+  const currentLng = Number(detail.lng || detail.map_x || detail.mapx || detail.x);
   const mapSearchUrl = !isNaN(currentLat) && !isNaN(currentLng) && currentLat !== 0 
     ? `https://map.kakao.com/link/map/${encodeURIComponent(detail.name)},${currentLat},${currentLng}`
     : `https://map.kakao.com/link/search/${encodeURIComponent(detail.address || detail.name)}`;
