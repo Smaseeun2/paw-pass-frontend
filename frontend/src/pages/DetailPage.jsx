@@ -10,17 +10,24 @@ function DetailPage() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const source = searchParams.get('source') || 'tourapi';
-  const petId = searchParams.get('petId') || '';
-  // 💡 매칭 훅 호출 시 petId를 함께 전달 (백엔드 매칭 API가 petId를 인자로 받도록 훅 내부 수정 필요)
-  const { matchResult } = usePetMatching(id, source, petId);
+
   const { detail, isLoading, error } = useSpotDetail(id, source);
   const { toggleFavorite, isFavorite } = useFavorites();
+  const { matchResult } = usePetMatching(detail?.petCondition);
 
-  // 1순위: 목록 카드에서 미리 넘어온 사진, 2순위: 상세 API가 불러온 사진
+  // 1순위: 목록 카드에서 미리 넘어온 사진, 2순위: API가 가져온 대표 이미지
   const previewImage = location.state?.previewImage;
   const displayImage = previewImage || detail?.imageUrl || '';
 
-  if (error || !detail && !isLoading) {
+  if (isLoading) {
+    return (
+      <div style={{ padding: '80px 20px', textAlign: 'center', color: '#64748b' }}>
+        장소 상세 정보를 실시간으로 불러오는 중입니다...
+      </div>
+    );
+  }
+
+  if (error || !detail) {
     return (
       <div style={{ padding: '60px 20px', maxWidth: '600px', margin: '0 auto', textAlign: 'center' }}>
         <p style={{ color: '#ef4444', marginBottom: '20px', fontWeight: 'bold' }}>
@@ -37,18 +44,17 @@ function DetailPage() {
     );
   }
 
-  // contentId 대신 id 단일 사용 검증 반영
-  const liked = isFavorite(detail?.id || id);
-  const cond = detail?.petCondition || {};
+  const liked = isFavorite(detail.id || detail.contentId);
+  const cond = detail.petCondition || {};
 
-  const mapSearchUrl = detail?.lat && detail?.lng 
+  const mapSearchUrl = detail.lat && detail.lng 
     ? `https://map.kakao.com/link/map/${encodeURIComponent(detail.name)},${detail.lat},${detail.lng}`
-    : `https://map.kakao.com/link/search/${encodeURIComponent(detail?.address || '위치')}`;
+    : `https://map.kakao.com/link/search/${encodeURIComponent(detail.address || detail.name)}`;
 
   return (
     <div style={{ padding: '0 20px', paddingBottom: '60px', maxWidth: '680px', margin: '0 auto', fontFamily: 'sans-serif' }}>
       
-      {/* 상단 네비게이션 */}
+      {/* 상단 바 */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '20px 0' }}>
         <button 
           type="button"
@@ -58,96 +64,100 @@ function DetailPage() {
           ← 뒤로 가기
         </button>
         
-        {detail && (
-          <button 
-            type="button"
-            onClick={() => toggleFavorite(detail)}
-            style={{ 
-              padding: '8px 16px', 
-              backgroundColor: liked ? '#ef4444' : '#fff', 
-              color: liked ? '#fff' : '#ef4444', 
-              border: '1.5px solid #ef4444', 
-              borderRadius: '20px', 
-              cursor: 'pointer',
-              fontWeight: 'bold'
-            }}
-          >
-            {liked ? '❤️ 찜 완료' : '🤍 찜하기'}
-          </button>
-        )}
+        <button 
+          type="button"
+          onClick={() => toggleFavorite(detail)}
+          style={{ 
+            padding: '8px 16px', 
+            backgroundColor: liked ? '#ef4444' : '#fff', 
+            color: liked ? '#fff' : '#ef4444', 
+            border: '1.5px solid #ef4444', 
+            borderRadius: '20px', 
+            cursor: 'pointer',
+            fontWeight: 'bold'
+          }}
+        >
+          {liked ? '❤️ 찜 완료' : '🤍 찜하기'}
+        </button>
       </div>
 
-      {/* 장소 타이틀 & 뱃지 */}
+      {/* 장소명 & 출처 뱃지 */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-        <h2 style={{ margin: 0, fontSize: '26px', color: '#1e293b' }}>
-          {detail?.name || '정보 불러오는 중...'}
-        </h2>
+        <h2 style={{ margin: 0, fontSize: '26px', color: '#1e293b' }}>{detail.name}</h2>
         <span style={{ 
           fontSize: '12px', 
           padding: '4px 8px', 
           borderRadius: '6px', 
-          backgroundColor: source === 'kcisa' ? '#e0f2fe' : '#fef3c7', 
-          color: source === 'kcisa' ? '#0369a1' : '#b45309', 
+          backgroundColor: detail.source === 'kcisa' ? '#e0f2fe' : '#fef3c7', 
+          color: detail.source === 'kcisa' ? '#0369a1' : '#b45309', 
           fontWeight: 'bold' 
         }}>
-          {source === 'kcisa' ? '반려동물 시설' : '관광공사 여행지'}
+          {detail.source === 'kcisa' ? '반려동물 시설' : '관광공사 여행지'}
         </span>
       </div>
 
-      {/* 대표 이미지 & 구글 저작자 표기 정책 반영 */}
+      {/* 대표 이미지 및 저작자 표시 */}
       {displayImage ? (
-        <div style={{ position: 'relative', marginBottom: '20px' }}>
+        <div style={{ position: 'relative', width: '100%', height: '320px', marginBottom: '20px', borderRadius: '12px', overflow: 'hidden', backgroundColor: '#f1f5f9' }}>
           <img 
             src={displayImage} 
-            alt={detail?.name || '장소 이미지'} 
-            style={{ width: '100%', height: '320px', objectFit: 'cover', borderRadius: '12px', backgroundColor: '#f1f5f9', display: 'block' }} 
+            alt={detail.name} 
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
           />
-          {detail?.imageAttribution && (
-            <div style={{ 
-              textAlign: 'right', fontSize: '11px', color: '#64748b', 
-              marginTop: '6px', paddingRight: '4px' 
+          {detail.imageAttribution && (
+            <span style={{ 
+              position: 'absolute', bottom: '8px', right: '8px', 
+              fontSize: '11px', backgroundColor: 'rgba(0,0,0,0.6)', color: '#fff', 
+              padding: '3px 6px', borderRadius: '4px', maxWidth: '90%', 
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' 
             }}>
-              Photo by {detail.imageAttribution}
-            </div>
+              {detail.imageAttribution}
+            </span>
           )}
         </div>
       ) : (
         <div style={{ width: '100%', height: '180px', backgroundColor: '#f8fafc', borderRadius: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', marginBottom: '20px', border: '1px dashed #cbd5e1' }}>
           <span style={{ fontSize: '32px', marginBottom: '8px' }}>🖼️</span>
-          <span style={{ fontSize: '14px', fontWeight: 'bold' }}>
-            {isLoading ? '이미지 불러오는 중...' : '등록된 대표 이미지가 없습니다'}
-          </span>
+          <span style={{ fontSize: '14px', fontWeight: 'bold' }}>등록된 대표 이미지가 없습니다</span>
         </div>
       )}
 
-      {/* 기본 정보 및 상세 내용 */}
+      {/* 다중 이미지(갤러리)가 존재할 경우 추가 가로 스크롤 노출 */}
+      {Array.isArray(detail.images) && detail.images.length > 1 && (
+        <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', marginBottom: '24px', paddingBottom: '8px' }}>
+          {detail.images.map((imgUrl, idx) => (
+            <img 
+              key={idx} 
+              src={imgUrl} 
+              alt={`${detail.name} 추가이미지 ${idx + 1}`} 
+              style={{ width: '120px', height: '90px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #e2e8f0', flexShrink: 0 }} 
+            />
+          ))}
+        </div>
+      )}
+
+      {/* 기본 정보 */}
       <div style={{ lineHeight: '1.7', backgroundColor: '#fff', padding: '18px 20px', border: '1px solid #e2e8f0', borderRadius: '12px', marginBottom: '24px' }}>
-        {isLoading && !detail ? (
-          <p style={{ textAlign: 'center', color: '#64748b', margin: '20px 0' }}>⏳ 상세 정보를 실시간으로 불러오는 중입니다...</p>
-        ) : (
-          <>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <p style={{ margin: '0 0 8px 0', flex: 1 }}><strong>📍 주소:</strong> {detail.address}</p>
-              <a 
-                href={mapSearchUrl} 
-                target="_blank" 
-                rel="noreferrer" 
-                style={{ fontSize: '13px', color: '#2563eb', fontWeight: 'bold', textDecoration: 'none', marginLeft: '12px', whiteSpace: 'nowrap' }}
-              >
-                지도 보기 ↗
-              </a>
-            </div>
-            <p style={{ margin: '0 0 8px 0' }}><strong>📞 전화번호:</strong> {detail.phone || '정보 미제공'}</p>
-            <p style={{ margin: '0 0 8px 0' }}><strong>⏰ 운영시간:</strong> {detail.hours || '현장 또는 전화 문의'}</p>
-            {cond.parkingAvailable && (
-              <p style={{ margin: '0 0 8px 0' }}><strong>🚗 주차 정보:</strong> {cond.parkingAvailable}</p>
-            )}
-            {detail.description && (
-              <p style={{ margin: '8px 0 0 0', color: '#475569', borderTop: '1px solid #f1f5f9', paddingTop: '8px' }}>
-                {detail.description}
-              </p>
-            )}
-          </>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <p style={{ margin: '0 0 8px 0', flex: 1 }}><strong>📍 주소:</strong> {detail.address}</p>
+          <a 
+            href={mapSearchUrl} 
+            target="_blank" 
+            rel="noreferrer" 
+            style={{ fontSize: '13px', color: '#2563eb', fontWeight: 'bold', textDecoration: 'none', marginLeft: '12px', whiteSpace: 'nowrap' }}
+          >
+            지도 보기 ↗
+          </a>
+        </div>
+        <p style={{ margin: '0 0 8px 0' }}><strong>📞 전화번호:</strong> {detail.phone || '정보 미제공'}</p>
+        <p style={{ margin: '0 0 8px 0' }}><strong>⏰ 운영시간:</strong> {detail.hours || '현장 또는 전화 문의'}</p>
+        {cond.parkingAvailable && (
+          <p style={{ margin: '0 0 8px 0' }}><strong>🚗 주차 정보:</strong> {cond.parkingAvailable}</p>
+        )}
+        {detail.description && (
+          <p style={{ margin: '8px 0 0 0', color: '#475569', borderTop: '1px solid #f1f5f9', paddingTop: '8px' }}>
+            {detail.description}
+          </p>
         )}
       </div>
 
@@ -169,27 +179,20 @@ function DetailPage() {
       {/* 동반 조건 */}
       <h3 style={{ fontSize: '18px', color: '#1e293b', marginBottom: '10px' }}>🐶 반려동물 동반 조건 안내</h3>
       <div style={{ backgroundColor: '#f0fdf4', padding: '18px 20px', borderRadius: '12px', border: '1px solid #bbf7d0', lineHeight: '1.7', color: '#166534' }}>
-        {isLoading && !detail ? (
-          <p style={{ margin: 0, color: '#64748b' }}>조건 정보를 불러오는 중...</p>
-        ) : source === 'tourapi' ? (
-          // TourAPI 전용 렌더러
+        {detail.source === 'tourapi' ? (
           <>
-            <p style={{ margin: '0 0 8px 0' }}><strong>동반 가능 유형:</strong> {cond.acmpyTypeCd || '현장 문의 필요'}</p>
-            <p style={{ margin: '0 0 8px 0' }}><strong>동반 가능 동물:</strong> {cond.acmpyPsblCpam || '제한 없음 (현장 확인 권장)'}</p>
-            <p style={{ margin: '0 0 8px 0' }}><strong>필수 준비물:</strong> {cond.acmpyNeedMtr || '목줄 및 배변봉투 지참'}</p>
-            {cond.etcAcmpyInfo && (
-              <p style={{ margin: '0' }}><strong>기타 안내:</strong> {cond.etcAcmpyInfo}</p>
+            <p style={{ margin: '0 0 8px 0' }}><strong>동반 가능 유형:</strong> {cond.acmpyType || '현장 문의 필요'}</p>
+            <p style={{ margin: '0 0 8px 0' }}><strong>입장 가능 크기/견종:</strong> {cond.possibleBreeds || '제한 없음 (현장 확인 권장)'}</p>
+            <p style={{ margin: '0 0 8px 0' }}><strong>필수 준비물:</strong> {cond.needItem || '목줄 및 배변봉투 지참'}</p>
+            {cond.etcInfo && (
+              <p style={{ margin: '0' }}><strong>기타 안내:</strong> {cond.etcInfo}</p>
             )}
           </>
         ) : (
-          // KCISA(문화시설) 전용 렌더러
           <>
+            <p style={{ margin: '0 0 8px 0' }}><strong>동반 안내 규정:</strong> {cond.petPolicy || '현장 규정 확인 필요'}</p>
             <p style={{ margin: '0 0 8px 0' }}><strong>입장 제한 조건:</strong> {cond.petRestriction || '특이 제한 없음'}</p>
-            <p style={{ margin: '0 0 8px 0' }}><strong>입장 가능 크기:</strong> {cond.allowedPetSize || '정보 미제공'}</p>
-            <p style={{ margin: '0 0 8px 0' }}><strong>전용 여부:</strong> {cond.petExclusive || '일반 시설'}</p>
-            {cond.additionalPetFee && (
-              <p style={{ margin: '0' }}><strong>추가 요금:</strong> {cond.additionalPetFee}</p>
-            )}
+            <p style={{ margin: '0' }}><strong>시설 비치물품:</strong> {cond.petAmenities || '기본 지참 필요'}</p>
           </>
         )}
       </div>

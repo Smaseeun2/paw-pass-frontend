@@ -1,17 +1,43 @@
-// src/hooks/usePetMatching.js 수정본
-import { useState, useEffect } from 'react';
+// src/hooks/usePetMatching.js
+import { useState, useEffect, useMemo } from 'react';
 import { authFetch } from '../services/api';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://172.30.1.29:8080';
 
-export const usePetMatching = (id, source = 'tourapi', petId = '') => {
-  // 💡 petId가 없는 경우를 고려하여 초기 상태를 동적으로 설정
+// 💡 1. 헬퍼 함수를 컴포넌트 외부에 분리하여 매 렌더링마다 불필요하게 실행되는 것 방지
+const resolvePetId = (paramPetId) => {
+  if (paramPetId) return paramPetId;
+  try {
+    for (const key of ['paw_pass_pets_guest', 'paw_pass_pets', 'paw_pass_user']) {
+      const saved = localStorage.getItem(key);
+      if (!saved) continue;
+      const parsed = JSON.parse(saved);
+      
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed[0].id || parsed[0]._id || parsed[0].petId || '';
+      }
+      if (parsed && typeof parsed === 'object') {
+        if (Array.isArray(parsed.pets) && parsed.pets.length > 0) {
+          return parsed.pets[0].id || parsed.pets[0]._id || '';
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('자동 반려동물 ID 조회 중 예외 발생:', e);
+  }
+  return '';
+};
+
+export const usePetMatching = (id, source = 'tourapi', paramPetId = '') => {
+  // 💡 2. useMemo를 사용하여 petId를 안정적으로 고정
+  const petId = useMemo(() => resolvePetId(paramPetId), [paramPetId]);
+
   const [matchResult, setMatchResult] = useState(() => {
     if (!petId) {
       return {
         status: '반려동물 선택 필요',
         color: '#64748b',
-        reason: '맞춤 방문 판정을 위해 상단에서 반려동물을 선택해주세요.'
+        reason: '맞춤 방문 판정을 위해 프로필에서 반려동물을 등록하거나 선택해주세요.'
       };
     }
     return {
