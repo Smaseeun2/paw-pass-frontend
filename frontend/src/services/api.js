@@ -157,40 +157,17 @@ export const updatePetInDB = async (petId, petData) => {
 
 // 10. 통합 관광지/문화시설 탐색 (GET /explore)
 // 백엔드 명세: regionCode, category, matchStatus, petId, page
-export const fetchExploreSpots = async ({
-  regionCode = '',
-  category = '',
-  matchStatus = '',
-  match_status = '', // 이전 파라미터 호환용
-  petId = '',
-  keyword = '',
-  page = 1
-} = {}) => {
+export const fetchExploreSpots = async ({ regionCode, category, keyword, matchStatus, petId, page = 1 }) => {
   const params = new URLSearchParams();
-
-  // 지역명 (서울, 경기 등 한글 지명)
+  
   if (regionCode) params.append('regionCode', regionCode);
-
-  // 카테고리 (NATURE, CAFE, FOOD, CULTURE, STAY)
   if (category) params.append('category', category);
-
-  // 출입 판정 필터 (matchStatus 우선, 없으면 match_status)
-  const finalMatchStatus = matchStatus || match_status;
-  if (finalMatchStatus) params.append('matchStatus', finalMatchStatus);
-
-  // 특정 반려동물 ID (개인화 출입 판정용)
-  if (petId) params.append('petId', petId);
-
-  // 검색 키워드
   if (keyword) params.append('keyword', keyword);
-
-  // 페이징 번호
+  if (matchStatus) params.append('matchStatus', matchStatus);
+  if (petId) params.append('petId', petId);
   params.append('page', page);
 
-  const res = await authFetch(`${BASE_URL}/explore?${params.toString()}`, {
-    method: 'GET'
-  });
-
+  const res = await authFetch(`${BASE_URL}/explore?${params.toString()}`, { method: 'GET' });
   if (!res.ok) throw new Error('장소 목록 조회 실패');
   const result = await res.json();
   return result.data || result;
@@ -305,4 +282,15 @@ export const fetchSuggestedRoute = async (points) => {
   
   const result = await res.json();
   return result.data || result;
+};
+
+// src/services/api.js 에 추가할 함수 예시
+export const setPrimaryPet = async (petId) => {
+  const res = await authFetch(`${BASE_URL}/users/me/primary-pet`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ pet_id: petId }) // 또는 petId 형식에 맞춰 조정
+  });
+  if (!res.ok) throw new Error('대표 반려동물 설정 실패');
+  return res.json();
 };

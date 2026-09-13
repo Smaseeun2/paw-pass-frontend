@@ -7,7 +7,6 @@ export const useTouristSpots = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
 
-  // 페이지는 ref로 관리하므로 useState 관련 불필요한 코드는 제거했습니다.
   const currentConditionRef = useRef({});
 
   const fetchSpots = useCallback(async (condition = {}, isAppend = false) => {
@@ -23,11 +22,13 @@ export const useTouristSpots = () => {
 
     const queryCondition = isAppend ? currentConditionRef.current : condition;
 
-    const regionCode = queryCondition.regionCode || '';
-    const category = queryCondition.category || '';
+    const regionCode = queryCondition.regionCode || queryCondition.region_code || '';
+    const category = queryCondition.category || queryCondition.type || '';
     const petId = queryCondition.petId || '';
-    const matchStatus = queryCondition.matchStatus || '';
-    const keyword = queryCondition.keyword || '';
+    const matchStatus = queryCondition.matchStatus || queryCondition.match_status || '';
+
+    // 💡 디버깅용 로그 (F12 콘솔에서 regionCode가 '부산' 등으로 잘 박혀서 가는지 확인하세요)
+    console.log('🔍 [탐색 요청 파라미터]', { regionCode, category, matchStatus, petId, page: targetPage });
 
     try {
       const data = await fetchExploreSpots({
@@ -35,14 +36,13 @@ export const useTouristSpots = () => {
         category,
         matchStatus,
         petId,
-        keyword,
         page: targetPage
       });
 
       const rawSpots = Array.isArray(data) ? data : (data?.data || []);
 
       const mappedSpots = rawSpots.map((spot) => {
-        const spotId = String(spot.id);
+        const spotId = String(spot.id || spot.content_id);
         const contactTel = spot.tel || '정보 미제공';
 
         return {
@@ -50,13 +50,13 @@ export const useTouristSpots = () => {
           contentId: spotId,
           name: spot.title || '장소명 없음',
           address: spot.addr || '주소 정보 없음',
-          imageUrl: spot.image || '',
+          imageUrl: spot.image || spot.first_image || '',
           tel: contactTel,
           phone: contactTel,
           lat: spot.lat,
           lng: spot.lng,
           source: spot.source || 'tourapi',
-          dedupKey: spot.dedup_key,
+          rawCategory: spot.category, // 백엔드 소스별 원본 category 값 ("동물병원", "카페", "39" 등)
           matchStatus: spot.match_status || '확인필요',
           petInfoDescription: spot.match_status 
             ? `출입 판정: ${spot.match_status}` 

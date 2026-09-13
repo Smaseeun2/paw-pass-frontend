@@ -126,11 +126,15 @@ function HomePage() {
   }, []);
 
   const handleSearch = () => {
+    // 💡 선택된 지역 코드에 해당하는 실제 한글 이름('인천', '서울' 등)을 찾아서 전달
+    const targetRegionObj = REGION_OPTIONS.find(r => r.code === selectedRegionCode);
+    const regionName = targetRegionObj && targetRegionObj.code !== '' ? targetRegionObj.label : '';
+
     navigate('/search', { 
       state: { 
         keyword: keyword.trim(), 
-        region: selectedRegionCode, 
-        type: selectedType, 
+        region: regionName,       // 👈 백엔드가 원하는 한글 지명 문자열전달 ('인천', '서울' 등)
+        type: selectedType,       // 👈 카테고리 값('NATURE', 'CAFE' 등)
         selectedPetIds,
         petCounts 
       } 

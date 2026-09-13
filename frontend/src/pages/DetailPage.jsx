@@ -1,9 +1,11 @@
 // src/pages/DetailPage.jsx
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useSpotDetail } from '../hooks/useSpotDetail';
 import { useFavorites } from '../hooks/useFavorites';
 import { usePetMatching } from '../hooks/usePetMatching';
+
+const KAKAO_APP_KEY = import.meta.env.VITE_KAKAO_APP_KEY || '';
 
 function DetailPage() {
   const { id } = useParams();
@@ -16,8 +18,84 @@ function DetailPage() {
   const { toggleFavorite, isFavorite } = useFavorites();
   const { matchResult } = usePetMatching(detail?.petCondition);
 
-  // 💡 슬라이더 현재 이미지 인덱스 상태
+  // 슬라이더 현재 이미지 인덱스 상태
   const [currentImageIdx, setCurrentImageIdx] = useState(0);
+
+  // 카카오맵 지도 컨테이너 참조
+  const mapContainerRef = useRef(null);
+
+  // 💡 [린트 해결] useEffect 내부 setState 대신 초기값 함수로 로컬 스토리지 읽기 처리
+  const [isRouteAdded, setIsRouteAdded] = useState(() => {
+    if (!id) return false;
+    try {
+      const savedRoutes = JSON.parse(localStorage.getItem('paw_pass_routes') || '[]');
+      return savedRoutes.some(item => String(item.id || item.contentId) === String(id));
+    } catch {
+      return false;
+    }
+  });
+
+  // 카카오맵 SDK 동적 로드 및 지도 렌더링
+  useEffect(() => {
+    if (!detail || !detail.lat || !detail.lng || !mapContainerRef.current) return;
+
+    const initMap = () => {
+      if (!window.kakao || !window.kakao.maps) return;
+      window.kakao.maps.load(() => {
+        if (!mapContainerRef.current) return;
+        const centerLatLng = new window.kakao.maps.LatLng(Number(detail.lat), Number(detail.lng));
+        const options = {
+          center: centerLatLng,
+          level: 3
+        };
+        const map = new window.kakao.maps.Map(mapContainerRef.current, options);
+        const marker = new window.kakao.maps.Marker({ position: centerLatLng });
+        marker.setMap(map);
+      });
+    };
+
+    if (window.kakao && window.kakao.maps) {
+      initMap();
+    } else {
+      const script = document.createElement('script');
+      script.type = 'text/javascript';
+      script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${KAKAO_APP_KEY}&autoload=false`;
+      script.async = true;
+      script.onload = () => initMap();
+      document.head.appendChild(script);
+    }
+  }, [detail]);
+
+  // '내 동선에 추가하기 / 제거하기' 토글 핸들러
+  const handleToggleRoute = () => {
+    try {
+      const savedRoutes = JSON.parse(localStorage.getItem('paw_pass_routes') || '[]');
+      const spotId = String(detail.id || detail.contentId);
+      
+      let updated;
+      if (isRouteAdded) {
+        updated = savedRoutes.filter(item => String(item.id || item.contentId) !== spotId);
+        setIsRouteAdded(false);
+        alert('나의 동선에서 제거되었습니다.');
+      } else {
+        updated = [...savedRoutes, {
+          id: spotId,
+          contentId: spotId,
+          name: detail.name,
+          address: detail.address,
+          lat: Number(detail.lat) || 37.566826,
+          lng: Number(detail.lng) || 126.978656,
+          imageUrl: detail.imageUrl || '',
+          source: detail.source
+        }];
+        setIsRouteAdded(true);
+        alert('❤️ 나의 동선에 추가되었습니다!');
+      }
+      localStorage.setItem('paw_pass_routes', JSON.stringify(updated));
+    } catch (err) {
+      console.error('동선 저장 중 오류 발생:', err);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -47,7 +125,6 @@ function DetailPage() {
   const liked = isFavorite(detail.id || detail.contentId);
   const cond = detail.petCondition || {};
 
-  // 💡 이미지 목록 구성
   const previewImage = location.state?.previewImage;
   let imageList = Array.isArray(detail.images) ? [...detail.images] : [];
   if (previewImage && !imageList.includes(previewImage)) {
@@ -57,7 +134,6 @@ function DetailPage() {
     imageList = [detail.imageUrl];
   }
 
-  // 슬라이더 좌우 이동 핸들러
   const handlePrevImage = () => {
     setCurrentImageIdx((prev) => (prev === 0 ? imageList.length - 1 : prev - 1));
   };
@@ -73,7 +149,6 @@ function DetailPage() {
   return (
     <div style={{ padding: '0 20px', paddingBottom: '60px', maxWidth: '680px', margin: '0 auto', fontFamily: 'sans-serif' }}>
       
-      {/* 상단 바 */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '20px 0' }}>
         <button 
           type="button"
@@ -100,22 +175,17 @@ function DetailPage() {
         </button>
       </div>
 
-      {/* 장소명 & 출처 뱃지 */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
         <h2 style={{ margin: 0, fontSize: '26px', color: '#1e293b' }}>{detail.name}</h2>
         <span style={{ 
-          fontSize: '12px', 
-          padding: '4px 8px', 
-          borderRadius: '6px', 
+          fontSize: '12px', padding: '4px 8px', borderRadius: '6px', 
           backgroundColor: detail.source === 'kcisa' ? '#e0f2fe' : '#fef3c7', 
-          color: detail.source === 'kcisa' ? '#0369a1' : '#b45309', 
-          fontWeight: 'bold' 
+          color: detail.source === 'kcisa' ? '#0369a1' : '#b45309', fontWeight: 'bold' 
         }}>
           {detail.source === 'kcisa' ? '반려동물 시설' : '관광공사 여행지'}
         </span>
       </div>
 
-      {/* 💡 큰 대표 이미지 슬라이더 영역 */}
       {imageList.length > 0 ? (
         <div style={{ position: 'relative', width: '100%', height: '340px', marginBottom: '12px', borderRadius: '12px', overflow: 'hidden', backgroundColor: '#1e293b', boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}>
           <img 
@@ -124,7 +194,6 @@ function DetailPage() {
             style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
           />
 
-          {/* 사진이 2장 이상일 때만 좌우 화살표 및 인디케이터 노출 */}
           {imageList.length > 1 && (
             <>
               <button 
@@ -158,7 +227,6 @@ function DetailPage() {
             </>
           )}
 
-          {/* 저작자 표시 */}
           {detail.imageAttribution && (
             <span style={{ 
               position: 'absolute', top: '12px', right: '12px', 
@@ -177,7 +245,6 @@ function DetailPage() {
         </div>
       )}
 
-      {/* 💡 하단 썸네일 목록 */}
       {imageList.length > 1 && (
         <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', marginBottom: '24px', paddingBottom: '6px' }}>
           {imageList.map((imgUrl, idx) => (
@@ -196,7 +263,6 @@ function DetailPage() {
         </div>
       )}
 
-      {/* 기본 정보 */}
       <div style={{ lineHeight: '1.7', backgroundColor: '#fff', padding: '18px 20px', border: '1px solid #e2e8f0', borderRadius: '12px', marginBottom: '24px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <p style={{ margin: '0 0 8px 0', flex: 1 }}><strong>📍 주소:</strong> {detail.address}</p>
@@ -206,7 +272,7 @@ function DetailPage() {
             rel="noreferrer" 
             style={{ fontSize: '13px', color: '#2563eb', fontWeight: 'bold', textDecoration: 'none', marginLeft: '12px', whiteSpace: 'nowrap' }}
           >
-            지도 보기 ↗
+            카카오맵 크게보기 ↗
           </a>
         </div>
         <p style={{ margin: '0 0 8px 0' }}><strong>📞 전화번호:</strong> {detail.phone || '정보 미제공'}</p>
@@ -221,7 +287,28 @@ function DetailPage() {
         )}
       </div>
 
-      {/* 맞춤 판정 */}
+      <div style={{ backgroundColor: '#fff', padding: '18px 20px', border: '1px solid #e2e8f0', borderRadius: '12px', marginBottom: '24px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+          <h3 style={{ fontSize: '18px', color: '#1e293b', margin: 0 }}>📍 위치 및 동선 관리</h3>
+          <button 
+            type="button"
+            onClick={handleToggleRoute}
+            style={{ 
+              padding: '8px 16px', 
+              backgroundColor: isRouteAdded ? '#10b981' : '#2563eb', 
+              color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px'
+            }}
+          >
+            {isRouteAdded ? '🗺️ 동선에서 제거하기' : '➕ 내 동선에 추가하기'}
+          </button>
+        </div>
+        
+        <div 
+          ref={mapContainerRef} 
+          style={{ width: '100%', height: '280px', borderRadius: '10px', border: '1px solid #cbd5e1', backgroundColor: '#f1f5f9' }}
+        />
+      </div>
+
       {matchResult && (
         <div style={{ marginBottom: '24px' }}>
           <h3 style={{ fontSize: '18px', color: '#1e293b', marginBottom: '10px' }}>🐾 내 반려동물 맞춤 방문 판정</h3>
@@ -236,7 +323,6 @@ function DetailPage() {
         </div>
       )}
 
-      {/* 동반 조건 */}
       <h3 style={{ fontSize: '18px', color: '#1e293b', marginBottom: '10px' }}>🐶 반려동물 동반 조건 안내</h3>
       <div style={{ backgroundColor: '#f0fdf4', padding: '18px 20px', borderRadius: '12px', border: '1px solid #bbf7d0', lineHeight: '1.7', color: '#166534' }}>
         {detail.source === 'tourapi' ? (

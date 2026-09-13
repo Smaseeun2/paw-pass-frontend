@@ -5,24 +5,23 @@ import { useTouristSpots } from '../hooks/useTouristSpots';
 import { useFavorites } from '../hooks/useFavorites';
 import { fetchPetsFromDB } from '../services/api';
 
-// 백엔드 명세 5종 카테고리
+// 백엔드 명세 5종 공통 카테고리
 const CATEGORY_OPTIONS = [
-  { label: '자연/관광지', value: 'NATURE' },
+  { label: '자연/풍경', value: 'NATURE' },
   { label: '카페', value: 'CAFE' },
-  { label: '음식점', value: 'FOOD' },
-  { label: '문화시설', value: 'CULTURE' },
+  { label: '음식점/식당', value: 'FOOD' },
+  { label: '문화/예술', value: 'CULTURE' },
   { label: '숙박시설', value: 'STAY' }
 ];
 
-// 백엔드 명세 17개 시/도 + 강릉
+// 백엔드 명세 17개 시/도 + 강릉 (한글 지명 문자열 code 규격)
 const REGION_OPTIONS = [
   { label: '전체 지역', code: '' },
   { label: '서울', code: '서울' },
-  { label: '부산', code: '부산' },
-  { label: '대구', code: '대구' },
   { label: '인천', code: '인천' },
-  { label: '광주', code: '광주' },
   { label: '대전', code: '대전' },
+  { label: '대구', code: '대구' },
+  { label: '부산', code: '부산' },
   { label: '울산', code: '울산' },
   { label: '세종', code: '세종' },
   { label: '경기', code: '경기' },
@@ -45,7 +44,6 @@ function SearchPage() {
 
   const queryState = location.state || {};
 
-  // 로그인 유저 정보
   const [user] = useState(() => {
     try {
       const saved = localStorage.getItem('paw_pass_user');
@@ -55,29 +53,28 @@ function SearchPage() {
     }
   });
 
-  // DB에 등록된 내 반려동물 목록
   const [myPets, setMyPets] = useState([]);
   const [selectedPetIds, setSelectedPetIds] = useState(
     queryState.selectedPetIds || (queryState.petId ? [queryState.petId] : [])
   );
 
-  // 검색 키워드 State
   const [keyword, setKeyword] = useState(queryState.keyword || '');
+  const [selectedMatchStatus, setSelectedMatchStatus] = useState(queryState.matchStatus || '');
 
-  // 출입 판정 필터 State
-  const [selectedMatchStatus, setSelectedMatchStatus] = useState('');
+  // 💡 지역 매칭 (홈에서 한글 이름이나 기존 코드로 넘어올 때 완벽 대응)
+  const rawRegion = queryState.region || queryState.regionCode || '';
+  const matchedRegion = REGION_OPTIONS.find(r => r.code === String(rawRegion) || r.label === String(rawRegion));
 
-  // 지역 State
-  const initialRegion = REGION_OPTIONS.find(r => r.code === queryState.region || r.label === queryState.region || r.code === queryState.regionCode);
-  const [selectedRegionCode, setSelectedRegionCode] = useState(initialRegion ? initialRegion.code : '');
-  const [selectedRegionName, setSelectedRegionName] = useState(initialRegion ? initialRegion.label : '');
+  const [selectedRegionCode, setSelectedRegionCode] = useState(matchedRegion ? matchedRegion.code : rawRegion);
+  const [selectedRegionName, setSelectedRegionName] = useState(matchedRegion ? matchedRegion.label : (rawRegion ? String(rawRegion) : ''));
 
-  // 카테고리 State
-  const initialCategory = CATEGORY_OPTIONS.find(c => c.value === queryState.category || c.value === queryState.type);
-  const [selectedCategory, setSelectedCategory] = useState(initialCategory ? initialCategory.value : '');
-  const [selectedCategoryName, setSelectedCategoryName] = useState(initialCategory ? initialCategory.label : '');
+  // 카테고리 매칭
+  const rawCategory = queryState.category || queryState.type || '';
+  const matchedCategory = CATEGORY_OPTIONS.find(c => c.value === String(rawCategory) || c.label === String(rawCategory));
 
-  // 마리수 카운터 State
+  const [selectedCategory, setSelectedCategory] = useState(matchedCategory ? matchedCategory.value : rawCategory);
+  const [selectedCategoryName, setSelectedCategoryName] = useState(matchedCategory ? matchedCategory.label : (rawCategory ? String(rawCategory) : ''));
+
   const [petCounts, setPetCounts] = useState(queryState.petCounts || { small: 0, medium: 0, large: 0 });
 
   const [activeDropdown, setActiveDropdown] = useState(null);
@@ -86,7 +83,6 @@ function SearchPage() {
   const dropdownRef = useRef(null);
   const observerTarget = useRef(null);
 
-  // 드롭다운 바깥 클릭 시 닫기
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
@@ -97,7 +93,6 @@ function SearchPage() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // 반려동물 목록 로드 (비로그인 방어)
   useEffect(() => {
     const loadUserPets = async () => {
       const token = localStorage.getItem('paw_pass_access_token');
@@ -116,11 +111,15 @@ function SearchPage() {
     loadUserPets();
   }, [user]);
 
-  // 첫 진입 시 조회
+  // 첫 진입 시 전달받은 조건으로 즉시 검색 실행
   useEffect(() => {
+    const initialReqRegion = matchedRegion ? matchedRegion.code : rawRegion;
+    const initialReqCategory = matchedCategory ? matchedCategory.value : rawCategory;
+
     fetchSpots({
-      regionCode: initialRegion ? initialRegion.code : '',
-      category: initialCategory ? initialCategory.value : '',
+      regionCode: initialReqRegion,
+      category: initialReqCategory,
+      matchStatus: queryState.matchStatus || '',
       petId: selectedPetIds[0] || '',
       keyword: queryState.keyword || ''
     }, false);
@@ -145,13 +144,11 @@ function SearchPage() {
     return () => observer.disconnect();
   }, [loadMore, isLoading, hasMore]);
 
-  // 마리수 변경
   const handleCountChange = (size, delta, e) => {
     e.stopPropagation();
     setPetCounts(prev => ({ ...prev, [size]: Math.max(0, prev[size] + delta) }));
   };
 
-  // 내 반려동물 선택 토글
   const handlePetToggle = (petId, e) => {
     e.stopPropagation();
     setSelectedPetIds(prev => 
@@ -159,7 +156,6 @@ function SearchPage() {
     );
   };
 
-  // 반려동물 필터 버튼 라벨
   const getPetFilterLabel = () => {
     const parts = [];
     if (user && myPets.length > 0 && selectedPetIds.length > 0) {
@@ -175,11 +171,11 @@ function SearchPage() {
     return parts.length > 0 ? parts.join(' + ') : '반려동물 선택';
   };
 
-  // 검색 버튼 클릭
   const handleSearchButtonClick = () => {
     fetchSpots({
-      regionCode: selectedRegionCode,
-      category: selectedCategory,
+      regionCode: selectedRegionCode, // 💡 한글 지역명 문자열 전송 ('부산', '서울' 등)
+      category: selectedCategory,     // 💡 공통 카테고리 전송 ('CAFE', 'NATURE' 등)
+      matchStatus: selectedMatchStatus,
       petId: selectedPetIds[0] || '',
       keyword: keyword.trim()
     }, false);
@@ -189,19 +185,19 @@ function SearchPage() {
   };
 
   const goToDetail = (spotId) => {
-  const targetSpot = spots.find(s => String(s.id) === String(spotId));
-  if (!targetSpot) return;
+    const targetSpot = spots.find(s => String(s.id) === String(spotId));
+    if (!targetSpot) return;
 
-  const source = targetSpot.source || 'tourapi';
-  const currentPetId = selectedPetIds[0] || ''; 
+    const source = targetSpot.source || 'tourapi';
+    const currentPetId = selectedPetIds[0] || ''; 
 
-  navigate(`/detail/${spotId}?source=${source}&petId=${currentPetId}`, {
-    state: { 
-      previewImage: targetSpot.imageUrl || '',
-      petId: currentPetId // state로도 안전하게 동시 전달
-    }
-  });
-};
+    navigate(`/detail/${spotId}?source=${source}&petId=${currentPetId}`, {
+      state: { 
+        previewImage: targetSpot.imageUrl || '',
+        petId: currentPetId 
+      }
+    });
+  };
 
   const selectedSpotDetail = spots.find(s => String(s.id) === String(selectedSpotId));
 
@@ -210,16 +206,11 @@ function SearchPage() {
       <h1 style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '32px', marginBottom: '5px', color: '#333' }}>Paw Pass</h1>
       <p style={{ textAlign: 'center', color: '#777', marginBottom: '30px' }}>장소 탐색</p>
 
-      {/* --- 검색 필터 바 영역 --- */}
+      {/* 검색 필터 바 */}
       <div 
         ref={dropdownRef} 
-        style={{ 
-          display: 'flex', gap: '12px', backgroundColor: '#eef0f2', padding: '16px', 
-          borderRadius: '12px', marginBottom: '30px', flexWrap: 'wrap', alignItems: 'center', 
-          border: '1px solid #d1d5db', position: 'relative' 
-        }}
+        style={{ display: 'flex', gap: '12px', backgroundColor: '#eef0f2', padding: '16px', borderRadius: '12px', marginBottom: '20px', flexWrap: 'wrap', alignItems: 'center', border: '1px solid #d1d5db', position: 'relative' }}
       >
-        {/* 1. 검색어 입력창 */}
         <div style={{ flex: 2, minWidth: '200px', position: 'relative' }}>
           <input 
             type="text"
@@ -227,26 +218,19 @@ function SearchPage() {
             onChange={(e) => setKeyword(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') handleSearchButtonClick(); }}
             placeholder="장소명이나 키워드 검색"
-            style={{ 
-              width: '100%', padding: '12px 15px 12px 35px', backgroundColor: '#fff', 
-              border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '14px', outline: 'none', color: '#333', boxSizing: 'border-box' 
-            }}
+            style={{ width: '100%', padding: '12px 15px 12px 35px', backgroundColor: '#fff', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '14px', outline: 'none', color: '#333', boxSizing: 'border-box' }}
           />
-          <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#6b7280' }}>
-            🔍
-          </span>
+          <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#6b7280' }}>🔍</span>
         </div>
 
-        {/* 2. 지역 필터 드롭다운 버튼 */}
+        {/* 지역 드롭다운 */}
         <div style={{ position: 'relative', flex: 1, minWidth: '130px' }}>
           <button 
             type="button"
             onClick={() => setActiveDropdown(activeDropdown === 'region' ? null : 'region')}
             style={{ width: '100%', height: '45px', padding: '0 14px', backgroundColor: '#fff', border: '1px solid #cbd5e1', borderRadius: '8px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 'bold', fontSize: '14px', color: '#374151', boxSizing: 'border-box' }}
           >
-            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              📍 {selectedRegionName || '전체 지역'}
-            </span>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>📍 {selectedRegionName || '전체 지역'}</span>
             <span style={{ marginLeft: '4px', fontSize: '12px' }}>▾</span>
           </button>
 
@@ -269,16 +253,14 @@ function SearchPage() {
           )}
         </div>
 
-        {/* 3. 카테고리 필터 드롭다운 버튼 */}
+        {/* 카테고리 드롭다운 */}
         <div style={{ position: 'relative', flex: 1, minWidth: '130px' }}>
           <button 
             type="button"
             onClick={() => setActiveDropdown(activeDropdown === 'category' ? null : 'category')}
             style={{ width: '100%', height: '45px', padding: '0 14px', backgroundColor: '#fff', border: '1px solid #cbd5e1', borderRadius: '8px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 'bold', fontSize: '14px', color: '#374151', boxSizing: 'border-box' }}
           >
-            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              🏷️ {selectedCategoryName || '전체 카테고리'}
-            </span>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>🏷️ {selectedCategoryName || '전체 카테고리'}</span>
             <span style={{ marginLeft: '4px', fontSize: '12px' }}>▾</span>
           </button>
 
@@ -307,16 +289,14 @@ function SearchPage() {
           )}
         </div>
 
-        {/* 4. 반려동물 선택 드롭다운 버튼 */}
+        {/* 반려동물 선택 드롭다운 */}
         <div style={{ position: 'relative', flex: 1.5, minWidth: '180px' }}>
           <button 
             type="button"
             onClick={() => setActiveDropdown(activeDropdown === 'pet' ? null : 'pet')}
             style={{ width: '100%', height: '45px', padding: '0 14px', backgroundColor: '#fff', border: '1px solid #cbd5e1', borderRadius: '8px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 'bold', fontSize: '13px', color: '#374151', boxSizing: 'border-box' }}
           >
-            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              🐾 {getPetFilterLabel()}
-            </span>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>🐾 {getPetFilterLabel()}</span>
             <span style={{ marginLeft: '4px', fontSize: '12px' }}>▾</span>
           </button>
 
@@ -331,9 +311,7 @@ function SearchPage() {
 
               {user && myPets.length > 0 && (
                 <div style={{ marginBottom: '14px' }}>
-                  <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#64748b', marginBottom: '8px' }}>
-                    등록된 우리 아이 (선택 시 출입 가능 필터 적용)
-                  </div>
+                  <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#64748b', marginBottom: '8px' }}>등록된 우리 아이</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '140px', overflowY: 'auto' }}>
                     {myPets.map((pet) => {
                       const isSelected = selectedPetIds.includes(pet.id);
@@ -341,64 +319,24 @@ function SearchPage() {
                         <div 
                           key={pet.id}
                           onClick={(e) => handlePetToggle(pet.id, e)}
-                          style={{
-                            display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 10px',
-                            borderRadius: '8px', cursor: 'pointer',
-                            backgroundColor: isSelected ? '#eff6ff' : '#f8fafc',
-                            border: isSelected ? '1.5px solid #2563eb' : '1px solid #e2e8f0'
-                          }}
+                          style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 10px', borderRadius: '8px', cursor: 'pointer', backgroundColor: isSelected ? '#eff6ff' : '#f8fafc', border: isSelected ? '1.5px solid #2563eb' : '1px solid #e2e8f0' }}
                         >
                           <span style={{ fontSize: '18px' }}>🐶</span>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <p style={{ margin: 0, fontWeight: 'bold', fontSize: '13px', color: '#1e293b' }}>{pet.name}</p>
                             <p style={{ margin: 0, fontSize: '11px', color: '#64748b' }}>{pet.breed} · {pet.weight}kg</p>
                           </div>
-                          <span style={{ fontSize: '15px', color: isSelected ? '#2563eb' : '#cbd5e1', fontWeight: 'bold' }}>
-                            {isSelected ? '✓' : '○'}
-                          </span>
+                          <span style={{ fontSize: '15px', color: isSelected ? '#2563eb' : '#cbd5e1', fontWeight: 'bold' }}>{isSelected ? '✓' : '○'}</span>
                         </div>
                       );
                     })}
                   </div>
                 </div>
               )}
-
-              <div>
-                <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#64748b', marginBottom: '8px', borderTop: user && myPets.length > 0 ? '1px solid #f1f5f9' : 'none', paddingTop: user && myPets.length > 0 ? '10px' : '0' }}>
-                  직접 마리수 선택
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span>소형 (10kg 미만)</span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <button type="button" onClick={(e) => handleCountChange('small', -1, e)} style={{ width: '24px', height: '24px', border: '1px solid #cbd5e1', background: '#fff', borderRadius: '4px', cursor: 'pointer' }}>-</button>
-                      <span style={{ minWidth: '20px', textAlign: 'center', fontWeight: 'bold' }}>{petCounts.small}</span>
-                      <button type="button" onClick={(e) => handleCountChange('small', 1, e)} style={{ width: '24px', height: '24px', border: '1px solid #cbd5e1', background: '#fff', borderRadius: '4px', cursor: 'pointer' }}>+</button>
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span>중형 (10~25kg)</span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <button type="button" onClick={(e) => handleCountChange('medium', -1, e)} style={{ width: '24px', height: '24px', border: '1px solid #cbd5e1', background: '#fff', borderRadius: '4px', cursor: 'pointer' }}>-</button>
-                      <span style={{ minWidth: '20px', textAlign: 'center', fontWeight: 'bold' }}>{petCounts.medium}</span>
-                      <button type="button" onClick={(e) => handleCountChange('medium', 1, e)} style={{ width: '24px', height: '24px', border: '1px solid #cbd5e1', background: '#fff', borderRadius: '4px', cursor: 'pointer' }}>+</button>
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span>대형 (25kg 이상)</span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <button type="button" onClick={(e) => handleCountChange('large', -1, e)} style={{ width: '24px', height: '24px', border: '1px solid #cbd5e1', background: '#fff', borderRadius: '4px', cursor: 'pointer' }}>-</button>
-                      <span style={{ minWidth: '20px', textAlign: 'center', fontWeight: 'bold' }}>{petCounts.large}</span>
-                      <button type="button" onClick={(e) => handleCountChange('large', 1, e)} style={{ width: '24px', height: '24px', border: '1px solid #cbd5e1', background: '#fff', borderRadius: '4px', cursor: 'pointer' }}>+</button>
-                    </div>
-                  </div>
-                </div>
-              </div>
             </div>
           )}
         </div>
 
-        {/* 5. 검색 실행 버튼 */}
         <div>
           <button 
             type="button"
@@ -409,56 +347,36 @@ function SearchPage() {
           </button>
         </div>
       </div>
-      
-        {/* 1. 기존 검색 필터 바 내부 또는 아래쪽에 출입 상태 필터 추가 */}
-        <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', alignItems: 'center', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#4b5563' }}>출입 판정:</span>
-          {[
-            { label: '전체', value: '' },
-            { label: '🟢 방문 가능', value: '가능' },
-            { label: '🟡 조건부', value: '조건부' },
-            { label: '🔴 방문 불가', value: '불가' }
-          ].map((filter) => {
-            const isSelected = selectedMatchStatus === filter.value;
-            return (
-              <button
-                key={filter.value}
-                type="button"
-                onClick={() => {
-                  setSelectedMatchStatus(filter.value);
-                  // 상태 변경 즉시 검색 API 호출
-                  fetchSpots({
-                    regionCode: selectedRegionCode,
-                    category: selectedCategory,
-                    matchStatus: filter.value, // 💡 백엔드 matchStatus 필터 전달
-                    petId: selectedPetIds[0] || '',
-                    keyword: keyword.trim()
-                  }, false);
-                }}
-                style={{
-                  padding: '6px 14px',
-                  borderRadius: '20px',
-                  border: isSelected ? '1.5px solid #2563eb' : '1px solid #cbd5e1',
-                  backgroundColor: isSelected ? '#eff6ff' : '#fff',
-                  color: isSelected ? '#2563eb' : '#374151',
-                  fontSize: '13px',
-                  fontWeight: isSelected ? 'bold' : 'normal',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s'
-                }}
-              >
-                {filter.label}
-              </button>
-            );
-          })}
-        </div>
-      {/* --- 콘텐츠 목록 영역 --- */}
+
+      {/* 목록 및 우측 패널 */}
       {isLoading && spots.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '50px', color: '#6b7280' }}>장소 정보를 불러오는 중입니다...</div>
+        <div style={{ 
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', 
+          padding: '100px 0', gap: '16px' 
+        }}>
+          {/* 💡 CSS 애니메이션 스피너 */}
+          <div style={{
+            width: '48px', height: '48px', border: '4px solid #e2e8f0', 
+            borderTop: '4px solid #2563eb', borderRadius: '50%',
+            animation: 'spin 1s linear infinite'
+          }} />
+          <p style={{ fontSize: '16px', fontWeight: 'bold', color: '#334155', margin: 0 }}>
+            🐾 맞춤 동반 장소를 불러오는 중입니다...
+          </p>
+          <p style={{ fontSize: '13px', color: '#94a3b8', margin: 0 }}>
+            잠시만 기다려주세요!
+          </p>
+
+          {/* 💡 스피너 회전 애니메이션 스타일 인라인 주입 */}
+          <style>{`
+            @keyframes spin {
+              0% { transform: rotate(0deg); }
+              100% { transform: rotate(360deg); }
+            }
+          `}</style>
+        </div>
       ) : (
         <div style={{ display: 'flex', gap: '24px', alignItems: 'flex-start' }}>
-          
-          {/* 카드 리스트 그리드 */}
           <div style={{ flex: 2, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '20px' }}>
             {spots.length > 0 ? (
               spots.map((spot, idx) => {
@@ -469,42 +387,16 @@ function SearchPage() {
                   <div 
                     key={`${spot.id}-${idx}`}
                     onClick={() => setSelectedSpotId(spot.id)}
-                    style={{
-                      border: isSelected ? '2px solid #4b5563' : '1px solid #d1d5db',
-                      borderRadius: '12px',
-                      backgroundColor: isSelected ? '#f3f4f6' : '#fff',
-                      padding: '16px',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s'
-                    }}
+                    style={{ border: isSelected ? '2px solid #4b5563' : '1px solid #d1d5db', borderRadius: '12px', backgroundColor: isSelected ? '#f3f4f6' : '#fff', padding: '16px', cursor: 'pointer', transition: 'all 0.2s' }}
                   >
-                    <div style={{ 
-                      position: 'relative', width: '100%', height: '140px', 
-                      backgroundColor: spot.source === 'kcisa' ? '#e0f2fe' : '#fef3c7', 
-                      borderRadius: '8px', marginBottom: '12px', display: 'flex', 
-                      flexDirection: 'column', alignItems: 'center', justifyContent: 'center', 
-                      overflow: 'hidden' 
-                    }}>
+                    <div style={{ position: 'relative', width: '100%', height: '140px', backgroundColor: spot.source === 'kcisa' ? '#e0f2fe' : '#fef3c7', borderRadius: '8px', marginBottom: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
                       {spot.imageUrl ? (
                         <div style={{ position: 'relative', width: '100%', height: '100%' }}>
                           <img src={spot.imageUrl} alt={spot.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                          {/* 구글 이미지 저작자 표기 정책 반영 */}
-                          {spot.imageAttribution && (
-                            <span style={{ 
-                              position: 'absolute', bottom: '4px', right: '4px', 
-                              fontSize: '9px', backgroundColor: 'rgba(0,0,0,0.6)', color: '#fff', 
-                              padding: '2px 4px', borderRadius: '4px', maxWidth: '90%', 
-                              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' 
-                            }}>
-                              {spot.imageAttribution}
-                            </span>
-                          )}
                         </div>
                       ) : (
                         <>
-                          <span style={{ fontSize: '32px', marginBottom: '4px' }}>
-                            {spot.source === 'kcisa' ? '🏥' : '🏞️'}
-                          </span>
+                          <span style={{ fontSize: '32px', marginBottom: '4px' }}>{spot.source === 'kcisa' ? '🏥' : '🏞️'}</span>
                           <span style={{ fontSize: '12px', fontWeight: 'bold', color: spot.source === 'kcisa' ? '#0369a1' : '#b45309' }}>
                             {spot.source === 'kcisa' ? '반려동물 편의시설' : '추천 여행지'}
                           </span>
@@ -522,19 +414,12 @@ function SearchPage() {
 
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
                       <h4 style={{ margin: 0, fontSize: '16px', fontWeight: 'bold', color: '#1f2937' }}>{spot.name}</h4>
-                      <span style={{ 
-                        fontSize: '11px', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold',
-                        backgroundColor: spot.matchStatus === '가능' ? '#dcfce7' : spot.matchStatus === '조건부' ? '#fef9c3' : '#f1f5f9',
-                        color: spot.matchStatus === '가능' ? '#15803d' : spot.matchStatus === '조건부' ? '#a16207' : '#64748b'
-                      }}>
+                      <span style={{ fontSize: '11px', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold', backgroundColor: spot.matchStatus === '가능' ? '#dcfce7' : spot.matchStatus === '조건부' ? '#fef9c3' : '#f1f5f9', color: spot.matchStatus === '가능' ? '#15803d' : spot.matchStatus === '조건부' ? '#a16207' : '#64748b' }}>
                         {spot.matchStatus}
                       </span>
                     </div>
 
                     <p style={{ margin: '0 0 8px 0', fontSize: '13px', color: '#6b7280' }}>📍 {spot.address}</p>
-                    <span style={{ fontSize: '11px', padding: '2px 6px', borderRadius: '4px', backgroundColor: spot.source === 'kcisa' ? '#e0f2fe' : '#fef3c7', color: spot.source === 'kcisa' ? '#0369a1' : '#b45309', fontWeight: 'bold' }}>
-                      {spot.source === 'kcisa' ? '반려동물 시설' : '관광공사 여행지'}
-                    </span>
                   </div>
                 );
               })
@@ -542,7 +427,6 @@ function SearchPage() {
               <p style={{ gridColumn: '1 / -1', textAlign: 'center', color: '#6b7280', padding: '40px' }}>검색 조건에 일치하는 장소가 없습니다.</p>
             )}
 
-            {/* 무한 스크롤 트리거 */}
             {spots.length > 0 && (
               <div ref={observerTarget} style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '28px 0', color: '#94a3b8', fontSize: '14px' }}>
                 {isLoading ? <span>⏳ 추가 장소를 불러오는 중...</span> : !hasMore ? <span>✨ 모든 장소를 다 확인하셨습니다!</span> : null}
@@ -550,7 +434,6 @@ function SearchPage() {
             )}
           </div>
 
-          {/* 우측 상세 패널 */}
           <div style={{ flex: 1, minWidth: '320px', border: '1px solid #d1d5db', borderRadius: '12px', padding: '24px', backgroundColor: '#fff', position: 'sticky', top: '20px' }}>
             {selectedSpotDetail ? (
               <div>
@@ -559,29 +442,11 @@ function SearchPage() {
                 </h3>
                 <div style={{ width: '100%', height: '160px', backgroundColor: '#e5e7eb', borderRadius: '8px', marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6b7280', overflow: 'hidden', position: 'relative' }}>
                   {selectedSpotDetail.imageUrl ? (
-                    <>
-                      <img src={selectedSpotDetail.imageUrl} alt={selectedSpotDetail.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                      {selectedSpotDetail.imageAttribution && (
-                        <span style={{ 
-                          position: 'absolute', bottom: '4px', right: '4px', 
-                          fontSize: '9px', backgroundColor: 'rgba(0,0,0,0.6)', color: '#fff', 
-                          padding: '2px 4px', borderRadius: '4px', maxWidth: '90%', 
-                          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' 
-                        }}>
-                          {selectedSpotDetail.imageAttribution}
-                        </span>
-                      )}
-                    </>
+                    <img src={selectedSpotDetail.imageUrl} alt={selectedSpotDetail.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   ) : (
                     <span>🖼️ 대표 이미지 준비중</span>
                   )}
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '14px', color: '#4b5563', marginBottom: '20px' }}>
-                  <p style={{ margin: '0' }}><strong>주소:</strong> {selectedSpotDetail.address}</p>
-                  <p style={{ margin: '0' }}><strong>연락처:</strong> {selectedSpotDetail.phone || '정보 미제공'}</p>
-                  <p style={{ margin: '0' }}><strong>출입 판정:</strong> {selectedSpotDetail.matchStatus}</p>
-                </div>
-
                 <button 
                   type="button"
                   onClick={() => goToDetail(selectedSpotDetail.id)}
@@ -596,7 +461,6 @@ function SearchPage() {
               </div>
             )}
           </div>
-
         </div>
       )}
     </div>

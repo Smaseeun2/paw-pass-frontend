@@ -4,9 +4,11 @@ import { authFetch } from '../services/api';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://172.30.1.29:8080';
 
-// 💡 1. 헬퍼 함수를 컴포넌트 외부에 분리하여 매 렌더링마다 불필요하게 실행되는 것 방지
+// 💡 1. 펫 ID 검증 헬퍼 (13자리 타임스탬프 등 비정상 값 차단)
 const resolvePetId = (paramPetId) => {
-  if (paramPetId) return paramPetId;
+  if (paramPetId && String(paramPetId).length < 10 && !isNaN(Number(paramPetId))) {
+    return String(paramPetId);
+  }
   try {
     for (const key of ['paw_pass_pets_guest', 'paw_pass_pets', 'paw_pass_user']) {
       const saved = localStorage.getItem(key);
@@ -14,11 +16,13 @@ const resolvePetId = (paramPetId) => {
       const parsed = JSON.parse(saved);
       
       if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed[0].id || parsed[0]._id || parsed[0].petId || '';
+        const val = parsed[0].id || parsed[0]._id || parsed[0].petId || '';
+        if (val && String(val).length < 10) return String(val);
       }
       if (parsed && typeof parsed === 'object') {
         if (Array.isArray(parsed.pets) && parsed.pets.length > 0) {
-          return parsed.pets[0].id || parsed.pets[0]._id || '';
+          const val = parsed.pets[0].id || parsed.pets[0]._id || '';
+          if (val && String(val).length < 10) return String(val);
         }
       }
     }
@@ -29,7 +33,15 @@ const resolvePetId = (paramPetId) => {
 };
 
 export const usePetMatching = (id, source = 'tourapi', paramPetId = '') => {
-  // 💡 2. useMemo를 사용하여 petId를 안정적으로 고정
+  // 💡 2. id가 객체({})로 통째로 넘어오는 버그 원천 차단 (contentId, id 등 안전 추출)
+  const resolvedId = useMemo(() => {
+    if (!id) return '';
+    if (typeof id === 'object') {
+      return String(id.contentId || id.content_id || id.id || '');
+    }
+    return String(id);
+  }, [id]);
+
   const petId = useMemo(() => resolvePetId(paramPetId), [paramPetId]);
 
   const [matchResult, setMatchResult] = useState(() => {
@@ -47,18 +59,21 @@ export const usePetMatching = (id, source = 'tourapi', paramPetId = '') => {
     };
   });
   
-  const [isLoading, setIsLoading] = useState(Boolean(id && petId));
+  const [isLoading, setIsLoading] = useState(Boolean(resolvedId && petId));
 
   useEffect(() => {
-    if (!id || !petId) return;
+    if (!resolvedId || !petId) return;
+
+    // 💡 디버깅용 로그 (서버로 나가는 최종 파라미터 확인)
+    console.log(`🐾 [usePetMatching] 요청 ID: "${resolvedId}", Source: "${source}", PetID: "${petId}"`);
 
     let isMounted = true;
     const fetchMatching = async () => {
       setIsLoading(true);
       try {
         const endpoint = source === 'kcisa' 
-          ? `${BASE_URL}/facilities/${id}/match` 
-          : `${BASE_URL}/tours/${id}/match`;
+          ? `${BASE_URL}/facilities/${resolvedId}/match` 
+          : `${BASE_URL}/tours/${resolvedId}/match`;
 
         const res = await authFetch(`${endpoint}?petId=${petId}`, { method: 'GET' });
         
@@ -103,7 +118,7 @@ export const usePetMatching = (id, source = 'tourapi', paramPetId = '') => {
     return () => {
       isMounted = false;
     };
-  }, [id, source, petId]);
+  }, [resolvedId, source, petId]);
 
   return { matchResult, isLoading };
 };
