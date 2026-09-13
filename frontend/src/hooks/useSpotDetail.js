@@ -44,10 +44,10 @@ export const useSpotDetail = (id, source = 'tourapi') => {
 
         const data = rawData.data || rawData;
         
-        // 💡 펫 조건 및 pet 변수 정의 수정 (ReferenceError 방지)
+        // 펫 조건 및 pet 변수 정의
         const petCond = data.pet_condition || data.petCondition || {};
 
-        // 💡 관광공사 상세는 images(배열), 나머지는 image(단수) 대응
+        // 관광공사 상세는 images(배열), 나머지는 image(단수) 대응
         let candidateImages = [];
         if (source === 'tourapi') {
           if (Array.isArray(data.images)) candidateImages = data.images;
@@ -58,6 +58,10 @@ export const useSpotDetail = (id, source = 'tourapi') => {
           if (fetchedImage) candidateImages = [fetchedImage];
           else if (data.image) candidateImages = [data.image];
         }
+
+        // 💡 백엔드 수정 사항에 맞춘 위도(y), 경도(x) 필드명 최우선 반영
+        const parsedLat = Number(data.lat || data.map_y || data.mapy || data.y || data.latitude);
+        const parsedLng = Number(data.lng || data.map_x || data.mapx || data.x || data.longitude);
 
         const normalized = {
           contentId: String(id),
@@ -71,6 +75,9 @@ export const useSpotDetail = (id, source = 'tourapi') => {
           imageUrl: candidateImages[0] || '', // 대표 이미지 단건
           imageAttribution: fetchedAttribution || data.image_attribution || '',
           description: data.description || data.overview || '',
+          // 💡 지도 핀 위치를 잡기 위한 위도, 경도 명시적 주입
+          lat: !isNaN(parsedLat) ? parsedLat : null,
+          lng: !isNaN(parsedLng) ? parsedLng : null,
           petCondition: {
             acmpyType: petCond.acmpyTypeCd || petCond.acmpy_type || '',
             possibleBreeds: petCond.relaAcmpyEntEnterPrn || petCond.possible_breeds || '',

@@ -18,13 +18,9 @@ function DetailPage() {
   const { toggleFavorite, isFavorite } = useFavorites();
   const { matchResult } = usePetMatching(detail?.petCondition);
 
-  // 슬라이더 현재 이미지 인덱스 상태
   const [currentImageIdx, setCurrentImageIdx] = useState(0);
-
-  // 카카오맵 지도 컨테이너 참조
   const mapContainerRef = useRef(null);
 
-  // 💡 [린트 해결] useEffect 내부 setState 대신 초기값 함수로 로컬 스토리지 읽기 처리
   const [isRouteAdded, setIsRouteAdded] = useState(() => {
     if (!id) return false;
     try {
@@ -35,22 +31,52 @@ function DetailPage() {
     }
   });
 
-  // 카카오맵 SDK 동적 로드 및 지도 렌더링
+  // 카카오맵 SDK 로드 및 정확한 좌표 기반 핀 렌더링 (주소 기반 Geocoder 자동 변환 지원)
   useEffect(() => {
-    if (!detail || !detail.lat || !detail.lng || !mapContainerRef.current) return;
+    if (!detail || !mapContainerRef.current) return;
 
     const initMap = () => {
-      if (!window.kakao || !window.kakao.maps) return;
+      if (!window.kakao || !window.kakao.maps || !mapContainerRef.current) return;
+      
       window.kakao.maps.load(() => {
         if (!mapContainerRef.current) return;
-        const centerLatLng = new window.kakao.maps.LatLng(Number(detail.lat), Number(detail.lng));
-        const options = {
-          center: centerLatLng,
-          level: 3
+
+        // 우선순위: 1. 이전 페이지(목록 등)에서 넘겨준 state 좌표 -> 2. 상세 API의 각종 위경도 필드
+        const stateLat = location.state?.lat;
+        const stateLng = location.state?.lng;
+
+        const apiLat = Number(stateLat || detail.lat || detail.latitude || detail.mapy || detail.y || detail.mapY);
+        const apiLng = Number(stateLng || detail.lng || detail.longitude || detail.mapx || detail.x || detail.mapX);
+
+        const hasValidCoords = !isNaN(apiLat) && !isNaN(apiLng) && apiLat !== 0 && apiLng !== 0;
+
+        const renderMapAt = (targetLat, targetLng) => {
+          if (!mapContainerRef.current) return;
+          const centerLatLng = new window.kakao.maps.LatLng(targetLat, targetLng);
+          const options = { center: centerLatLng, level: 4 };
+          
+          const map = new window.kakao.maps.Map(mapContainerRef.current, options);
+          const marker = new window.kakao.maps.Marker({ position: centerLatLng });
+          marker.setMap(map);
         };
-        const map = new window.kakao.maps.Map(mapContainerRef.current, options);
-        const marker = new window.kakao.maps.Marker({ position: centerLatLng });
-        marker.setMap(map);
+
+        if (hasValidCoords) {
+          // 1. 유효한 위경도가 있는 경우 즉시 핀 생성
+          renderMapAt(apiLat, apiLng);
+        } else if (detail.address && window.kakao.maps.services) {
+          // 2. 위경도가 없더라도 주소(address)가 있다면 카카오 Geocoder로 주소를 좌표로 자동 변환
+          const geocoder = new window.kakao.maps.services.Geocoder();
+          geocoder.addressSearch(detail.address, (result, status) => {
+            if (status === window.kakao.maps.services.Status.OK && result[0]) {
+              renderMapAt(Number(result[0].y), Number(result[0].x));
+            } else {
+              // 주소 변환도 실패할 경우에만 기본 서울시청 좌표 적용
+              renderMapAt(37.566826, 126.978656);
+            }
+          });
+        } else {
+          renderMapAt(37.566826, 126.978656);
+        }
       });
     };
 
@@ -59,19 +85,22 @@ function DetailPage() {
     } else {
       const script = document.createElement('script');
       script.type = 'text/javascript';
-      script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${KAKAO_APP_KEY}&autoload=false`;
+      // 💡 libraries=services 추가하여 주소->좌표 변환(Geocoder) 기능 활성화
+      script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${KAKAO_APP_KEY}&autoload=false&libraries=services`;
       script.async = true;
       script.onload = () => initMap();
       document.head.appendChild(script);
     }
-  }, [detail]);
+  }, [detail, location.state]);
 
-  // '내 동선에 추가하기 / 제거하기' 토글 핸들러
   const handleToggleRoute = () => {
     try {
       const savedRoutes = JSON.parse(localStorage.getItem('paw_pass_routes') || '[]');
       const spotId = String(detail.id || detail.contentId);
       
+      const targetLat = Number(detail.lat || detail.latitude || detail.mapy || detail.y) || 37.566826;
+      const targetLng = Number(detail.lng || detail.longitude || detail.mapx || detail.x) || 126.978656;
+
       let updated;
       if (isRouteAdded) {
         updated = savedRoutes.filter(item => String(item.id || item.contentId) !== spotId);
@@ -83,8 +112,8 @@ function DetailPage() {
           contentId: spotId,
           name: detail.name,
           address: detail.address,
-          lat: Number(detail.lat) || 37.566826,
-          lng: Number(detail.lng) || 126.978656,
+          lat: targetLat,
+          lng: targetLng,
           imageUrl: detail.imageUrl || '',
           source: detail.source
         }];
@@ -142,8 +171,10 @@ function DetailPage() {
     setCurrentImageIdx((prev) => (prev === imageList.length - 1 ? 0 : prev + 1));
   };
 
-  const mapSearchUrl = detail.lat && detail.lng 
-    ? `https://map.kakao.com/link/map/${encodeURIComponent(detail.name)},${detail.lat},${detail.lng}`
+  const currentLat = Number(detail.lat || detail.latitude || detail.mapy || detail.y);
+  const currentLng = Number(detail.lng || detail.longitude || detail.mapx || detail.x);
+  const mapSearchUrl = !isNaN(currentLat) && !isNaN(currentLng) && currentLat !== 0 
+    ? `https://map.kakao.com/link/map/${encodeURIComponent(detail.name)},${currentLat},${currentLng}`
     : `https://map.kakao.com/link/search/${encodeURIComponent(detail.address || detail.name)}`;
 
   return (

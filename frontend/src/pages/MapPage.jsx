@@ -1,20 +1,30 @@
 // src/pages/MapPage.jsx
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { fetchSuggestedRoute } from '../services/api';
+import { useNavigate } from 'react-router-dom';
+import { fetchSuggestedRoute, fetchExploreSpots } from '../services/api';
 
 const KAKAO_APP_KEY = import.meta.env.VITE_KAKAO_APP_KEY || '';
 
 function MapPage() {
+  const navigate = useNavigate();
   const mapContainerRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const markersRef = useRef([]);
   const polylineRef = useRef(null);
 
-  // 💡 [린트 해결] useEffect 내부 setState 대신 초기값 함수로 로컬 스토리지 읽기 처리
+  // 로컬 스토리지(paw_pass_routes)에서 동선 데이터 로드
   const [selectedSpots, setSelectedSpots] = useState(() => {
     try {
       const savedRoutes = JSON.parse(localStorage.getItem('paw_pass_routes') || '[]');
-      return savedRoutes.filter(spot => spot.lat && spot.lng).slice(0, 8);
+      return savedRoutes.filter(spot => {
+        const lat = Number(spot.lat || spot.latitude);
+        const lng = Number(spot.lng || spot.longitude);
+        return !isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0;
+      }).map(spot => ({
+        ...spot,
+        lat: Number(spot.lat || spot.latitude),
+        lng: Number(spot.lng || spot.longitude)
+      })).slice(0, 8);
     } catch {
       return [];
     }
@@ -22,35 +32,61 @@ function MapPage() {
 
   const [routeResult, setRouteResult] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [mapLoaded, setMapLoaded] = useState(false);
 
-  // 카카오 지도 초기화 및 동적 스크립트 로드
+  // 직접 검색 관련 State
+  const [searchKeyword, setSearchKeyword] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
+
+  // 드래그 앤 드롭 중인 항목 인덱스 추적
+  const [draggedItemIndex, setDraggedItemIndex] = useState(null);
+
+  // 1. 카카오맵 SDK 동적 스크립트 로드
   useEffect(() => {
-    const initMap = () => {
-      if (!window.kakao || !window.kakao.maps || !mapContainerRef.current) return;
+    if (window.kakao && window.kakao.maps) {
+      setMapLoaded(true);
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.type = 'text/javascript';
+    script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${KAKAO_APP_KEY}&autoload=false`;
+    script.async = true;
+    
+    script.onload = () => {
       window.kakao.maps.load(() => {
-        if (!mapContainerRef.current) return;
-        const options = {
-          center: new window.kakao.maps.LatLng(37.566826, 126.978656),
-          level: 5
-        };
-        const map = new window.kakao.maps.Map(mapContainerRef.current, options);
-        mapInstanceRef.current = map;
+        setMapLoaded(true);
       });
     };
 
-    if (window.kakao && window.kakao.maps) {
-      initMap();
-    } else {
-      const script = document.createElement('script');
-      script.type = 'text/javascript';
-      script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${KAKAO_APP_KEY}&autoload=false`;
-      script.async = true;
-      script.onload = () => initMap();
-      document.head.appendChild(script);
-    }
+    script.onerror = () => {
+      console.error('❌ 카카오맵 스크립트 로드 실패');
+    };
+
+    document.head.appendChild(script);
   }, []);
 
-  // 지도 위에 마커 및 경로 렌더링 함수
+  // 2. 카카오 지도 초기화
+  useEffect(() => {
+    if (!mapLoaded || !window.kakao || !window.kakao.maps) return;
+
+    const container = mapContainerRef.current;
+    if (!container) return;
+
+    const initialLat = selectedSpots.length > 0 ? selectedSpots[0].lat : 37.566826;
+    const initialLng = selectedSpots.length > 0 ? selectedSpots[0].lng : 126.978656;
+
+    const options = {
+      center: new window.kakao.maps.LatLng(initialLat, initialLng),
+      level: 6
+    };
+
+    const map = new window.kakao.maps.Map(container, options);
+    mapInstanceRef.current = map;
+  }, [mapLoaded]);
+
+  // 3. 지도 위에 번호 마커 및 단일 말풍선 카드 렌더링 함수
   const renderMapElements = useCallback((spotsToRender, orderedIndices = []) => {
     const map = mapInstanceRef.current;
     if (!map || !window.kakao || !window.kakao.maps) return;
@@ -80,18 +116,75 @@ function MapPage() {
       bounds.extend(position);
       pathCoordinates.push(position);
 
+      // 숫자 핀(마커) 컨테이너 생성
       const markerContent = document.createElement('div');
       markerContent.style.cssText = `
-        background-color: #2563eb; color: white; width: 30px; height: 30px;
+        background-color: #2563eb; color: white; width: 32px; height: 32px;
         border-radius: 50%; display: flex; align-items: center; justify-content: center;
-        font-weight: bold; font-size: 13px; border: 2px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        font-weight: bold; font-size: 13px; border: 2px solid white; box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+        cursor: pointer; transition: transform 0.2s;
       `;
       markerContent.innerText = index + 1;
 
       const customOverlay = new window.kakao.maps.CustomOverlay({
         position: position,
         content: markerContent,
+        yAnchor: 1.2
+      });
+
+      // 💡 [개선] 공용 클래스명(.map-info-card)을 부여하여 항상 '오직 하나'만 열리도록 제어
+      const infoCardContent = document.createElement('div');
+      infoCardContent.className = 'map-info-card';
+      infoCardContent.style.cssText = `
+        background: white; border-radius: 12px; padding: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+        width: 220px; font-family: sans-serif; position: relative; bottom: 45px; border: 1px solid #e2e8f0;
+        display: none; z-index: 100;
+      `;
+      infoCardContent.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px;">
+          <strong style="font-size: 14px; color: #1e293b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 170px;">${spot.name}</strong>
+          <button type="button" class="close-card" style="background:none; border:none; color:#94a3b8; cursor:pointer; font-size:14px; font-weight:bold;">✕</button>
+        </div>
+        ${spot.imageUrl ? `<img src="${spot.imageUrl}" style="width:100%; height:90px; object-fit:cover; border-radius:6px; margin-bottom:6px;" />` : ''}
+        <p style="font-size: 11px; color: #64748b; margin: 0 0 8px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">📍 ${spot.address}</p>
+        <button type="button" class="go-detail" style="width: 100%; padding: 6px; background: #2563eb; color: white; border: none; border-radius: 6px; font-size: 11px; font-weight: bold; cursor: pointer;">상세보기 →</button>
+      `;
+
+      const infoOverlay = new window.kakao.maps.CustomOverlay({
+        position: position,
+        content: infoCardContent,
         yAnchor: 1
+      });
+
+      infoOverlay.setMap(map);
+
+      // 이벤트 리스너: 핀 클릭 시 다른 말풍선은 모두 끄고 현재 것만 토글
+      markerContent.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isCurrentlyOpen = infoCardContent.style.display === 'block';
+
+        // 화면에 있는 모든 말풍선 숨기기
+        document.querySelectorAll('.map-info-card').forEach(el => {
+          el.style.display = 'none';
+        });
+
+        // 닫혀있던 상태였다면 현재 것만 켜기
+        if (!isCurrentlyOpen) {
+          infoCardContent.style.display = 'block';
+        }
+      });
+
+      // 말풍선 내부 닫기 버튼
+      infoCardContent.querySelector('.close-card').addEventListener('click', (e) => {
+        e.stopPropagation();
+        infoCardContent.style.display = 'none';
+      });
+
+      // 말풍선 내부 상세보기 버튼
+      infoCardContent.querySelector('.go-detail').addEventListener('click', (e) => {
+        e.stopPropagation();
+        const source = spot.source || 'tourapi';
+        navigate(`/detail/${spot.id || spot.contentId}?source=${source}`);
       });
 
       customOverlay.setMap(map);
@@ -111,19 +204,93 @@ function MapPage() {
     }
 
     map.setBounds(bounds);
-  }, []);
+  }, [navigate]);
 
-  // 선택 장소 변경 시 마커 렌더링
   useEffect(() => {
-    if (!routeResult && selectedSpots.length > 0) {
+    if (mapLoaded && !routeResult && selectedSpots.length > 0) {
       renderMapElements(selectedSpots);
     }
-  }, [selectedSpots, routeResult, renderMapElements]);
+  }, [mapLoaded, selectedSpots, routeResult, renderMapElements]);
 
-  // 동선 추천 API 호출 핸들러
+  // 드래그 앤 드롭 순서 변경 핸들러
+  const handleDragStart = (e, index) => {
+    setDraggedItemIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = (e, targetIndex) => {
+    e.preventDefault();
+    if (draggedItemIndex === null || draggedItemIndex === targetIndex) return;
+
+    const updated = [...selectedSpots];
+    const [movedItem] = updated.splice(draggedItemIndex, 1);
+    updated.splice(targetIndex, 0, movedItem);
+
+    setDraggedItemIndex(null);
+    setSelectedSpots(updated);
+    localStorage.setItem('paw_pass_routes', JSON.stringify(updated));
+    setRouteResult(null);
+    renderMapElements(updated);
+  };
+
+  // 직접 검색 핸들러
+  const handleDirectSearch = async (e) => {
+    e.preventDefault();
+    if (!searchKeyword.trim()) return;
+
+    setIsSearching(true);
+    try {
+      const data = await fetchExploreSpots({ keyword: searchKeyword.trim(), page: 1 });
+      const rawList = Array.isArray(data) ? data : (data?.data || []);
+      
+      const mapped = rawList.map(spot => ({
+        id: String(spot.id || spot.content_id),
+        name: spot.title || spot.name || '장소명 없음',
+        address: spot.addr || spot.address || '주소 정보 없음',
+        lat: Number(spot.lat),
+        lng: Number(spot.lng),
+        imageUrl: spot.image || spot.first_image || '',
+        source: spot.source || 'tourapi'
+      })).filter(s => !isNaN(s.lat) && !isNaN(s.lng));
+
+      setSearchResults(mapped);
+    } catch (err) {
+      console.error('장소 직접 검색 실패:', err);
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleAddSpotToRoute = (spot) => {
+    if (selectedSpots.length >= 8) {
+      alert('동선은 최대 8개까지 추가할 수 있습니다.');
+      return;
+    }
+
+    const spotId = String(spot.id);
+    const exists = selectedSpots.some(item => String(item.id || item.contentId) === spotId);
+    if (exists) {
+      alert('이미 동선에 포함된 장소입니다.');
+      return;
+    }
+
+    const updated = [...selectedSpots, spot];
+    setSelectedSpots(updated);
+    localStorage.setItem('paw_pass_routes', JSON.stringify(updated));
+    setRouteResult(null);
+    renderMapElements(updated);
+    alert(`❤️ "${spot.name}"이(가) 동선에 추가되었습니다!`);
+  };
+
   const handleSuggestRoute = async () => {
     if (selectedSpots.length < 2) {
-      alert('최적 동선을 추천받으려면 최소 2개 이상의 장소가 필요합니다. (최대 8개)');
+      alert('최적 동선을 계산하려면 최소 2개 이상의 장소가 필요합니다. (최대 8개)');
       return;
     }
 
@@ -142,20 +309,32 @@ function MapPage() {
         renderMapElements(selectedSpots, result.order);
       }
     } catch (err) {
-      console.error('동선 추천 실패:', err);
+      console.error('동선 계산 실패:', err);
       alert('최적 동선을 계산하는 중 오류가 발생했습니다.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  // 동선 목록에서 개별 삭제
   const handleRemoveSpot = (spotId) => {
     try {
       const updated = selectedSpots.filter(item => String(item.id || item.contentId) !== String(spotId));
       setSelectedSpots(updated);
       localStorage.setItem('paw_pass_routes', JSON.stringify(updated));
       setRouteResult(null);
+
+      if (updated.length > 0) {
+        renderMapElements(updated);
+      } else {
+        if (mapInstanceRef.current && window.kakao) {
+          markersRef.current.forEach(m => m.setMap(null));
+          markersRef.current = [];
+          if (polylineRef.current) {
+            polylineRef.current.setMap(null);
+            polylineRef.current = null;
+          }
+        }
+      }
     } catch (err) {
       console.error('동선 삭제 실패:', err);
     }
@@ -164,10 +343,54 @@ function MapPage() {
   return (
     <div style={{ padding: '20px 40px', paddingBottom: '60px', maxWidth: '1200px', margin: '0 auto', fontFamily: 'sans-serif' }}>
       <h2 style={{ textAlign: 'center', marginBottom: '8px', fontSize: '28px', color: '#1e293b' }}>🗺️ 나의 여행 동선 및 최적 지도</h2>
-      <p style={{ textAlign: 'center', color: '#64748b', marginBottom: '30px' }}>
-        상세 페이지에서 추가한 장소들을 지도에서 확인하고 AI 최적 방문 동선을 추천받아 보세요.
+      <p style={{ textAlign: 'center', color: '#64748b', marginBottom: '25px' }}>
+        장소를 검색해 추가하고, 리스트를 꾹 누르고 드래그하여 순서를 변경해보세요. 핀을 누르면 <strong>하나의 말풍선 정보 카드</strong>가 나타납니다.
       </p>
 
+      {/* 장소 검색 바 */}
+      <div style={{ backgroundColor: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '12px', padding: '16px', marginBottom: '20px' }}>
+        <form onSubmit={handleDirectSearch} style={{ display: 'flex', gap: '10px' }}>
+          <input 
+            type="text"
+            value={searchKeyword}
+            onChange={(e) => setSearchKeyword(e.target.value)}
+            placeholder="추가하고 싶은 관광지나 시설 이름 검색 (예: 강릉, 카페 등)"
+            style={{ flex: 1, padding: '10px 14px', backgroundColor: '#fff', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '14px', outline: 'none' }}
+          />
+          <button 
+            type="submit"
+            disabled={isSearching}
+            style={{ padding: '0 20px', backgroundColor: '#2563eb', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px' }}
+          >
+            {isSearching ? '검색 중...' : '🔍 장소 찾기'}
+          </button>
+        </form>
+
+        {searchResults.length > 0 && (
+          <div style={{ marginTop: '12px', maxHeight: '180px', overflowY: 'auto', backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '8px' }}>
+            <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#64748b', marginBottom: '6px', paddingLeft: '4px' }}>검색 결과 (클릭하여 동선에 추가)</div>
+            {searchResults.map(spot => (
+              <div 
+                key={spot.id}
+                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', borderBottom: '1px solid #f1f5f9', cursor: 'pointer', fontSize: '13px' }}
+              >
+                <div>
+                  <strong>{spot.name}</strong> <span style={{ color: '#64748b', fontSize: '12px' }}>({spot.address})</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleAddSpotToRoute(spot)}
+                  style={{ padding: '4px 10px', backgroundColor: '#10b981', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
+                >
+                  + 동선에 추가
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* 상단 액션 바 */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
         <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#334155' }}>
           동선에 추가된 장소: <span style={{ color: '#2563eb' }}>{selectedSpots.length}개</span> (2~8개 가능)
@@ -185,46 +408,66 @@ function MapPage() {
             fontWeight: 'bold', fontSize: '14px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
           }}
         >
-          {isLoading ? '동선 계산 중...' : '✨ AI 최적 동선 추천받기'}
+          {isLoading ? '동선 계산 중...' : '✨ 최적 방문 동선 계산하기'}
         </button>
       </div>
 
       {routeResult && (
         <div style={{ backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '10px', padding: '15px 20px', marginBottom: '20px' }}>
-          <h4 style={{ margin: '0 0 5px 0', color: '#1d4ed8', fontSize: '15px' }}>🎉 최적 동선 추천 완료!</h4>
+          <h4 style={{ margin: '0 0 5px 0', color: '#1d4ed8', fontSize: '15px' }}>🎉 최적 동선 계산 완료!</h4>
           <p style={{ margin: 0, fontSize: '14px', color: '#334155' }}>
             총 이동 거리: <strong>{routeResult.total_distance_km ?? 0} km</strong>
           </p>
         </div>
       )}
 
+      {/* 지도 영역 + 장소 리스트 레이아웃 */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '24px', alignItems: 'flex-start' }}>
+        
+        {/* 카카오 지도 컨테이너 */}
         <div 
           ref={mapContainerRef} 
           style={{ width: '100%', height: '520px', borderRadius: '14px', border: '1px solid #cbd5e1', backgroundColor: '#e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }} 
         />
 
+        {/* 장소 목록 사이드바 */}
         <div style={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '14px', padding: '18px', maxHeight: '520px', overflowY: 'auto', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
           <h4 style={{ margin: '0 0 14px 0', fontSize: '16px', color: '#1e293b', borderBottom: '1px solid #f1f5f9', paddingBottom: '10px' }}>
-            📋 내 동선 장소 리스트
+            📋 내 동선 순서 변경 (드래그)
           </h4>
           
           {selectedSpots.length > 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {selectedSpots.map((spot, index) => (
-                <div key={spot.id || spot.contentId || index} style={{ padding: '12px', backgroundColor: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <div style={{ flex: 1, minWidth: '0' }}>
-                    <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#1e293b', marginBottom: '4px' }}>
-                      <span style={{ color: '#2563eb', marginRight: '6px' }}>{index + 1}.</span> {spot.name || spot.title}
-                    </div>
-                    <div style={{ fontSize: '12px', color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      📍 {spot.address || spot.addr}
+                <div 
+                  key={spot.id || spot.contentId || index} 
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, index)}
+                  onDragOver={handleDragOver}
+                  onDrop={(e) => handleDrop(e, index)}
+                  style={{ 
+                    padding: '12px', backgroundColor: '#f8fafc', borderRadius: '10px', 
+                    border: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', 
+                    alignItems: 'center', cursor: 'grab', userSelect: 'none',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
+                  }}
+                  title="꾹 누르고 드래그하여 순서를 변경하세요"
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: '0' }}>
+                    <span style={{ cursor: 'grab', color: '#94a3b8', fontSize: '14px' }}>☰</span>
+                    <div style={{ flex: 1, minWidth: '0' }}>
+                      <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#1e293b', marginBottom: '2px' }}>
+                        <span style={{ color: '#2563eb', marginRight: '4px' }}>{index + 1}.</span> {spot.name || spot.title}
+                      </div>
+                      <div style={{ fontSize: '11px', color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        📍 {spot.address || spot.addr}
+                      </div>
                     </div>
                   </div>
                   <button 
                     type="button"
                     onClick={() => handleRemoveSpot(spot.id || spot.contentId)}
-                    style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', padding: '2px 6px', marginLeft: '8px' }}
+                    style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', padding: '4px', marginLeft: '6px' }}
                     title="동선에서 제거"
                   >
                     삭제
@@ -235,7 +478,7 @@ function MapPage() {
           ) : (
             <div style={{ textAlign: 'center', padding: '60px 10px', color: '#94a3b8' }}>
               <p style={{ fontSize: '15px', margin: '0 0 6px 0' }}>🗺️ 추가된 동선이 없습니다.</p>
-              <p style={{ fontSize: '13px', margin: 0 }}>상세 페이지에서 '내 동선에 추가하기'를 눌러 나만의 여행 경로를 만들어보세요!</p>
+              <p style={{ fontSize: '13px', margin: 0 }}>상단 검색창에서 장소를 찾아 추가해보세요!</p>
             </div>
           )}
         </div>

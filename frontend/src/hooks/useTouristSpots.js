@@ -27,9 +27,6 @@ export const useTouristSpots = () => {
     const petId = queryCondition.petId || '';
     const matchStatus = queryCondition.matchStatus || queryCondition.match_status || '';
 
-    // 💡 디버깅용 로그 (F12 콘솔에서 regionCode가 '부산' 등으로 잘 박혀서 가는지 확인하세요)
-    console.log('🔍 [탐색 요청 파라미터]', { regionCode, category, matchStatus, petId, page: targetPage });
-
     try {
       const data = await fetchExploreSpots({
         regionCode,
@@ -40,23 +37,36 @@ export const useTouristSpots = () => {
       });
 
       const rawSpots = Array.isArray(data) ? data : (data?.data || []);
-
+      
       const mappedSpots = rawSpots.map((spot) => {
         const spotId = String(spot.id || spot.content_id);
         const contactTel = spot.tel || '정보 미제공';
 
+        // 💡 [핵심 수정] 백엔드가 내려주는 이미지 관련 다양한 필드명 완벽 대응
+        const foundImage = 
+          spot.image || 
+          spot.first_image || 
+          spot.firstimage || 
+          spot.thumbnail || 
+          spot.imgUrl || 
+          spot.imageUrl || '';
+
+        // 백엔드 수정 사항에 맞춘 위도(lat/map_y), 경도(lng/map_x) 추출
+        const parsedLat = Number(spot.lat || spot.map_y || spot.mapy || spot.y || spot.latitude);
+        const parsedLng = Number(spot.lng || spot.map_x || spot.mapx || spot.x || spot.longitude);
+
         return {
           id: spotId,
           contentId: spotId,
-          name: spot.title || '장소명 없음',
-          address: spot.addr || '주소 정보 없음',
-          imageUrl: spot.image || spot.first_image || '',
+          name: spot.title || spot.name || '장소명 없음',
+          address: spot.addr || spot.address || '주소 정보 없음',
+          imageUrl: foundImage, // 추출된 이미지 URL
           tel: contactTel,
           phone: contactTel,
-          lat: spot.lat,
-          lng: spot.lng,
+          lat: !isNaN(parsedLat) ? parsedLat : null,
+          lng: !isNaN(parsedLng) ? parsedLng : null,
           source: spot.source || 'tourapi',
-          rawCategory: spot.category, // 백엔드 소스별 원본 category 값 ("동물병원", "카페", "39" 등)
+          rawCategory: spot.category, 
           matchStatus: spot.match_status || '확인필요',
           petInfoDescription: spot.match_status 
             ? `출입 판정: ${spot.match_status}` 

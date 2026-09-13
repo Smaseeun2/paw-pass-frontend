@@ -61,7 +61,7 @@ function SearchPage() {
   const [keyword, setKeyword] = useState(queryState.keyword || '');
   const [selectedMatchStatus, setSelectedMatchStatus] = useState(queryState.matchStatus || '');
 
-  // 💡 지역 매칭 (홈에서 한글 이름이나 기존 코드로 넘어올 때 완벽 대응)
+  // 지역 매칭
   const rawRegion = queryState.region || queryState.regionCode || '';
   const matchedRegion = REGION_OPTIONS.find(r => r.code === String(rawRegion) || r.label === String(rawRegion));
 
@@ -111,7 +111,7 @@ function SearchPage() {
     loadUserPets();
   }, [user]);
 
-  // 첫 진입 시 전달받은 조건으로 즉시 검색 실행
+  // 첫 진입 시 검색 실행
   useEffect(() => {
     const initialReqRegion = matchedRegion ? matchedRegion.code : rawRegion;
     const initialReqCategory = matchedCategory ? matchedCategory.value : rawCategory;
@@ -144,11 +144,6 @@ function SearchPage() {
     return () => observer.disconnect();
   }, [loadMore, isLoading, hasMore]);
 
-  const handleCountChange = (size, delta, e) => {
-    e.stopPropagation();
-    setPetCounts(prev => ({ ...prev, [size]: Math.max(0, prev[size] + delta) }));
-  };
-
   const handlePetToggle = (petId, e) => {
     e.stopPropagation();
     setSelectedPetIds(prev => 
@@ -173,8 +168,8 @@ function SearchPage() {
 
   const handleSearchButtonClick = () => {
     fetchSpots({
-      regionCode: selectedRegionCode, // 💡 한글 지역명 문자열 전송 ('부산', '서울' 등)
-      category: selectedCategory,     // 💡 공통 카테고리 전송 ('CAFE', 'NATURE' 등)
+      regionCode: selectedRegionCode,
+      category: selectedCategory,
       matchStatus: selectedMatchStatus,
       petId: selectedPetIds[0] || '',
       keyword: keyword.trim()
@@ -190,11 +185,14 @@ function SearchPage() {
 
     const source = targetSpot.source || 'tourapi';
     const currentPetId = selectedPetIds[0] || ''; 
+    const spotImage = targetSpot.imageUrl || targetSpot.image || '';
 
     navigate(`/detail/${spotId}?source=${source}&petId=${currentPetId}`, {
       state: { 
-        previewImage: targetSpot.imageUrl || '',
-        petId: currentPetId 
+        previewImage: spotImage,
+        petId: currentPetId,
+        lat: targetSpot.lat,
+        lng: targetSpot.lng
       }
     });
   };
@@ -349,12 +347,11 @@ function SearchPage() {
       </div>
 
       {/* 목록 및 우측 패널 */}
-      {isLoading && spots.length === 0 ? (
+      {isLoading ? (
         <div style={{ 
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', 
-          padding: '100px 0', gap: '16px' 
+          padding: '100px 0', gap: '16px', minHeight: '300px' 
         }}>
-          {/* 💡 CSS 애니메이션 스피너 */}
           <div style={{
             width: '48px', height: '48px', border: '4px solid #e2e8f0', 
             borderTop: '4px solid #2563eb', borderRadius: '50%',
@@ -367,7 +364,6 @@ function SearchPage() {
             잠시만 기다려주세요!
           </p>
 
-          {/* 💡 스피너 회전 애니메이션 스타일 인라인 주입 */}
           <style>{`
             @keyframes spin {
               0% { transform: rotate(0deg); }
@@ -382,6 +378,7 @@ function SearchPage() {
               spots.map((spot, idx) => {
                 const isSelected = selectedSpotId === spot.id;
                 const liked = isFavorite(spot.id);
+                const spotImg = spot.imageUrl || spot.image || '';
 
                 return (
                   <div 
@@ -389,11 +386,9 @@ function SearchPage() {
                     onClick={() => setSelectedSpotId(spot.id)}
                     style={{ border: isSelected ? '2px solid #4b5563' : '1px solid #d1d5db', borderRadius: '12px', backgroundColor: isSelected ? '#f3f4f6' : '#fff', padding: '16px', cursor: 'pointer', transition: 'all 0.2s' }}
                   >
-                    <div style={{ position: 'relative', width: '100%', height: '140px', backgroundColor: spot.source === 'kcisa' ? '#e0f2fe' : '#fef3c7', borderRadius: '8px', marginBottom: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-                      {spot.imageUrl ? (
-                        <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-                          <img src={spot.imageUrl} alt={spot.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        </div>
+                    <div style={{ position: 'relative', width: '100%', height: '140px', backgroundColor: spotImg ? '#f1f5f9' : (spot.source === 'kcisa' ? '#e0f2fe' : '#fef3c7'), borderRadius: '8px', marginBottom: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                      {spotImg ? (
+                        <img src={spotImg} alt={spot.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                       ) : (
                         <>
                           <span style={{ fontSize: '32px', marginBottom: '4px' }}>{spot.source === 'kcisa' ? '🏥' : '🏞️'}</span>
@@ -441,8 +436,8 @@ function SearchPage() {
                   {selectedSpotDetail.name}
                 </h3>
                 <div style={{ width: '100%', height: '160px', backgroundColor: '#e5e7eb', borderRadius: '8px', marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6b7280', overflow: 'hidden', position: 'relative' }}>
-                  {selectedSpotDetail.imageUrl ? (
-                    <img src={selectedSpotDetail.imageUrl} alt={selectedSpotDetail.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  {selectedSpotDetail.imageUrl || selectedSpotDetail.image ? (
+                    <img src={selectedSpotDetail.imageUrl || selectedSpotDetail.image} alt={selectedSpotDetail.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   ) : (
                     <span>🖼️ 대표 이미지 준비중</span>
                   )}
