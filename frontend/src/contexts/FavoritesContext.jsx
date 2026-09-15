@@ -74,14 +74,26 @@ export const FavoritesProvider = ({ children }) => {
 
     try {
       if (isCurrentlyFav) {
-         await deleteFavorite(favoriteIdToDelete);
+         if (favoriteIdToDelete) {
+           await deleteFavorite(favoriteIdToDelete);
+         } else {
+           // 낙관적 업데이트 직후라 ID가 없는 경우 서버에서 조회 후 삭제
+           const serverData = await fetchFavorites();
+           const realFav = serverData.find(fav => String(fav.content_id || fav.contentId) === contentId);
+           if (realFav && (realFav.id || realFav.favorite_id)) {
+             await deleteFavorite(realFav.id || realFav.favorite_id);
+           }
+         }
       } else {
-         await addFavorite({
+         const newAddedFav = await addFavorite({
             source,
             content_id: contentId
          });
+         // 서버 응답(실제 ID 포함)으로 낙관적 항목 교체
+         setFavorites(prev => prev.map(fav => String(fav.content_id || fav.contentId) === contentId ? newAddedFav : fav));
       }
     } catch (err) {
+      console.error('즐겨찾기 에러:', err);
       toast.error('즐겨찾기 반영에 실패했습니다.');
       loadFavorites(); // 롤백
     }
@@ -98,10 +110,19 @@ export const FavoritesProvider = ({ children }) => {
 
     try {
       const targetId = targetItem.favorite_id || targetItem.id;
-      await deleteFavorite(targetId);
+      if (targetId) {
+        await deleteFavorite(targetId);
+      } else {
+        const serverData = await fetchFavorites();
+        const realFav = serverData.find(fav => String(fav.content_id || fav.contentId) === String(contentId));
+        if (realFav && (realFav.id || realFav.favorite_id)) {
+          await deleteFavorite(realFav.id || realFav.favorite_id);
+        }
+      }
     } catch (err) {
-      toast.error('즐겨찾기 삭제 실패');
-      loadFavorites(); // 롤백
+      console.error('즐겨찾기 삭제 에러:', err);
+      toast.error('즐겨찾기 삭제에 실패했습니다.');
+      loadFavorites();
     }
   };
 

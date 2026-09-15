@@ -5,39 +5,59 @@ import { BASE_URL } from '../config/env';
 import { toast } from '../utils/toast';
 import LazyImage from '../components/LazyImage';
 import { useState } from 'react';
+import { useSpotDetail } from '../hooks/useSpotDetail';
+
 // 개별 즐겨찾기 카드 (이미지 개별 로딩 래퍼)
 function FavoriteCard({ spot, onRemove }) {
   const navigate = useNavigate();
-  const [imageUrl, setImageUrl] = useState(spot.imageUrl || spot.image || spot.firstimage || '');
-  const [imageAttr, setImageAttr] = useState(spot.imageAttribution || '');
-
   const spotId = spot.content_id || spot.contentId || spot.id;
   const spotSource = spot.source || 'tourapi';
-  const spotName = spot.name || spot.title || '장소명 없음';
-  const spotAddress = spot.address || spot.addr || '주소 정보 없음';
+
+  // 서버에서 불러온 즐겨찾기는 보통 id와 source만 있으므로 상세 정보를 가져와 채웁니다.
+  const { detail, isLoading } = useSpotDetail(spotId, spotSource);
+
+  // 낙관적 업데이트된 spot(이름, 이미지 포함) 혹은 fetch된 detail 데이터 사용
+  const spotName = spot.name || spot.title || detail?.name || detail?.title || '장소명 없음';
+  const spotAddress = spot.address || spot.addr || detail?.address || detail?.addr || '주소 정보 없음';
+  const imageUrl = spot.imageUrl || spot.image || spot.firstimage || detail?.image || detail?.imageUrl || '';
+  
+  // LazyImage에 넘겨줄 통합 객체
+  const displaySpot = {
+    ...spot,
+    ...detail,
+    image: imageUrl,
+    name: spotName,
+    address: spotAddress
+  };
 
   return (
     <div style={{ 
       border: '1px solid #ddd', borderRadius: '12px', backgroundColor: '#fff', 
-      overflow: 'hidden', boxShadow: '0 2px 5px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', position: 'relative' 
+      overflow: 'hidden', boxShadow: '0 2px 5px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', position: 'relative',
+      opacity: isLoading ? 0.6 : 1, transition: 'opacity 0.2s'
     }}>
       <div style={{ height: '140px', backgroundColor: '#eee', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#888', position: 'relative' }}>
-        <LazyImage spot={spot} />
+        <LazyImage spot={displaySpot} fallback={<span>🖼️ 이미지 없음</span>} />
       </div>
       
       <div style={{ padding: '15px', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '5px' }}>
-            <h4 style={{ margin: 0, fontSize: '18px', color: '#1976d2' }}>{spotName}</h4>
+            <h4 style={{ margin: 0, fontSize: '18px', color: '#1976d2' }}>
+              {isLoading && spotName === '장소명 없음' ? '불러오는 중...' : spotName}
+            </h4>
             <span style={{ 
               fontSize: '10px', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold',
               backgroundColor: spotSource === 'kcisa' ? '#e0f2fe' : '#fef3c7',
-              color: spotSource === 'kcisa' ? '#0369a1' : '#b45309'
+              color: spotSource === 'kcisa' ? '#0369a1' : '#b45309',
+              whiteSpace: 'nowrap', marginLeft: '6px'
             }}>
               {spotSource === 'kcisa' ? '반려동물 시설' : '관광공사'}
             </span>
           </div>
-          <p style={{ margin: '0 0 10px 0', fontSize: '13px', color: '#555' }}>📍 {spotAddress}</p>
+          <p style={{ margin: '0 0 10px 0', fontSize: '13px', color: '#555' }}>
+            📍 {isLoading && spotAddress === '주소 정보 없음' ? '...' : spotAddress}
+          </p>
         </div>
 
         <div style={{ display: 'flex', gap: '10px', marginTop: '15px' }}>

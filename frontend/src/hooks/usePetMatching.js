@@ -101,7 +101,8 @@ export const usePetMatching = (spotId, source = 'tourapi', paramPetId = '') => {
           ? `${BASE_URL}/facilities/${resolvedId}/match` 
           : `${BASE_URL}/tours/${resolvedId}/match`;
 
-        const res = await authFetch(`${endpoint}?petId=${petId}`, { method: 'GET' });
+        // petId 파라미터 없이 호출하면 백엔드가 자동으로 대표 반려동물을 기준으로 매칭합니다.
+        const res = await authFetch(endpoint, { method: 'GET' });
         
         if (!res.ok) {
           const errorText = await res.text();
