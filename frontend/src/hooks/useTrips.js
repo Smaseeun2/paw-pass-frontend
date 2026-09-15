@@ -1,5 +1,6 @@
 // src/hooks/useTrips.js
 import { useState, useEffect } from 'react';
+import { toast } from '../utils/toast';
 
 export const useTrips = () => {
   const [trips, setTrips] = useState(() => {
@@ -14,19 +15,19 @@ export const useTrips = () => {
   // 렌더링 중이 아니라 함수가 실행되는 시점(이벤트 발생 시)에 날짜와 ID를 생성합니다.
   const addTrip = (title, spotName) => {
     if (!spotName) {
-      alert('동선에 추가할 관광지를 선택해주세요!');
+      toast.warning('동선에 추가할 관광지를 선택해주세요!');
       return;
     }
 
     const newTrip = {
-      id: Date.now(), // 이벤트 실행 시점에 생성하므로 안전합니다!
+      id: Date.now(),
       title: title || '나의 여행 동선',
       spots: [spotName],
-      date: new Date().toISOString().split('T')[0] // 이벤트 실행 시점 생성
+      date: new Date().toISOString().split('T')[0]
     };
 
     setTrips((prev) => {
-      alert(`"${newTrip.spots[0]}" 장소가 '${newTrip.title}' 동선에 추가되었습니다! 🚗`);
+      toast.success(`"${newTrip.spots[0]}" 장소가 '${newTrip.title}' 동선에 추가되었습니다! 🚗`);
       return [...prev, newTrip];
     });
   };

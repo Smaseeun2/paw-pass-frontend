@@ -2,12 +2,14 @@
 import { useState, useRef, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useSpotDetail } from '../hooks/useSpotDetail';
-import { useFavorites } from '../hooks/useFavorites';
+import { useFavoritesContext as useFavorites } from '../contexts/FavoritesContext';
 import { usePetMatching } from '../hooks/usePetMatching';
 
-const KAKAO_APP_KEY = import.meta.env.VITE_KAKAO_APP_KEY || '5e3d8dcdeefc4e5b167e67e';
+import { loadKakaoMapSdk } from '../utils/kakaoMapLoader';
+import ConditionalBadge from '../components/ConditionalBadge';
+import { toast } from '../utils/toast';
 
-// 💡 현재 로그인된 유저의 이메일(또는 식별자)을 가져오는 헬퍼 함수
+// 현재 로그인된 유저의 이메일(또는 식별자)을 가져오는 헬퍼 함수
 const getCurrentUserEmail = () => {
   try {
     const saved = localStorage.getItem('paw_pass_user');
@@ -25,18 +27,23 @@ function DetailPage() {
   const [searchParams] = useSearchParams();
   const source = searchParams.get('source') || 'tourapi';
   
+  // 💡 카멜케이스 petId 명명 규칙을 적용하여 쿼리 및 스테이트에서 안전하게 추출
   const petIdFromQuery = searchParams.get('petId') || location.state?.petId || '';
+  // 비로그인 시 크기 힌트 (small/medium/large)
+  const guestSizeHint = searchParams.get('guestSize') || location.state?.guestSizeHint || '';
 
   const { detail, isLoading, error } = useSpotDetail(id, source);
   const { toggleFavorite, isFavorite } = useFavorites();
+  
+  // 💡 펫 맞춤 판정 훅 호출 (토큰 헤더 및 인증 상태 연동)
   const { matchResult } = usePetMatching(id, source, petIdFromQuery);
 
   const [currentImageIdx, setCurrentImageIdx] = useState(0);
   const mapContainerRef = useRef(null);
 
-  // 💡 유저별 고유 동선 스토리지 키 생성
+  // 유저별 고유 동선 스토리지 키 생성 (비로그인 상태면 guest 키 사용)
   const userEmail = getCurrentUserEmail();
-  const storageKey = userEmail ? `paw_pass_routes_${userEmail}` : null;
+  const storageKey = userEmail ? `paw_pass_routes_${userEmail}` : 'paw_pass_routes_guest';
 
   const [isRouteAdded, setIsRouteAdded] = useState(() => {
     if (!id || !storageKey) return false;
@@ -53,66 +60,47 @@ function DetailPage() {
 
     let isMounted = true;
 
-    const renderMap = () => {
-      if (!isMounted || !window.kakao || !window.kakao.maps || !mapContainerRef.current) return;
+    loadKakaoMapSdk().then((kakao) => {
+      if (!isMounted || !mapContainerRef.current) return;
 
-      window.kakao.maps.load(() => {
-        if (!isMounted || !mapContainerRef.current) return;
+      const stateLat = location.state?.lat;
+      const stateLng = location.state?.lng;
 
-        const stateLat = location.state?.lat;
-        const stateLng = location.state?.lng;
+      const apiLat = Number(stateLat || detail.lat || detail.map_y || detail.mapy || detail.y);
+      const apiLng = Number(stateLng || detail.lng || detail.map_x || detail.mapx || detail.x);
 
-        const apiLat = Number(stateLat || detail.lat || detail.map_y || detail.mapy || detail.y);
-        const apiLng = Number(stateLng || detail.lng || detail.map_x || detail.mapx || detail.x);
+      const hasValidCoords = !isNaN(apiLat) && !isNaN(apiLng) && apiLat !== 0 && apiLng !== 0;
 
-        const hasValidCoords = !isNaN(apiLat) && !isNaN(apiLng) && apiLat !== 0 && apiLng !== 0;
+      const createMapInstance = (lat, lng) => {
+        if (!mapContainerRef.current) return;
+        mapContainerRef.current.innerHTML = '';
 
-        const createMapInstance = (lat, lng) => {
-          if (!mapContainerRef.current) return;
-          mapContainerRef.current.innerHTML = '';
+        const centerLatLng = new kakao.maps.LatLng(lat, lng);
+        const options = { center: centerLatLng, level: 4 };
+        
+        const map = new kakao.maps.Map(mapContainerRef.current, options);
+        const marker = new kakao.maps.Marker({ position: centerLatLng });
+        marker.setMap(map);
+      };
 
-          const centerLatLng = new window.kakao.maps.LatLng(lat, lng);
-          const options = { center: centerLatLng, level: 4 };
-          
-          const map = new window.kakao.maps.Map(mapContainerRef.current, options);
-          const marker = new window.kakao.maps.Marker({ position: centerLatLng });
-          marker.setMap(map);
-        };
-
-        if (hasValidCoords) {
-          createMapInstance(apiLat, apiLng);
-        } else if (detail.address && window.kakao.maps.services) {
-          const geocoder = new window.kakao.maps.services.Geocoder();
-          geocoder.addressSearch(detail.address, (result, status) => {
-            if (!isMounted) return;
-            if (status === window.kakao.maps.services.Status.OK && result[0]) {
-              createMapInstance(Number(result[0].y), Number(result[0].x));
-            } else {
-              createMapInstance(37.566826, 126.978656);
-            }
-          });
-        } else {
-          createMapInstance(37.566826, 126.978656);
-        }
-      });
-    };
-
-    if (window.kakao && window.kakao.maps) {
-      renderMap();
-    } else {
-      const existingScript = document.getElementById('kakao-sdk');
-      if (existingScript) {
-        existingScript.onload = renderMap;
+      if (hasValidCoords) {
+        createMapInstance(apiLat, apiLng);
+      } else if (detail.address && kakao.maps.services) {
+        const geocoder = new kakao.maps.services.Geocoder();
+        geocoder.addressSearch(detail.address, (result, status) => {
+          if (!isMounted) return;
+          if (status === kakao.maps.services.Status.OK && result[0]) {
+            createMapInstance(Number(result[0].y), Number(result[0].x));
+          } else {
+            createMapInstance(37.566826, 126.978656);
+          }
+        });
       } else {
-        const script = document.createElement('script');
-        script.id = 'kakao-sdk';
-        script.type = 'text/javascript';
-        script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${KAKAO_APP_KEY}&autoload=false&libraries=services`;
-        script.async = true;
-        script.onload = renderMap;
-        document.head.appendChild(script);
+        createMapInstance(37.566826, 126.978656);
       }
-    }
+    }).catch((err) => {
+      console.error('상세페이지 지도 로드 실패:', err);
+    });
 
     return () => {
       isMounted = false;
@@ -121,7 +109,7 @@ function DetailPage() {
 
   const handleToggleRoute = () => {
     if (!storageKey) {
-      alert('로그인 후 동선을 추가할 수 있습니다.');
+      toast.warning('로그인 후 동선을 추가할 수 있습니다.');
       return;
     }
 
@@ -136,7 +124,7 @@ function DetailPage() {
       if (isRouteAdded) {
         updated = savedRoutes.filter(item => String(item.id || item.contentId) !== spotId);
         setIsRouteAdded(false);
-        alert('나의 동선에서 제거되었습니다.');
+        toast.info('나의 동선에서 제거되었습니다.');
       } else {
         updated = [...savedRoutes, {
           id: spotId,
@@ -149,7 +137,7 @@ function DetailPage() {
           source: detail.source
         }];
         setIsRouteAdded(true);
-        alert('❤️ 나의 동선에 추가되었습니다!');
+        toast.success('❤️ 나의 동선에 추가되었습니다!');
       }
       localStorage.setItem(storageKey, JSON.stringify(updated));
     } catch (err) {
@@ -157,11 +145,31 @@ function DetailPage() {
     }
   };
 
-  // 💡 공유 버튼 핸들러 (현재 페이지 URL 클립보드 복사)
+  // 공유 버튼 핸들러 (현재 페이지 URL 클립보드 복사 + 폴백 처리)
   const handleShare = () => {
-    navigator.clipboard.writeText(window.location.href)
-      .then(() => alert('📋 현재 장소 링크가 복사되었습니다!'))
-      .catch(() => alert('링크 복사에 실패했습니다.'));
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(window.location.href)
+        .then(() => toast.success('📋 현재 장소 링크가 복사되었습니다!'))
+        .catch(() => {
+          // HTTPS가 아닌 환경 폴백
+          const el = document.createElement('textarea');
+          el.value = window.location.href;
+          document.body.appendChild(el);
+          el.select();
+          document.execCommand('copy');
+          document.body.removeChild(el);
+          toast.success('📋 링크가 복사되었습니다!');
+        });
+    } else {
+      // navigator.clipboard 미지원 환경 폴백
+      const el = document.createElement('textarea');
+      el.value = window.location.href;
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand('copy');
+      document.body.removeChild(el);
+      toast.success('📋 링크가 복사되었습니다!');
+    }
   };
 
   if (isLoading) {
@@ -231,7 +239,7 @@ function DetailPage() {
         </button>
         
         <div style={{ display: 'flex', gap: '8px' }}>
-          {/* 💡 공유 버튼 */}
+          {/* 공유 버튼 */}
           <button 
             type="button"
             onClick={handleShare}
@@ -359,7 +367,7 @@ function DetailPage() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '10px' }}>
           <p style={{ margin: '0 0 8px 0', flex: 1 }}><strong>📍 주소:</strong> {detail.address}</p>
           
-          {/* 💡 지도 바로가기 버튼 그룹 */}
+          {/* 지도 바로가기 버튼 그룹 */}
           <div style={{ display: 'flex', gap: '6px' }}>
             <a 
               href={mapSearchUrl} 
@@ -414,19 +422,104 @@ function DetailPage() {
         />
       </div>
 
-      {matchResult && (
-        <div style={{ marginBottom: '24px' }}>
-          <h3 style={{ fontSize: '18px', color: '#1e293b', marginBottom: '10px' }}>🐾 내 반려동물 맞춤 방문 판정</h3>
-          <div style={{ backgroundColor: '#f0f9ff', padding: '16px', borderRadius: '12px', border: '1px solid #bae6fd' }}>
-            <p style={{ fontSize: '15px', fontWeight: 'bold', color: matchResult.color || '#0284c7', margin: '0 0 6px 0' }}>
-              판정 결과: {matchResult.status}
-            </p>
-            <p style={{ fontSize: '13px', color: '#334155', margin: 0 }}>
-              근거: {matchResult.reason}
-            </p>
+      {/* ─── 반려동물 방문 판정 섹션 ─── */}
+      {(() => {
+        // 동물병원·약국은 반려동물이 '치료받으러 가는 곳'이므로 동반 판정 불필요
+        const vetKeywords = ['동물병원', '동물 병원', '동물약국', '수의', '동물의료', '펫클리닉', 'animal hospital', 'veterinary'];
+        const isVetOrPharmacy = vetKeywords.some(kw => (detail.name || '').toLowerCase().includes(kw.toLowerCase()))
+          || (detail.rawCategory || '').toLowerCase().includes('동물병원')
+          || (detail.rawCategory || '').toLowerCase().includes('약국');
+        if (isVetOrPharmacy) return null;
+
+        // 로그인 + petId 있음 → AI 기반 판정 표시
+        if (matchResult && petIdFromQuery) {
+          return (
+            <div style={{ marginBottom: '24px' }}>
+              <h3 style={{ fontSize: '18px', color: '#1e293b', marginBottom: '10px' }}>🐾 내 반려동물 맞춤 방문 판정</h3>
+              <div style={{ backgroundColor: '#f0f9ff', padding: '16px', borderRadius: '12px', border: '1px solid #bae6fd' }}>
+                <p style={{ fontSize: '15px', fontWeight: 'bold', color: matchResult.color || '#0284c7', margin: '0 0 6px 0' }}>
+                  판정 결과: {matchResult.status}
+                </p>
+                <p style={{ fontSize: '13px', color: '#334155', margin: '0 0 10px 0' }}>
+                  <strong>판정 요약:</strong> {matchResult.reason}
+                </p>
+                {matchResult.rawText && (
+                  <div style={{ backgroundColor: '#fff', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', marginBottom: '10px' }}>
+                    <p style={{ fontSize: '12px', color: '#64748b', margin: '0 0 4px 0', fontWeight: 'bold' }}>📄 시설 원문 정보:</p>
+                    <p style={{ fontSize: '13px', color: '#475569', margin: 0, whiteSpace: 'pre-line' }}>{matchResult.rawText}</p>
+                  </div>
+                )}
+                {(matchResult.status === '조건부' || matchResult.status === '조건부 방문 가능' || matchResult.status === '조건부 가능') && matchResult.tips && (
+                  <ConditionalBadge tips={matchResult.tips} />
+                )}
+              </div>
+            </div>
+          );
+        }
+
+        // 2. 비로그인 + 크기 힌트 있음 → 자체 판정 로직 적용 (useTouristSpots와 유사)
+        let guestStatus = '동반 확인 필요';
+        let guestReason = '반려동물 크기 정보가 선택되지 않았거나, 시설의 동반 규정 정보가 부족합니다.';
+        let guestColor = '#64748b';
+
+        if (guestSizeHint) {
+          const possibleSize = (cond.possibleBreeds || cond.relaAcmpyEntEnterPrn || '').toLowerCase();
+          const sizeLabel = { small: '소형견', medium: '중형견', large: '대형견' }[guestSizeHint];
+
+          if (!possibleSize || possibleSize.trim() === '') {
+            guestStatus = '조건부 가능';
+            guestReason = `시설의 명확한 크기 제한 정보가 없습니다. 단, 반려용품이 필요할 수 있으므로 ${sizeLabel} 동반 시 사전 문의가 권장됩니다.`;
+            guestColor = '#d97706';
+          } else {
+            const deniedBySize =
+              (guestSizeHint === 'large' && possibleSize.includes('소형')) ||
+              (guestSizeHint === 'large' && possibleSize.includes('중형') && !possibleSize.includes('대형')) ||
+              (guestSizeHint === 'medium' && possibleSize.includes('소형') && !possibleSize.includes('중형') && !possibleSize.includes('대형'));
+
+            if (deniedBySize) {
+              guestStatus = '방문 불가';
+              guestReason = `이 시설은 ${sizeLabel}의 출입을 제한하고 있습니다. (규정: ${cond.possibleBreeds})`;
+              guestColor = '#dc2626';
+            } else {
+              guestStatus = '조건부 가능';
+              guestReason = `${sizeLabel} 크기 조건은 충족하지만, 비로그인 상태에서는 반려용품 소지 여부를 확인할 수 없어 '조건부 가능'으로 안내해 드립니다.`;
+              guestColor = '#d97706';
+            }
+          }
+        }
+
+        // 비로그인 or 펫 미선택 렌더링
+        return (
+          <div style={{ marginBottom: '24px' }}>
+            <h3 style={{ fontSize: '18px', color: '#1e293b', marginBottom: '10px' }}>🐾 반려동물 방문 판정</h3>
+            <div style={{ backgroundColor: '#f0f9ff', padding: '16px', borderRadius: '12px', border: '1px solid #bae6fd' }}>
+              <p style={{ fontSize: '15px', fontWeight: 'bold', color: guestColor, margin: '0 0 6px 0' }}>
+                판정 결과: {guestStatus}
+              </p>
+              <p style={{ fontSize: '13px', color: '#334155', margin: '0 0 16px 0' }}>
+                <strong>판정 요약:</strong> {guestReason}
+              </p>
+
+              <div style={{ backgroundColor: '#fff', padding: '14px', borderRadius: '8px', border: '1px dashed #93c5fd' }}>
+                <p style={{ fontSize: '13px', color: '#1e40af', margin: '0 0 10px 0', fontWeight: 'bold' }}>
+                  💡 정확한 AI 맞춤 판정을 원하시나요?
+                </p>
+                <p style={{ fontSize: '12px', color: '#64748b', margin: '0 0 12px 0' }}>
+                  프로필을 등록하면 체중뿐만 아니라 유모차, 이동장 등 내가 가진 반려용품까지 고려하여 정확한 방문 가능 여부를 알려드려요!
+                </p>
+                <button
+                  type="button"
+                  onClick={() => navigate('/profile')}
+                  style={{ width: '100%', padding: '10px', backgroundColor: '#2563eb', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}
+                >
+                  🐾 내 반려동물 프로필 등록하기
+                </button>
+              </div>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
+
 
       <h3 style={{ fontSize: '18px', color: '#1e293b', marginBottom: '10px' }}>🐶 반려동물 동반 조건 안내</h3>
       <div style={{ backgroundColor: '#f0fdf4', padding: '18px 20px', borderRadius: '12px', border: '1px solid #bbf7d0', lineHeight: '1.7', color: '#166534' }}>

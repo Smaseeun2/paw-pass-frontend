@@ -1,23 +1,16 @@
 // src/pages/ProfilePage.jsx
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useGoogleLogin } from '@react-oauth/google';
-import { loginWithGoogleCode, fetchPetsFromDB, createPetInDB, deletePetInDB, updatePetInDB, authFetch } from '../services/api';
+import { fetchPetsFromDB, createPetInDB, deletePetInDB, updatePetInDB, authFetch, uploadProfileImage } from '../services/api';
 import mockSpots from '../mocks/tourist-spots.json';
-
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://172.30.1.29:8080';
+import { toast } from '../utils/toast';
+import { migrateGuestRoutes } from '../utils/migrationUtils';
+import { useAuth } from '../contexts/AuthContext';
+import { BASE_URL } from '../config/env';
 
 function ProfilePage() {
   const navigate = useNavigate();
-
-  const [user, setUser] = useState(() => {
-    try {
-      const saved = localStorage.getItem('paw_pass_user');
-      return saved ? JSON.parse(saved) : null;
-    } catch {
-      return null;
-    }
-  });
+  const { user, login, updateUser } = useAuth();
 
   const getActiveKey = (currentUser) => {
     return currentUser?.email ? `paw_pass_pets_${currentUser.email}` : 'paw_pass_pets_guest';
@@ -71,6 +64,10 @@ function ProfilePage() {
 
     const hasCarrier = pet.supplies ? pet.supplies.includes('이동장/케이지') : Boolean(pet.has_carrier);
     const hasLeash = pet.supplies ? pet.supplies.includes('목줄/하네스') : Boolean(pet.has_leash);
+    const hasMuzzle = pet.supplies ? pet.supplies.includes('입마개') : false;
+    const hasWasteBags = pet.supplies ? pet.supplies.includes('배변봉투') : false;
+    const hasStroller = pet.supplies ? pet.supplies.includes('유모차/웨건') : Boolean(pet.has_stroller);
+    const hasDiaper = pet.supplies ? pet.supplies.includes('기저귀/매너벨트') : false;
 
     return {
       species: pet.species || 'DOG',
@@ -79,7 +76,13 @@ function ProfilePage() {
       weight: parseFloat(pet.weight) || 0,
       size: sizeMap[pet.size] || 'SMALL',
       has_carrier: hasCarrier,
-      has_leash: hasLeash
+      has_leash: hasLeash,
+      has_muzzle: hasMuzzle,
+      has_waste_bags: hasWasteBags,
+      has_stroller: hasStroller,
+      has_diaper: hasDiaper,
+      birthDate: pet.birthDate || pet.birth_date || '',
+      image: pet.image || pet.imageUrl || ''
     };
   };
 
@@ -117,20 +120,33 @@ function ProfilePage() {
 
         const guestSaved = localStorage.getItem('paw_pass_pets_guest');
         if (guestSaved) {
-          try {
-            const guestPets = JSON.parse(guestSaved);
-            for (const gPet of guestPets) {
-              const created = await createPetInDB(formatPayloadForDB(gPet));
-              const createdPet = created?.data || created;
+          const guestPets = JSON.parse(guestSaved);
+          const failedGuestPets = [];
+
+          const results = await Promise.allSettled(
+            guestPets.map(gPet => createPetInDB(formatPayloadForDB(gPet)))
+          );
+
+          results.forEach((result, idx) => {
+            const gPet = guestPets[idx];
+            if (result.status === 'fulfilled') {
+              const createdPet = result.value?.data || result.value;
               rawPets.push({
                 ...createdPet,
                 birthDate: gPet.birthDate || '생일 모름',
-                supplies: gPet.supplies || []
+                supplies: gPet.supplies || [],
+                image: gPet.image || ''
               });
+            } else {
+              console.warn(`게스트 펫(${gPet.name}) 마이그레이션 실패:`, result.reason);
+              failedGuestPets.push(gPet);
             }
-          } catch (mErr) {
-            console.error('게스트 데이터 마이그레이션 건너뜀:', mErr);
-          } finally {
+          });
+
+          if (failedGuestPets.length > 0) {
+            localStorage.setItem('paw_pass_pets_guest', JSON.stringify(failedGuestPets));
+            toast.error('일부 반려동물 정보를 서버로 이전하지 못했습니다.');
+          } else {
             localStorage.removeItem('paw_pass_pets_guest');
           }
         }
@@ -175,7 +191,7 @@ function ProfilePage() {
         if (!res.ok) throw new Error('대표 반려동물 설정 실패');
       } catch (err) {
         console.error('대표 설정 에러:', err);
-        alert('대표 반려동물 설정 중 오류가 발생했습니다.');
+        toast.info('대표 반려동물 설정 중 오류가 발생했습니다.');
         return;
       }
     }
@@ -185,43 +201,6 @@ function ProfilePage() {
       isPrimary: String(p.id) === String(petId)
     }))));
   };
-
-  // 구글 로그인 및 직행 저장
-  const googleLogin = useGoogleLogin({
-    flow: 'auth-code',
-    onSuccess: async (codeResponse) => {
-      try {
-        const response = await loginWithGoogleCode(codeResponse.code);
-        const result = response.data || response;
-
-        if (result.access_token) localStorage.setItem('paw_pass_access_token', result.access_token);
-        if (result.refresh_token) localStorage.setItem('paw_pass_refresh_token', result.refresh_token);
-
-        if (result.user) {
-          setUser(result.user);
-          localStorage.setItem('paw_pass_user', JSON.stringify(result.user));
-
-          const pendingPetJson = localStorage.getItem('paw_pass_pending_pet');
-          if (pendingPetJson) {
-            try {
-              const pendingPet = JSON.parse(pendingPetJson);
-              await createPetInDB(formatPayloadForDB(pendingPet));
-            } catch (err) {
-              console.error('펜딩 프로필 DB 저장 실패:', err);
-            } finally {
-              localStorage.removeItem('paw_pass_pending_pet');
-            }
-          }
-
-          alert(`환영합니다, ${result.user.name}님! 정보가 저장되었습니다. 🐾`);
-          window.location.reload();
-        }
-      } catch (error) {
-        console.error('로그인 실패:', error);
-        alert('구글 로그인에 실패했습니다.');
-      }
-    }
-  });
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -242,6 +221,24 @@ function ProfilePage() {
 
   const handleSizeClick = (selectedSize) => {
     setForm((prev) => ({ ...prev, size: selectedSize }));
+  };
+
+  const handleUserProfileImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file || !user) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.warning('이미지 크기는 5MB 이하여야 합니다.');
+      return;
+    }
+
+    try {
+      const updatedUser = await uploadProfileImage(file);
+      updateUser(updatedUser);
+      toast.success('프로필 이미지가 성공적으로 변경되었습니다!');
+    } catch (err) {
+      toast.error(err.message || '프로필 이미지 업로드에 실패했습니다.');
+    }
   };
 
   const handleImageUpload = (e) => {
@@ -265,15 +262,15 @@ function ProfilePage() {
 
   const validateForm = () => {
     if (!form.name.trim()) {
-      alert('반려동물 이름을 입력해주세요.');
+      toast.warning('반려동물 이름을 입력해주세요.');
       return false;
     }
     if (!form.breed.trim()) {
-      alert('반려동물 품종을 입력해주세요.');
+      toast.warning('반려동물 품종을 입력해주세요.');
       return false;
     }
     if (!form.weight || isNaN(Number(form.weight)) || Number(form.weight) <= 0) {
-      alert('올바른 체중(0보다 큰 숫자)을 입력해주세요.');
+      toast.warning('올바른 체중(0보다 큰 숫자)을 입력해주세요.');
       return false;
     }
     return true;
@@ -386,7 +383,7 @@ function ProfilePage() {
           );
         } catch (err) {
           console.error('서버 수정 에러:', err);
-          alert('수정 중 오류가 발생했습니다.');
+          toast.error('수정 중 오류가 발생했습니다.');
           return;
         }
       } else {
@@ -396,7 +393,7 @@ function ProfilePage() {
         localStorage.setItem(targetKey, JSON.stringify(updatedPets));
       }
 
-      alert(`${petData.name}의 프로필이 수정되었습니다! 🐾`);
+      toast.success(`${petData.name}의 프로필이 수정되었습니다! 🐾`);
       handleCancelEdit();
     } else {
       let newlyCreatedId = petData.id;
@@ -422,7 +419,7 @@ function ProfilePage() {
           });
         } catch (err) {
           console.error('서버 저장 에러:', err);
-          alert('서버 저장 중 오류가 발생했습니다.');
+          toast.error('서버 저장 중 오류가 발생했습니다.');
           return;
         }
       } else {
@@ -453,7 +450,7 @@ function ProfilePage() {
     if (!validateForm()) return;
     const newPet = buildPetData();
     localStorage.setItem('paw_pass_pending_pet', JSON.stringify(newPet));
-    googleLogin();
+    login();
   };
 
   const handleDeletePet = async (id, e) => {
@@ -471,7 +468,7 @@ function ProfilePage() {
         });
       } catch (err) {
         console.error('서버 삭제 에러:', err);
-        alert('삭제 요청에 실패했습니다.');
+        toast.error('삭제 요청에 실패했습니다.');
       }
     } else {
       const targetKey = getActiveKey(user);
@@ -491,11 +488,29 @@ function ProfilePage() {
         {user ? `${user.name}님의 반려동물 프로필 관리` : '체험 모드로 등록하거나 구글 로그인 후 안전하게 보관하세요.'}
       </p>
 
-      {!user && (
+      {!user ? (
         <div style={{ backgroundColor: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: '12px', padding: '14px 18px', marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
           <div>
             <strong style={{ color: '#0369a1', display: 'block', fontSize: '14px', marginBottom: '2px' }}>🐾 현재 체험 모드(비로그인) 이용 중</strong>
             <span style={{ fontSize: '13px', color: '#0c4a6e' }}>정보 입력 후 바로 로그인하시면 해당 구글 계정으로 즉시 영구 저장됩니다.</span>
+          </div>
+        </div>
+      ) : (
+        <div style={{ backgroundColor: '#fff', borderRadius: '12px', padding: '24px', boxShadow: '0 4px 12px rgba(0,0,0,0.08)', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '20px' }}>
+          <div style={{ position: 'relative' }}>
+            {user.picture ? (
+              <img src={user.picture} alt="프로필" style={{ width: '80px', height: '80px', borderRadius: '50%', objectFit: 'cover' }} />
+            ) : (
+              <div style={{ width: '80px', height: '80px', borderRadius: '50%', backgroundColor: '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '32px' }}>🐾</div>
+            )}
+            <label style={{ position: 'absolute', bottom: 0, right: 0, backgroundColor: '#3b82f6', color: 'white', borderRadius: '50%', width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.2)' }}>
+              📷
+              <input type="file" accept="image/jpeg, image/png, image/webp" style={{ display: 'none' }} onChange={handleUserProfileImageUpload} />
+            </label>
+          </div>
+          <div>
+            <h2 style={{ margin: '0 0 8px 0', fontSize: '24px', color: '#1e293b' }}>{user.name}님, 반가워요!</h2>
+            <p style={{ margin: 0, color: '#64748b' }}>{user.email}</p>
           </div>
         </div>
       )}

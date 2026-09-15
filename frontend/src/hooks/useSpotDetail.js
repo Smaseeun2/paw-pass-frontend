@@ -1,8 +1,7 @@
 // src/hooks/useSpotDetail.js
 import { useState, useEffect } from 'react';
 import { fetchTourDetail, fetchFacilityDetail, authFetch } from '../services/api';
-
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://172.30.1.29:8080';
+import { BASE_URL } from '../config/env';
 
 export const useSpotDetail = (id, source = 'tourapi') => {
   const [detail, setDetail] = useState(null);
@@ -75,6 +74,7 @@ export const useSpotDetail = (id, source = 'tourapi') => {
           imageUrl: candidateImages[0] || '', // 대표 이미지 단건
           imageAttribution: fetchedAttribution || data.image_attribution || '',
           description: data.description || data.overview || '',
+          rawCategory: data.category || data.cat3 || data.category3 || '',
           // 💡 지도 핀 위치를 잡기 위한 위도, 경도 명시적 주입
           lat: !isNaN(parsedLat) ? parsedLat : null,
           lng: !isNaN(parsedLng) ? parsedLng : null,

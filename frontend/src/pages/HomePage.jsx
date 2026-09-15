@@ -1,8 +1,9 @@
 // src/pages/HomePage.jsx
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useFavorites } from '../hooks/useFavorites';
+import { useFavoritesContext as useFavorites } from '../contexts/FavoritesContext';
 import { fetchPetsFromDB, fetchExploreSpots } from '../services/api';
+import LazyImage from '../components/LazyImage';
 
 const CATEGORY_OPTIONS = [
   { label: '자연/풍경', value: 'NATURE' },
@@ -12,25 +13,7 @@ const CATEGORY_OPTIONS = [
   { label: '숙박시설', value: 'STAY' }
 ];
 
-const REGION_OPTIONS = [
-  { label: '전체 지역', code: '' },
-  { label: '서울', code: '1' },
-  { label: '인천', code: '2' },
-  { label: '대전', code: '3' },
-  { label: '대구', code: '4' },
-  { label: '부산', code: '6' },
-  { label: '울산', code: '7' },
-  { label: '세종', code: '8' },
-  { label: '경기도', code: '31' },
-  { label: '강원도', code: '32' },
-  { label: '충청북도', code: '33' },
-  { label: '충청남도', code: '34' },
-  { label: '전라북도', code: '35' },
-  { label: '전라남도', code: '36' },
-  { label: '경상북도', code: '37' },
-  { label: '경상남도', code: '38' },
-  { label: '제주도', code: '39' }
-];
+import { REGION_OPTIONS } from '../constants/regions';
 
 function HomePage() {
   const navigate = useNavigate();
@@ -76,14 +59,13 @@ function HomePage() {
           const serverPets = Array.isArray(res) ? res : (res?.data || []);
           setMyPets(serverPets);
 
-          // 등록된 펫이 있고 아직 선택된 펫이 없다면 대표 펫(혹은 첫 번째 펫)을 기본 선택
-          if (serverPets.length > 0 && selectedPetIds.length === 0) {
+          if (serverPets.length > 0) {
             const representativePet = serverPets.find(p => p.isRepresentative || p.is_representative) || serverPets[0];
             if (representativePet) {
-              setSelectedPetIds([representativePet.id]);
+              setSelectedPetIds(prev => (prev.length === 0 ? [representativePet.id] : prev));
             }
           }
-        } catch (error) {
+        } catch {
           setMyPets([]);
         }
       } else {
@@ -114,9 +96,12 @@ function HomePage() {
             name: spot.title || spot.name || '장소명 없음',
             address: spot.addr || spot.address || '주소 정보 없음',
             imageUrl: spot.image || spot.imageUrl || spot.first_image || '',
+            imageAttribution: spot.image_attribution || '',
             tel: spot.tel || '정보 미제공',
             source: spot.source || 'tourapi',
-            matchStatus: assignedMatchStatus
+            matchStatus: assignedMatchStatus,
+            matchReason: spot.match_reason || '',
+            matchRawText: spot.match_raw_text || ''
           };
         });
 
@@ -146,13 +131,23 @@ function HomePage() {
     const targetRegionObj = REGION_OPTIONS.find(r => r.code === selectedRegionCode);
     const regionName = targetRegionObj && targetRegionObj.code !== '' ? targetRegionObj.label : '';
 
+    // 비로그인 크기 힌트 계산 (로그인 유저는 petId 기반이므로 힌트 불필요)
+    let guestSizeHint = '';
+    if (selectedPetIds.length === 0) {
+      if (petCounts.large > 0) guestSizeHint = 'large';
+      else if (petCounts.medium > 0) guestSizeHint = 'medium';
+      else if (petCounts.small > 0) guestSizeHint = 'small';
+    }
+
     navigate('/search', { 
       state: { 
         keyword: keyword.trim(), 
+        regionCode: selectedRegionCode,
         region: regionName, 
         type: selectedType, 
         selectedPetIds,
-        petCounts 
+        petCounts,
+        guestSizeHint
       } 
     });
   };
@@ -349,16 +344,17 @@ function HomePage() {
                     style={{ border: '1px solid #e2e8f0', borderRadius: '16px', backgroundColor: '#fff', overflow: 'hidden', cursor: 'pointer' }}
                   >
                     <div style={{ position: 'relative', width: '100%', height: '180px', backgroundColor: spot.source === 'kcisa' ? '#e0f2fe' : '#fef3c7', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                      {spot.imageUrl ? (
-                        <img src={spot.imageUrl} alt={spot.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                      ) : (
-                        <>
-                          <span style={{ fontSize: '36px', marginBottom: '6px' }}>{spot.source === 'kcisa' ? '🏥' : '🏞️'}</span>
-                          <span style={{ fontSize: '12px', fontWeight: 'bold', color: spot.source === 'kcisa' ? '#0369a1' : '#b45309' }}>
-                            {spot.source === 'kcisa' ? '반려동물 편의시설' : '추천 여행지'}
-                          </span>
-                        </>
-                      )}
+                      <LazyImage 
+                        spot={spot} 
+                        fallback={
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                            <span style={{ fontSize: '36px', marginBottom: '6px' }}>{spot.source === 'kcisa' ? '🏥' : '🏞️'}</span>
+                            <span style={{ fontSize: '12px', fontWeight: 'bold', color: spot.source === 'kcisa' ? '#0369a1' : '#b45309' }}>
+                              {spot.source === 'kcisa' ? '반려동물 편의시설' : '추천 여행지'}
+                            </span>
+                          </div>
+                        }
+                      />
                       <button
                         onClick={(e) => { e.stopPropagation(); toggleFavorite(spot); }}
                         style={{ position: 'absolute', top: '12px', right: '12px', backgroundColor: 'rgba(255, 255, 255, 0.9)', border: 'none', borderRadius: '50%', width: '36px', height: '36px', cursor: 'pointer' }}

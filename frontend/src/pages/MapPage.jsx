@@ -1,9 +1,9 @@
 // src/pages/MapPage.jsx
-import { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchSuggestedRoute, fetchExploreSpots } from '../services/api';
-
-const KAKAO_APP_KEY = import.meta.env.VITE_KAKAO_APP_KEY || '';
+import { loadKakaoMapSdk } from '../utils/kakaoMapLoader';
+import { toast } from '../utils/toast';
 
 // 💡 현재 로그인된 유저의 이메일(또는 식별자)을 가져오는 헬퍼 함수
 const getCurrentUserEmail = () => {
@@ -23,13 +23,14 @@ function MapPage() {
   const markersRef = useRef([]);
   const polylineRef = useRef(null);
 
-  // 💡 유저별 고유 동선 스토리지 키 생성 (로그아웃 상태면 null)
+  // 💡 유저별 고유 동선 스토리지 키 생성 (비로그인 상태면 guest 키 사용)
   const userEmail = getCurrentUserEmail();
-  const storageKey = userEmail ? `paw_pass_routes_${userEmail}` : null;
+  const storageKey = userEmail ? `paw_pass_routes_${userEmail}` : 'paw_pass_routes_guest';
 
-  // 💡 로그인된 유저의 전용 키로 로컬 스토리지(paw_pass_routes_*)에서 동선 데이터 로드
+  // 💡 전용 키로 로컬 스토리지에서 동선 데이터 로드
   const [selectedSpots, setSelectedSpots] = useState(() => {
-    if (!storageKey) return []; // 로그아웃 상태면 빈 배열 반환
+    if (!storageKey) return [];
+
     try {
       const savedRoutes = JSON.parse(localStorage.getItem(storageKey) || '[]');
       return savedRoutes.filter(spot => {
@@ -58,29 +59,22 @@ function MapPage() {
   // 드래그 앤 드롭 중인 항목 인덱스 추적
   const [draggedItemIndex, setDraggedItemIndex] = useState(null);
 
-  // 1. 카카오맵 SDK 동적 스크립트 로드
+  // 1. 카카오맵 SDK 안전 로드
   useEffect(() => {
-    if (window.kakao && window.kakao.maps) {
-      setMapLoaded(true);
-      return;
-    }
-
-    const script = document.createElement('script');
-    script.type = 'text/javascript';
-    script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${KAKAO_APP_KEY}&autoload=false`;
-    script.async = true;
-    
-    script.onload = () => {
-      window.kakao.maps.load(() => {
-        setMapLoaded(true);
+    let isMounted = true;
+    loadKakaoMapSdk()
+      .then(() => {
+        if (isMounted) {
+          setMapLoaded(true);
+        }
+      })
+      .catch((err) => {
+        console.error('❌ 카카오맵 SDK 로드 실패:', err);
       });
-    };
 
-    script.onerror = () => {
-      console.error('❌ 카카오맵 스크립트 로드 실패');
+    return () => {
+      isMounted = false;
     };
-
-    document.head.appendChild(script);
   }, []);
 
   // 2. 카카오 지도 초기화
@@ -100,6 +94,7 @@ function MapPage() {
 
     const map = new window.kakao.maps.Map(container, options);
     mapInstanceRef.current = map;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mapLoaded]);
 
   // 3. 지도 위에 번호 마커 및 단일 말풍선 카드 렌더링 함수
@@ -198,15 +193,18 @@ function MapPage() {
 
       customOverlay.setMap(map);
       markersRef.current.push(customOverlay);
+      // 💡 4-6 메모리 누수 방지: infoOverlay도 markersRef에 넣어서 setMap(null) 시 클린업되도록 처리
+      markersRef.current.push(infoOverlay);
     });
 
     if (pathCoordinates.length > 1) {
+      // 💡 4-5 동선 경로 선 커스텀 (도보/차량 애니메이션 느낌의 점선 스타일)
       const polyline = new window.kakao.maps.Polyline({
         path: pathCoordinates,
-        strokeWeight: 5,
-        strokeColor: '#2563eb',
-        strokeOpacity: 0.8,
-        strokeStyle: 'solid'
+        strokeWeight: 6,
+        strokeColor: '#f59e0b', // 호박색(Amber)으로 변경하여 눈에 더 띄게
+        strokeOpacity: 0.9,
+        strokeStyle: 'shortdash'
       });
       polyline.setMap(map);
       polylineRef.current = polyline;
@@ -243,7 +241,24 @@ function MapPage() {
     setDraggedItemIndex(null);
     setSelectedSpots(updated);
     
-    // 💡 유저별 고유 키로 저장
+    if (storageKey) {
+      localStorage.setItem(storageKey, JSON.stringify(updated));
+    }
+    setRouteResult(null);
+    renderMapElements(updated);
+  };
+
+  // 💡 4-3 터치 기기(모바일)를 위한 순서 변경 버튼 핸들러
+  const handleMoveSpot = (index, direction) => {
+    if (direction === -1 && index === 0) return;
+    if (direction === 1 && index === selectedSpots.length - 1) return;
+
+    const updated = [...selectedSpots];
+    const temp = updated[index];
+    updated[index] = updated[index + direction];
+    updated[index + direction] = temp;
+
+    setSelectedSpots(updated);
     if (storageKey) {
       localStorage.setItem(storageKey, JSON.stringify(updated));
     }
@@ -282,19 +297,19 @@ function MapPage() {
 
   const handleAddSpotToRoute = (spot) => {
     if (!storageKey) {
-      alert('로그인 후 동선을 추가할 수 있습니다.');
+      toast.warning('로그인 후 동선을 추가할 수 있습니다.');
       return;
     }
 
     if (selectedSpots.length >= 8) {
-      alert('동선은 최대 8개까지 추가할 수 있습니다.');
+      toast.warning('동선은 최대 8개까지 추가할 수 있습니다.');
       return;
     }
 
     const spotId = String(spot.id);
     const exists = selectedSpots.some(item => String(item.id || item.contentId) === spotId);
     if (exists) {
-      alert('이미 동선에 포함된 장소입니다.');
+      toast.info('이미 동선에 포함된 장소입니다.');
       return;
     }
 
@@ -303,12 +318,12 @@ function MapPage() {
     localStorage.setItem(storageKey, JSON.stringify(updated));
     setRouteResult(null);
     renderMapElements(updated);
-    alert(`❤️ "${spot.name}"이(가) 동선에 추가되었습니다!`);
+    toast.success(`❤️ "${spot.name}"이(가) 동선에 추가되었습니다!`);
   };
 
   const handleSuggestRoute = async () => {
     if (selectedSpots.length < 2) {
-      alert('최적 동선을 계산하려면 최소 2개 이상의 장소가 필요합니다. (최대 8개)');
+      toast.warning('최적 동선을 계산하려면 최소 2개 이상의 장소가 필요합니다. (최대 8개)');
       return;
     }
 
@@ -324,11 +339,24 @@ function MapPage() {
       setRouteResult(result);
 
       if (result && Array.isArray(result.order)) {
-        renderMapElements(selectedSpots, result.order);
+        // 💡 4-4: 백엔드 명세 반영 - order는 ID 배열임
+        const reorderedSpots = result.order
+          .map(spotId => selectedSpots.find(s => String(s.id || s.contentId) === String(spotId)))
+          .filter(Boolean);
+          
+        // 혹시 백엔드에서 일부 ID를 누락했다면 나머지를 뒤에 붙임
+        const missingSpots = selectedSpots.filter(s => !result.order.includes(String(s.id || s.contentId)));
+        const finalSpots = [...reorderedSpots, ...missingSpots];
+
+        setSelectedSpots(finalSpots);
+        if (storageKey) {
+          localStorage.setItem(storageKey, JSON.stringify(finalSpots));
+        }
+        renderMapElements(finalSpots);
       }
     } catch (err) {
       console.error('동선 계산 실패:', err);
-      alert('최적 동선을 계산하는 중 오류가 발생했습니다.');
+      toast.error('최적 동선을 계산하는 중 오류가 발생했습니다.');
     } finally {
       setIsLoading(false);
     }
@@ -459,42 +487,69 @@ function MapPage() {
           
           {selectedSpots.length > 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {selectedSpots.map((spot, index) => (
-                <div 
-                  key={spot.id || spot.contentId || index} 
-                  draggable
-                  onDragStart={(e) => handleDragStart(e, index)}
-                  onDragOver={handleDragOver}
-                  onDrop={(e) => handleDrop(e, index)}
-                  style={{ 
-                    padding: '12px', backgroundColor: '#f8fafc', borderRadius: '10px', 
-                    border: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', 
-                    alignItems: 'center', cursor: 'grab', userSelect: 'none',
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
-                  }}
-                  title="꾹 누르고 드래그하여 순서를 변경하세요"
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: '0' }}>
-                    <span style={{ cursor: 'grab', color: '#94a3b8', fontSize: '14px' }}>☰</span>
-                    <div style={{ flex: 1, minWidth: '0' }}>
-                      <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#1e293b', marginBottom: '2px' }}>
-                        <span style={{ color: '#2563eb', marginRight: '4px' }}>{index + 1}.</span> {spot.name || spot.title}
+              {selectedSpots.map((spot, index) => {
+                const spotId = String(spot.id || spot.contentId);
+                let legDistance = null;
+                if (index > 0 && routeResult && Array.isArray(routeResult.legs)) {
+                  const prevId = String(selectedSpots[index-1].id || selectedSpots[index-1].contentId);
+                  const leg = routeResult.legs.find(l => String(l.from_id) === prevId && String(l.to_id) === spotId);
+                  if (leg) legDistance = leg.distance_km;
+                }
+
+                return (
+                  <React.Fragment key={spotId || index}>
+                    {legDistance != null && (
+                      <div style={{ textAlign: 'center', color: '#3b82f6', fontSize: '12px', margin: '-2px 0', padding: '4px 0', fontWeight: 'bold' }}>
+                        ⬇ 약 {legDistance.toFixed(2)} km 이동
                       </div>
-                      <div style={{ fontSize: '11px', color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        📍 {spot.address || spot.addr}
+                    )}
+                    <div 
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, index)}
+                      onDragOver={handleDragOver}
+                      onDrop={(e) => handleDrop(e, index)}
+                      style={{ 
+                        padding: '12px', backgroundColor: '#f8fafc', borderRadius: '10px', 
+                        border: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', 
+                        alignItems: 'center', cursor: 'grab', userSelect: 'none',
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
+                      }}
+                      title="꾹 누르고 드래그하여 순서를 변경하세요"
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: '0' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                          <button 
+                            onClick={() => handleMoveSpot(index, -1)} 
+                            disabled={index === 0}
+                            style={{ background: 'none', border: 'none', cursor: index === 0 ? 'not-allowed' : 'pointer', color: index === 0 ? '#cbd5e1' : '#64748b', fontSize: '12px', padding: '0 4px' }}
+                          >▲</button>
+                          <button 
+                            onClick={() => handleMoveSpot(index, 1)} 
+                            disabled={index === selectedSpots.length - 1}
+                            style={{ background: 'none', border: 'none', cursor: index === selectedSpots.length - 1 ? 'not-allowed' : 'pointer', color: index === selectedSpots.length - 1 ? '#cbd5e1' : '#64748b', fontSize: '12px', padding: '0 4px' }}
+                          >▼</button>
+                        </div>
+                        <div style={{ flex: 1, minWidth: '0' }}>
+                          <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#1e293b', marginBottom: '2px' }}>
+                            <span style={{ color: '#2563eb', marginRight: '4px' }}>{index + 1}.</span> {spot.name || spot.title}
+                          </div>
+                          <div style={{ fontSize: '11px', color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            📍 {spot.address || spot.addr}
+                          </div>
+                        </div>
                       </div>
+                      <button 
+                        type="button"
+                        onClick={() => handleRemoveSpot(spot.id || spot.contentId)}
+                        style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', padding: '4px', marginLeft: '6px' }}
+                        title="동선에서 제거"
+                      >
+                        삭제
+                      </button>
                     </div>
-                  </div>
-                  <button 
-                    type="button"
-                    onClick={() => handleRemoveSpot(spot.id || spot.contentId)}
-                    style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', padding: '4px', marginLeft: '6px' }}
-                    title="동선에서 제거"
-                  >
-                    삭제
-                  </button>
-                </div>
-              ))}
+                  </React.Fragment>
+                );
+              })}
             </div>
           ) : (
             <div style={{ textAlign: 'center', padding: '60px 10px', color: '#94a3b8' }}>

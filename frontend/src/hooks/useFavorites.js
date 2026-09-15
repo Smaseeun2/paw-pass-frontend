@@ -1,6 +1,7 @@
 // src/hooks/useFavorites.js
 import { useState, useEffect, useCallback } from 'react';
 import { addFavoriteInDB, fetchFavoritesFromDB, deleteFavoriteInDB } from '../services/api';
+import { toast } from '../utils/toast';
 
 export const useFavorites = () => {
   const [favorites, setFavorites] = useState([]);
@@ -50,7 +51,7 @@ export const useFavorites = () => {
   const toggleFavorite = async (spot) => {
     const email = getUserEmail();
     if (!email) {
-      alert('로그인이 필요한 기능입니다.');
+      toast.warning('로그인이 필요한 기능입니다.');
       return;
     }
 
@@ -73,7 +74,7 @@ export const useFavorites = () => {
       await loadFavorites();
     } catch (err) {
       console.error('즐겨찾기 처리 중 오류 발생:', err);
-      alert('즐겨찾기 처리에 실패했습니다.');
+      toast.error('즐겨찾기 처리에 실패했습니다.');
     }
   };
 
