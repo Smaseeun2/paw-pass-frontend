@@ -119,7 +119,7 @@ export const useSpotDetail = (id, source = 'tourapi') => {
         setDetail(normalized);
       } catch (err) {
         console.error('장소 상세 정보 로드 실패:', err);
-        setError('상세 정보를 불러오는 중 오류가 발생했습니다.');
+        setError('일시적인 서버 장애(또는 공공데이터 연동 오류)로 인해 정보를 불러올 수 없습니다. 잠시 후 다시 시도해주세요.');
       } finally {
         setIsLoading(false);
       }

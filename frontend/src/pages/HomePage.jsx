@@ -10,7 +10,8 @@ const CATEGORY_OPTIONS = [
   { label: '카페', value: 'CAFE' },
   { label: '음식점/식당', value: 'FOOD' },
   { label: '문화/예술', value: 'CULTURE' },
-  { label: '숙박시설', value: 'STAY' }
+  { label: '숙박시설', value: 'STAY' },
+  { label: '동물병원', value: 'HOSPITAL' }
 ];
 
 import { REGION_OPTIONS } from '../constants/regions';
@@ -60,7 +61,7 @@ function HomePage() {
           setMyPets(serverPets);
 
           if (serverPets.length > 0) {
-            const representativePet = serverPets.find(p => p.isRepresentative || p.is_representative) || serverPets[0];
+            const representativePet = serverPets.find(p => p.isPrimary || p.is_primary || p.isRepresentative || p.is_representative) || serverPets[0];
             if (representativePet) {
               setSelectedPetIds(prev => (prev.length === 0 ? [representativePet.id] : prev));
             }
@@ -348,9 +349,9 @@ function HomePage() {
                         spot={spot} 
                         fallback={
                           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-                            <span style={{ fontSize: '36px', marginBottom: '6px' }}>{spot.source === 'kcisa' ? '🏥' : '🏞️'}</span>
-                            <span style={{ fontSize: '12px', fontWeight: 'bold', color: spot.source === 'kcisa' ? '#0369a1' : '#b45309' }}>
-                              {spot.source === 'kcisa' ? '반려동물 편의시설' : '추천 여행지'}
+                            <span style={{ fontSize: '36px', marginBottom: '4px' }}>{spot.source === 'kcisa' ? '🏥' : '🏞️'}</span>
+                            <span style={{ fontSize: '11px', fontWeight: 'bold', color: spot.source === 'kcisa' ? '#0369a1' : '#b45309' }}>
+                              {spot.source === 'kcisa' ? '한국문화정보원' : '한국관광공사'}
                             </span>
                           </div>
                         }
