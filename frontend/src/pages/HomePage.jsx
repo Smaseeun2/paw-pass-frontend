@@ -379,19 +379,6 @@ function HomePage() {
         </div>
       </div>
 
-      {/* Footer 영역 (공공데이터 출처 표기) */}
-      <footer style={{ 
-        borderTop: '1px solid #e2e8f0', backgroundColor: '#f8fafc', 
-        padding: '30px 20px', marginTop: '60px', textAlign: 'center', 
-        color: '#64748b', fontSize: '13px', lineHeight: '1.6' 
-      }}>
-        <div style={{ maxWidth: '1100px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          <p style={{ margin: 0, fontWeight: 'bold', color: '#334155' }}>Paw Pass — 반려동물 맞춤형 여행 플랫폼</p>
-          <p style={{ margin: 0 }}>출처: ⓒ한국관광공사 / 출처: ⓒ한국문화정보원</p>
-          <p style={{ margin: '8px 0 0 0', fontSize: '12px', color: '#94a3b8' }}>© 2026 Paw Pass. All rights reserved.</p>
-        </div>
-      </footer>
-
     </div>
   );
 }

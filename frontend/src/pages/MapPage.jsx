@@ -266,29 +266,70 @@ function MapPage() {
     renderMapElements(updated);
   };
 
-  // 직접 검색 핸들러
+  // 직접 검색 핸들러 (API + 카카오맵 로컬 검색 병합)
   const handleDirectSearch = async (e) => {
     e.preventDefault();
     if (!searchKeyword.trim()) return;
 
     setIsSearching(true);
     try {
-      const data = await fetchExploreSpots({ keyword: searchKeyword.trim(), page: 1 });
-      const rawList = Array.isArray(data) ? data : (data?.data || []);
-      
-      const mapped = rawList.map(spot => ({
-        id: String(spot.id || spot.content_id),
-        name: spot.title || spot.name || '장소명 없음',
-        address: spot.addr || spot.address || '주소 정보 없음',
-        lat: Number(spot.lat),
-        lng: Number(spot.lng),
-        imageUrl: spot.image || spot.first_image || '',
-        source: spot.source || 'tourapi'
-      })).filter(s => !isNaN(s.lat) && !isNaN(s.lng));
+      // 1. 우리 API(통합 검색) 조회
+      const apiPromise = fetchExploreSpots({ keyword: searchKeyword.trim(), page: 1 })
+        .then(data => {
+          const rawList = Array.isArray(data) ? data : (data?.data || []);
+          return rawList.map(spot => ({
+            id: String(spot.id || spot.content_id),
+            name: spot.title || spot.name || '장소명 없음',
+            address: spot.addr || spot.address || '주소 정보 없음',
+            lat: Number(spot.lat),
+            lng: Number(spot.lng),
+            imageUrl: spot.image || spot.first_image || '',
+            source: spot.source || 'tourapi'
+          })).filter(s => !isNaN(s.lat) && !isNaN(s.lng));
+        }).catch(err => {
+          console.error('API 장소 직접 검색 실패:', err);
+          return [];
+        });
 
-      setSearchResults(mapped);
+      // 2. 카카오맵 장소 검색 조회
+      const kakaoPromise = new Promise((resolve) => {
+        if (!window.kakao || !window.kakao.maps || !window.kakao.maps.services) {
+          resolve([]);
+          return;
+        }
+        const ps = new window.kakao.maps.services.Places();
+        ps.keywordSearch(searchKeyword.trim(), (data, status) => {
+          if (status === window.kakao.maps.services.Status.OK) {
+            const mapped = data.map(place => ({
+              id: `kakao_${place.id}`,
+              name: place.place_name,
+              address: place.road_address_name || place.address_name,
+              lat: Number(place.y),
+              lng: Number(place.x),
+              imageUrl: '', // 카카오맵은 이미지 기본 미제공
+              source: 'kakao'
+            })).filter(s => !isNaN(s.lat) && !isNaN(s.lng));
+            resolve(mapped);
+          } else {
+            resolve([]);
+          }
+        });
+      });
+
+      const [apiSpots, kakaoSpots] = await Promise.all([apiPromise, kakaoPromise]);
+
+      // 중복 제거 (이름 기반 또는 좌표 기반 간이 처리)
+      const merged = [...apiSpots];
+      kakaoSpots.forEach(kSpot => {
+        // 이미 API에 동일한 이름이 있으면 제외
+        if (!merged.some(aSpot => aSpot.name.includes(kSpot.name) || kSpot.name.includes(aSpot.name))) {
+          merged.push(kSpot);
+        }
+      });
+
+      setSearchResults(merged);
     } catch (err) {
-      console.error('장소 직접 검색 실패:', err);
+      console.error('장소 검색 중 오류 발생:', err);
       setSearchResults([]);
     } finally {
       setIsSearching(false);

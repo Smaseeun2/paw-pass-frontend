@@ -13,6 +13,7 @@ import MapPage from './pages/MapPage';
 import FavoritesPage from './pages/FavoritesPage';
 import SupportPage from './pages/SupportPage';
 import NotFoundPage from './pages/NotFoundPage';
+import Footer from './components/Footer';
 import ToastContainer from './components/ToastContainer';
 import ProtectedRoute from './components/ProtectedRoute';
 
@@ -107,9 +108,9 @@ function App() {
       <PetProvider>
         <FavoritesProvider>
           <BrowserRouter>
-            <div>
+            <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
               <AppNav />
-              <div style={{ padding: '20px' }}>
+              <div style={{ padding: '20px', flex: 1 }}>
                 <Routes>
                   <Route path="/" element={<HomePage />} />
                   <Route path="/profile" element={<ProfilePage />} />
@@ -125,6 +126,7 @@ function App() {
                   <Route path="*" element={<NotFoundPage />} />
                 </Routes>
               </div>
+              <Footer />
             </div>
             <ToastContainer />
           </BrowserRouter>

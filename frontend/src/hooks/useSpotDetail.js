@@ -36,6 +36,32 @@ export const useSpotDetail = (id, source = 'tourapi') => {
           } catch (e) {
             console.warn('문화시설 개별 이미지 조회 실패:', e);
           }
+        } else if (source === 'kakao') {
+          // 카카오맵 장소는 서버에 상세 정보가 없으므로 로컬스토리지(동선) 데이터나 빈 데이터로 모의 응답
+          let cachedPlace = {};
+          try {
+            const keys = Object.keys(localStorage).filter(k => k.startsWith('paw_pass_routes_'));
+            for (const k of keys) {
+              const routes = JSON.parse(localStorage.getItem(k) || '[]');
+              const found = routes.find(r => r.id === id);
+              if (found) {
+                cachedPlace = found;
+                break;
+              }
+            }
+          } catch (e) {}
+
+          rawData = {
+            data: {
+              title: cachedPlace.name || '카카오맵 검색 장소',
+              address: cachedPlace.address || '주소 정보',
+              lat: cachedPlace.lat,
+              lng: cachedPlace.lng,
+              category: '카카오 장소',
+              description: 'PawPass API에 등록되지 않은 카카오맵 로컬 장소입니다. 상세 동반 규정은 해당 장소에 직접 문의해 주세요.',
+              pet_condition: {}
+            }
+          };
         } else {
           // 3. 관광공사 상세 조회 (GET /tours/{contentId})
           rawData = await fetchTourDetail(id);
