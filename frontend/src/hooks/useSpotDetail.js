@@ -20,7 +20,12 @@ export const useSpotDetail = (id, source = 'tourapi') => {
         let fetchedImage = '';
         let fetchedAttribution = '';
 
-        if (source === 'kcisa') {
+        let actualSource = source;
+        if (source === 'kcisa' && /^\d+$/.test(id)) {
+          actualSource = 'tourapi';
+        }
+
+        if (actualSource === 'kcisa') {
           // 1. 문화시설 상세 조회 (GET /facilities/{id})
           rawData = await fetchFacilityDetail(id);
           
@@ -36,7 +41,7 @@ export const useSpotDetail = (id, source = 'tourapi') => {
           } catch (e) {
             console.warn('문화시설 개별 이미지 조회 실패:', e);
           }
-        } else if (source === 'kakao') {
+        } else if (actualSource === 'kakao') {
           // 카카오맵 장소는 서버에 상세 정보가 없으므로 로컬스토리지(동선) 데이터나 빈 데이터로 모의 응답
           let cachedPlace = {};
           try {
@@ -74,7 +79,7 @@ export const useSpotDetail = (id, source = 'tourapi') => {
 
         // 관광공사 상세는 images(배열), 나머지는 image(단수) 대응
         let candidateImages = [];
-        if (source === 'tourapi') {
+        if (actualSource === 'tourapi') {
           if (Array.isArray(data.images)) candidateImages = data.images;
           else if (data.images) candidateImages = [data.images];
           else if (data.image) candidateImages = [data.image];

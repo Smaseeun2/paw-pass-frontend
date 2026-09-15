@@ -280,7 +280,7 @@ function MapPage() {
           return rawList.map(spot => ({
             id: String(spot.id || spot.content_id),
             name: spot.title || spot.name || '장소명 없음',
-            address: spot.addr || spot.address || '주소 정보 없음',
+            address: spot.addr1 || spot.addr || spot.address || '주소 정보 없음',
             lat: Number(spot.lat),
             lng: Number(spot.lng),
             imageUrl: spot.image || spot.first_image || '',

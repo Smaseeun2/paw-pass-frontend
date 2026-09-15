@@ -202,9 +202,26 @@ function DetailPage() {
 
   const previewImage = location.state?.previewImage;
   let imageList = Array.isArray(detail.images) ? [...detail.images] : [];
-  if (previewImage && !imageList.includes(previewImage)) {
-    imageList.unshift(previewImage);
+  
+  // URL에서 쿼리 파라미터를 제외한 기본 경로로 중복 검사 (http/https 무시)
+  const getBaseUrl = (url) => {
+    try {
+      if (!url) return '';
+      const u = new URL(url);
+      return u.origin + u.pathname;
+    } catch {
+      return url.split('?')[0];
+    }
+  };
+
+  if (previewImage) {
+    const previewBase = getBaseUrl(previewImage);
+    const isDuplicate = imageList.some(img => getBaseUrl(img) === previewBase);
+    if (!isDuplicate) {
+      imageList.unshift(previewImage);
+    }
   }
+  
   const mainImage = detail.image || detail.imageUrl;
   if (imageList.length === 0 && mainImage) {
     imageList = [mainImage];

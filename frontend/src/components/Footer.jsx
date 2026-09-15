@@ -1,7 +1,18 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 
 function Footer() {
+  const { user, withdraw } = useAuth();
+  const navigate = useNavigate();
+
+  const handleWithdraw = () => {
+    const isConfirmed = window.confirm("정말로 탈퇴하시겠습니까? 모든 정보가 삭제되며 복구할 수 없습니다.");
+    if (isConfirmed) {
+      withdraw(() => navigate('/'));
+    }
+  };
+
   return (
     <footer style={{ 
       backgroundColor: '#f8fafc', 
@@ -21,6 +32,27 @@ function Footer() {
           <Link to="/support" style={{ color: '#475569', textDecoration: 'none' }}>개인정보처리방침</Link>
           <span style={{ color: '#cbd5e1' }}>|</span>
           <a href="mailto:pawpass.support@gmail.com" style={{ color: '#475569', textDecoration: 'none' }}>제휴 및 문의하기</a>
+          
+          {user && (
+            <>
+              <span style={{ color: '#cbd5e1' }}>|</span>
+              <button 
+                onClick={handleWithdraw}
+                style={{ 
+                  background: 'none', 
+                  border: 'none', 
+                  padding: 0, 
+                  color: '#475569', 
+                  textDecoration: 'none', 
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  fontFamily: 'inherit'
+                }}
+              >
+                회원탈퇴
+              </button>
+            </>
+          )}
         </div>
 
         <p style={{ fontSize: '12px', color: '#64748b', margin: 0 }}>

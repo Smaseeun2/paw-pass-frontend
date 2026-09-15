@@ -57,34 +57,8 @@ export const useTouristSpots = () => {
         });
         rawSpots = Array.isArray(response) ? response : (response?.data || response?.content || []);
       } catch (exploreErr) {
-        console.warn('⚠️ /explore 실패, /tours + /facilities 병합 폴백 시도:', exploreErr.message);
-
-        // 2차 폴백: 관광공사(/tours) + 한국정보원(/facilities) 병렬 요청
-        try {
-          const { fetchTours, fetchFacilities } = await import('../services/api');
-          const [toursRes, facilitiesRes] = await Promise.allSettled([
-            fetchTours({ regionCode, category, page: targetPage }),
-            fetchFacilities({ regionCode, category, page: targetPage })
-          ]);
-
-          const tours = toursRes.status === 'fulfilled'
-            ? (Array.isArray(toursRes.value) ? toursRes.value : (toursRes.value?.data || toursRes.value?.content || []))
-              .map(s => ({ ...s, source: 'tourapi' }))
-            : [];
-          const facilities = facilitiesRes.status === 'fulfilled'
-            ? (Array.isArray(facilitiesRes.value) ? facilitiesRes.value : (facilitiesRes.value?.data || facilitiesRes.value?.content || []))
-              .map(s => ({ ...s, source: 'kcisa' }))
-            : [];
-
-          // 키워드 필터링 (폴백은 서버 필터 미적용이므로 클라이언트에서 처리)
-          const all = [...tours, ...facilities];
-          rawSpots = keyword
-            ? all.filter(s => (s.title || s.name || '').toLowerCase().includes(keyword.toLowerCase()))
-            : all;
-        } catch (fallbackErr) {
-          console.error('❌ 폴백 요청도 실패:', fallbackErr);
-          rawSpots = [];
-        }
+        console.error('❌ /explore 통합 API 조회 실패 (폴백 제거됨):', exploreErr.message);
+        rawSpots = [];
       }
 
       // 저장된 펫 목록 로드 (다견 AND 판정용)
@@ -194,7 +168,7 @@ export const useTouristSpots = () => {
           id: spotId,
           contentId: spotId,
           name: spot.title || spot.name || '장소명 없음',
-          address: spot.addr || spot.address || '주소 정보 없음',
+          address: spot.addr1 || spot.addr || spot.address || '주소 정보 없음',
           image: spotImage,
           imageUrl: spotImage,
           imageAttribution: spot.image_attribution || '',

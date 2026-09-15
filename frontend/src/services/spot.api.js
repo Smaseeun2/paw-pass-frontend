@@ -10,86 +10,32 @@ export const fetchExploreSpots = async ({ regionCode, category, keyword, matchSt
   if (petId) params.append('petId', petId);
   params.append('page', page);
 
-  // 1. 기본 통합 탐색 API 호출 (주로 kcisa 혹은 부분 데이터 응답)
-  let exploreData = [];
+  // 백엔드 /explore 엔드포인트 단일 호출 (지역명 변환, API 병합, AI 판정 모두 백엔드 위임)
   try {
     const res = await authFetch(`${BASE_URL}/explore?${params.toString()}`, { method: 'GET' });
-    if (res.ok) {
-      const json = await res.json();
-      exploreData = Array.isArray(json) ? json : (json?.data || json?.content || []);
+    if (!res.ok) {
+      throw new Error(`탐색 API 오류: ${res.status}`);
     }
-  } catch (err) {
-    console.warn('/explore API 에러:', err);
-  }
-
-  // 2. 관광공사 API 누락 방지를 위해 명시적으로 /tours 와 /facilities 병렬 조회 후 강제 병합
-  // 백엔드 /explore 가 불완전할 수 있으므로 프론트에서 확실히 묶어줌
-  try {
-    const fallbackParams = new URLSearchParams();
-    if (regionCode) fallbackParams.append('regionCode', regionCode);
-    if (category) fallbackParams.append('category', category);
-    fallbackParams.append('page', page);
-
-    const promises = [
-      authFetch(`${BASE_URL}/facilities?${fallbackParams.toString()}`, { method: 'GET' })
-    ];
+    const json = await res.json();
+    let exploreData = Array.isArray(json) ? json : (json?.data || json?.content || []);
     
-    // HOSPITAL(동물병원)은 TourAPI에 존재하지 않으므로 호출 생략
-    if (category !== 'HOSPITAL') {
-      promises.push(authFetch(`${BASE_URL}/tours?${fallbackParams.toString()}`, { method: 'GET' }));
-    }
-
-    const results = await Promise.allSettled(promises);
-    
-    const facRes = results[0];
-    const toursRes = category !== 'HOSPITAL' ? results[1] : null;
-
-    let toursData = [];
-    if (toursRes && toursRes.status === 'fulfilled' && toursRes.value.ok) {
-      const tj = await toursRes.value.json();
-      toursData = Array.isArray(tj) ? tj : (tj?.data || tj?.content || []);
-      toursData = toursData.map(t => ({ ...t, source: 'tourapi' }));
-    }
-
-    let facData = [];
-    if (facRes.status === 'fulfilled' && facRes.value.ok) {
-      const fj = await facRes.value.json();
-      facData = Array.isArray(fj) ? fj : (fj?.data || fj?.content || []);
-      facData = facData.map(f => ({ ...f, source: 'kcisa' }));
-    }
-
-    // 중복 제거 및 병합 (id 기준)
-    const mergedMap = new Map();
-    // 1) /explore 원본 우선 (AI 판정값이 들어있을 수 있으므로)
-    exploreData.forEach(item => {
+    // source 태깅 보정 (백엔드 누락 시 유추)
+    exploreData = exploreData.map(item => {
       const id = String(item.id || item.content_id);
-      mergedMap.set(id, item);
-    });
-    // 2) 누락된 tourapi 데이터 추가
-    toursData.forEach(item => {
-      const id = String(item.id || item.content_id);
-      if (!mergedMap.has(id)) mergedMap.set(id, item);
-    });
-    // 3) 누락된 kcisa 데이터 추가
-    facData.forEach(item => {
-      const id = String(item.id || item.content_id);
-      if (!mergedMap.has(id)) mergedMap.set(id, item);
+      if (!item.source) {
+        if (/^\d+$/.test(id)) {
+          item.source = 'tourapi';
+        } else if (id.length >= 32) {
+          item.source = 'kcisa';
+        }
+      }
+      return item;
     });
 
-    let finalArray = Array.from(mergedMap.values());
-
-    // 프론트엔드 키워드/상태 필터링 보정 (폴백 데이터에는 검색조건이 안 걸려있을 수 있으므로)
-    if (keyword) {
-      finalArray = finalArray.filter(s => (s.title || s.name || '').toLowerCase().includes(keyword.toLowerCase()));
-    }
-    if (matchStatus) {
-      finalArray = finalArray.filter(s => (s.match_status || s.matchStatus) === matchStatus);
-    }
-
-    return { data: finalArray };
-  } catch (err) {
-    console.error('병합 조회 실패:', err);
     return { data: exploreData };
+  } catch (err) {
+    console.error('⚠️ /explore API 호출 실패:', err);
+    throw err; // 상위 컴포넌트(useTouristSpots)로 에러를 전파하여 적절한 UI 처리 유도
   }
 };
 

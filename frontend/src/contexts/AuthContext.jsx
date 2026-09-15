@@ -67,13 +67,33 @@ export const AuthProvider = ({ children }) => {
     if (navigateCallback) navigateCallback();
   };
 
+  const withdraw = async (navigateCallback) => {
+    try {
+      const { withdrawAccount } = await import('../services/api');
+      await withdrawAccount();
+      
+      googleLogout();
+      setUser(null);
+      localStorage.removeItem('paw_pass_user');
+      localStorage.removeItem('paw_pass_access_token');
+      localStorage.removeItem('paw_pass_refresh_token');
+      localStorage.removeItem('paw_pass_pets_guest');
+
+      toast.success('회원 탈퇴가 완료되었습니다. 이용해 주셔서 감사합니다.');
+      if (navigateCallback) navigateCallback();
+    } catch (error) {
+      console.error('회원 탈퇴 실패:', error);
+      toast.error('회원 탈퇴 처리 중 문제가 발생했습니다.');
+    }
+  };
+
   const updateUser = (newUser) => {
     setUser(newUser);
     localStorage.setItem('paw_pass_user', JSON.stringify(newUser));
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, login, logout, withdraw, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

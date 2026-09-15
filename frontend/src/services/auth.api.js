@@ -47,3 +47,21 @@ export const uploadProfileImage = async (file) => {
   const result = await res.json();
   return result.data || result;
 };
+
+export const withdrawAccount = async () => {
+  const res = await authFetch(`${BASE_URL}/users/me`, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(errText || '회원 탈퇴 처리 중 오류가 발생했습니다.');
+  }
+
+  // 백엔드 응답이 빈 문자열일 수도 있으므로 안전하게 처리
+  const text = await res.text();
+  return text ? JSON.parse(text) : { success: true };
+};

@@ -431,6 +431,13 @@ function SearchPage() {
               value={keyword}
               onChange={(e) => {
                 setKeyword(e.target.value);
+                if (e.target.value.trim().length > 0) {
+                  // 키워드 검색 시 전국/전체 카테고리로 강제 전환 (백엔드 스펙)
+                  setSelectedRegionCode('');
+                  setSelectedRegionName('');
+                  setSelectedCategory('');
+                  setSelectedCategoryName('');
+                }
               }}
               onKeyDown={(e) => { 
                 if (e.key === 'Enter') {
@@ -463,6 +470,7 @@ function SearchPage() {
                     onClick={() => { 
                       setSelectedRegionCode(reg.code); 
                       setSelectedRegionName(reg.code ? reg.label : ''); 
+                      setKeyword(''); // 지역 선택 시 키워드 초기화 (전국 검색 방지)
                       setActiveDropdown(null); 
                     }} 
                     style={{ padding: '8px 12px', cursor: 'pointer', borderRadius: '6px', color: '#374151', backgroundColor: selectedRegionCode === reg.code ? '#eff6ff' : 'transparent', fontWeight: selectedRegionCode === reg.code ? 'bold' : 'normal', fontSize: '13px' }}
@@ -488,7 +496,7 @@ function SearchPage() {
             {activeDropdown === 'category' && (
               <div style={{ position: 'absolute', top: '105%', left: 0, width: '180px', backgroundColor: '#fff', border: '1px solid #cbd5e1', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.12)', zIndex: 30, padding: '6px' }}>
                 <div 
-                  onClick={() => { setSelectedCategory(''); setSelectedCategoryName(''); setActiveDropdown(null); }} 
+                  onClick={() => { setSelectedCategory(''); setSelectedCategoryName(''); setKeyword(''); setActiveDropdown(null); }} 
                   style={{ padding: '8px 12px', cursor: 'pointer', borderRadius: '6px', color: '#374151', backgroundColor: !selectedCategory ? '#eff6ff' : 'transparent', fontWeight: !selectedCategory ? 'bold' : 'normal', fontSize: '13px' }}
                 >
                   전체 카테고리
@@ -499,6 +507,7 @@ function SearchPage() {
                     onClick={() => { 
                       setSelectedCategory(t.value); 
                       setSelectedCategoryName(t.label); 
+                      setKeyword(''); // 카테고리 선택 시 키워드 초기화
                       setActiveDropdown(null); 
                     }} 
                     style={{ padding: '8px 12px', cursor: 'pointer', borderRadius: '6px', color: '#374151', backgroundColor: selectedCategory === t.value ? '#eff6ff' : 'transparent', fontWeight: selectedCategory === t.value ? 'bold' : 'normal', fontSize: '13px' }}
