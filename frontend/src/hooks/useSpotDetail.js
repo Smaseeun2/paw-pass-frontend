@@ -117,7 +117,11 @@ export const useSpotDetail = (id, source = 'tourapi') => {
             petPolicy: petCond.pet_policy || '',
             petRestriction: petCond.pet_restriction || '',
             petAmenities: petCond.pet_amenities || '',
-            parkingAvailable: data.parking || petCond.parking_available || ''
+            parkingAvailable: data.parking || petCond.parking_available || '',
+            relaPosesFclty: petCond.rela_poses_fclty || '',
+            relaFrnshPrdlst: petCond.rela_frnsh_prdlst || '',
+            relaPurcPrdlst: petCond.rela_purc_prdlst || '',
+            relaRntlPrdlst: petCond.rela_rntl_prdlst || ''
           }
         };
 

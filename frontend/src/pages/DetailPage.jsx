@@ -9,6 +9,106 @@ import { loadKakaoMapSdk } from '../utils/kakaoMapLoader';
 import ConditionalBadge from '../components/ConditionalBadge';
 import { toast } from '../utils/toast';
 
+// 💡 헛걸음 방지 체크리스트 컴포넌트
+function SpotChecklist() {
+  const [checkedItems, setCheckedItems] = useState({});
+
+  const toggleCheck = (idx) => {
+    setCheckedItems(prev => ({
+      ...prev,
+      [idx]: !prev[idx]
+    }));
+  };
+
+  const checklistData = [
+    {
+      category: '1. 방문 전 필수 확인 사항 (서류 및 규정)',
+      items: [
+        { label: '등록증 및 증명서 지참', desc: '내장칩 등록 번호 또는 동물등록증, (필요시) 광견병 예방접종 증명서 지참 여부 확인' },
+        { label: '체중 및 견종 제한 재확인', desc: '대형견 출입 가능 여부, 맹견류 제한 규정, 체중 기준(예: 15kg 이하 등) 충족 여부 확인' },
+        { label: '실내외 동반 구역 확인', desc: '식당·카페의 경우 실내 동반 가능 여부와 전용 테라스/야외 좌석만 허용되는지 사전 파악' }
+      ]
+    },
+    {
+      category: '2. 현장 변수 대비 준비물',
+      items: [
+        { label: '배변 용품 및 매너 툴', desc: '배변봉투, 반려견 전용 물티슈, 실내 마킹 대비 매너벨트(기저귀) 준비' },
+        { label: '이동장 및 하네스', desc: '리드줄(목줄/가슴줄) 규정 확인 (자동줄 제한 여부) 및 필요시 전용 이동장(케이지) 또는 유모차 지참' },
+        { label: '급수 및 식사 도구', desc: '낯선 환경에서 반려견이 안정을 찾을 수 있는 개인 물그릇 및 평소 먹던 간식/사료 준비' }
+      ]
+    },
+    {
+      category: '3. 운영 시간 및 변동성 체크',
+      items: [
+        { label: '실시간 영업 정보 확인', desc: '공식 홈페이지나 SNS를 통한 임시 휴무, 대관 행사, 시즌별 운영 시간 변경 여부 최종 확인' },
+        { label: '날씨 및 환경 변수 점검', desc: '야외 관광지의 경우 기상 악화(우천, 폭염 등) 시 이용 제한 여부 사전 파악' }
+      ]
+    }
+  ];
+
+  let globalItemIdx = 0;
+
+  return (
+    <div style={{ marginTop: '24px' }}>
+      <h3 style={{ fontSize: '18px', color: '#1e293b', marginBottom: '10px' }}>✅ 헛걸음 방지 체크리스트</h3>
+      <div style={{ backgroundColor: '#fff', padding: '16px 20px', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+        <p style={{ margin: '0 0 16px 0', fontSize: '13px', color: '#64748b' }}>
+          소중한 반려견과 떠나기 전, 아래 항목들을 스스로 점검해보세요!
+        </p>
+        
+        {checklistData.map((section, sIdx) => (
+          <div key={sIdx} style={{ marginBottom: sIdx === checklistData.length - 1 ? '0' : '20px' }}>
+            <h4 style={{ margin: '0 0 10px 0', fontSize: '14px', color: '#334155', fontWeight: 'bold' }}>
+              {section.category}
+            </h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {section.items.map((item) => {
+                const currentIndex = globalItemIdx++;
+                const isChecked = !!checkedItems[currentIndex];
+                return (
+                  <label 
+                    key={currentIndex} 
+                    style={{ 
+                      display: 'flex', alignItems: 'flex-start', gap: '10px', 
+                      cursor: 'pointer', padding: '8px 12px', 
+                      backgroundColor: isChecked ? '#f1f5f9' : '#fff',
+                      borderRadius: '8px', border: '1px solid',
+                      borderColor: isChecked ? '#cbd5e1' : '#e2e8f0',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    <input 
+                      type="checkbox" 
+                      checked={isChecked} 
+                      onChange={() => toggleCheck(currentIndex)}
+                      style={{ marginTop: '3px', cursor: 'pointer' }}
+                    />
+                    <div style={{ opacity: isChecked ? 0.5 : 1, transition: 'opacity 0.2s' }}>
+                      <span style={{ 
+                        display: 'block', fontSize: '13px', fontWeight: 'bold', 
+                        color: isChecked ? '#64748b' : '#1e293b',
+                        textDecoration: isChecked ? 'line-through' : 'none'
+                      }}>
+                        {item.label}
+                      </span>
+                      <span style={{ 
+                        display: 'block', fontSize: '12px', color: '#64748b', marginTop: '2px',
+                        textDecoration: isChecked ? 'line-through' : 'none'
+                      }}>
+                        {item.desc}
+                      </span>
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // 현재 로그인된 유저의 이메일(또는 식별자)을 가져오는 헬퍼 함수
 const getCurrentUserEmail = () => {
   try {
@@ -546,17 +646,32 @@ function DetailPage() {
             <p style={{ margin: '0 0 8px 0' }}><strong>입장 가능 크기/견종:</strong> {cond.possibleBreeds || '제한 없음 (현장 확인 권장)'}</p>
             <p style={{ margin: '0 0 8px 0' }}><strong>필수 준비물:</strong> {cond.needItem || '목줄 및 배변봉투 지참'}</p>
             {cond.etcInfo && (
-              <p style={{ margin: '0' }}><strong>기타 안내:</strong> {cond.etcInfo}</p>
+              <p style={{ margin: '0 0 8px 0' }}><strong>기타 안내:</strong> {cond.etcInfo}</p>
+            )}
+            
+            {cond.relaPosesFclty && (
+              <p style={{ margin: '0 0 8px 0' }}><strong>관련 구비 시설:</strong> {cond.relaPosesFclty}</p>
+            )}
+            {cond.relaFrnshPrdlst && (
+              <p style={{ margin: '0 0 8px 0' }}><strong>관련 비치 품목:</strong> {cond.relaFrnshPrdlst}</p>
+            )}
+            {cond.relaPurcPrdlst && (
+              <p style={{ margin: '0 0 8px 0' }}><strong>관련 구매 품목:</strong> {cond.relaPurcPrdlst}</p>
+            )}
+            {cond.relaRntlPrdlst && (
+              <p style={{ margin: '0 0 8px 0' }}><strong>관련 렌탈 품목:</strong> {cond.relaRntlPrdlst}</p>
             )}
           </>
         ) : (
           <>
             <p style={{ margin: '0 0 8px 0' }}><strong>동반 안내 규정:</strong> {cond.petPolicy || '현장 규정 확인 필요'}</p>
             <p style={{ margin: '0 0 8px 0' }}><strong>입장 제한 조건:</strong> {cond.petRestriction || '특이 제한 없음'}</p>
-            <p style={{ margin: '0' }}><strong>시설 비치물품:</strong> {cond.petAmenities || '기본 지참 필요'}</p>
+            <p style={{ margin: '0 0 8px 0' }}><strong>시설 비치물품:</strong> {cond.petAmenities || '기본 지참 필요'}</p>
           </>
         )}
       </div>
+
+      <SpotChecklist />
 
     </div>
   );
