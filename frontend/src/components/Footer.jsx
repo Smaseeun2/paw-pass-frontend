@@ -27,10 +27,6 @@ function Footer() {
         <p style={{ fontSize: '13px', color: '#64748b', margin: 0 }}>반려동물과 함께하는 완벽한 여행 설계</p>
         
         <div style={{ display: 'flex', gap: '16px', fontSize: '13px', margin: '10px 0', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
-          <Link to="/support" style={{ color: '#475569', textDecoration: 'none' }}>이용약관</Link>
-          <span style={{ color: '#cbd5e1' }}>|</span>
-          <Link to="/support" style={{ color: '#475569', textDecoration: 'none' }}>개인정보처리방침</Link>
-          <span style={{ color: '#cbd5e1' }}>|</span>
           <a href="mailto:pawpass.support@gmail.com" style={{ color: '#475569', textDecoration: 'none' }}>제휴 및 문의하기</a>
           
           {user && (
