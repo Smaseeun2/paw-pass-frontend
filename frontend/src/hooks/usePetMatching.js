@@ -62,13 +62,6 @@ export const usePetMatching = (spotId, source = 'tourapi', paramPetId = '') => {
 
   // 파생 상태 계산 (Effect 내 동기 setState 제거로 React 19 린트 에러 해결)
   const matchResult = useMemo(() => {
-    if (!petId) {
-      return {
-        status: '반려동물 선택 필요',
-        color: '#64748b',
-        reason: '맞춤 방문 판정을 위해 프로필에서 반려동물을 등록하거나 선택해주세요.'
-      };
-    }
     if (!resolvedId) {
       return {
         status: '장소 선택 필요',
@@ -84,14 +77,14 @@ export const usePetMatching = (spotId, source = 'tourapi', paramPetId = '') => {
       color: '#64748b',
       reason: '판정 결과를 불러오는 중입니다.'
     };
-  }, [petId, resolvedId, asyncResult]);
+  }, [resolvedId, asyncResult]);
 
   useEffect(() => {
-    if (!resolvedId || !petId) {
+    if (!resolvedId) {
       return;
     }
 
-    console.log(`🐾 [usePetMatching] 요청 ID: "${resolvedId}", Source: "${source}", PetID: "${petId}"`);
+    console.log(`🐾 [usePetMatching] 요청 ID: "${resolvedId}", Source: "${source}", PetID: "${petId || '(자동-대표펫)'}"`);
 
     let isMounted = true;
     const fetchMatching = async () => {

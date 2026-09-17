@@ -541,97 +541,112 @@ function DetailPage() {
 
       {/* ─── 반려동물 방문 판정 섹션 ─── */}
       {(() => {
-        // 동물병원·약국은 반려동물이 '치료받으러 가는 곳'이므로 동반 판정 불필요
         const vetKeywords = ['동물병원', '동물 병원', '동물약국', '수의', '동물의료', '펫클리닉', 'animal hospital', 'veterinary'];
         const isVetOrPharmacy = vetKeywords.some(kw => (detail.name || '').toLowerCase().includes(kw.toLowerCase()))
           || (detail.rawCategory || '').toLowerCase().includes('동물병원')
           || (detail.rawCategory || '').toLowerCase().includes('약국');
         if (isVetOrPharmacy) return null;
 
-        // 로그인 + petId 있음 → AI 기반 판정 표시
-        if (matchResult && petIdFromQuery) {
+        const token = localStorage.getItem('paw_pass_access_token');
+        const isLoggedIn = !!token;
+
+        // 로그인 상태일 때: API 판정 결과 표시
+        if (isLoggedIn) {
+          const status = matchResult?.status || '';
+          const isLoading = status === '조회 중...';
+          const isError = status === '판정 불가';
+
+          // 상태별 스타일
+          const statusStyle = (() => {
+            if (status === '가능' || status === '방문 가능') return { bg: '#f0fdf4', border: '#86efac', badge: '#15803d', label: '✅ 방문 가능' };
+            if (status === '조건부' || status === '조건부 방문 가능' || status === '조건부 가능') return { bg: '#fffbeb', border: '#fcd34d', badge: '#b45309', label: '⚠️ 조건부 가능' };
+            if (status === '불가' || status === '방문 불가') return { bg: '#fef2f2', border: '#fca5a5', badge: '#dc2626', label: '🚫 방문 불가' };
+            return { bg: '#f8fafc', border: '#e2e8f0', badge: '#64748b', label: status || '확인 중...' };
+          })();
+
           return (
             <div style={{ marginBottom: '24px' }}>
               <h3 style={{ fontSize: '18px', color: '#1e293b', marginBottom: '10px' }}>🐾 내 반려동물 맞춤 방문 판정</h3>
-              <div style={{ backgroundColor: '#f0f9ff', padding: '16px', borderRadius: '12px', border: '1px solid #bae6fd' }}>
-                <p style={{ fontSize: '15px', fontWeight: 'bold', color: matchResult.color || '#0284c7', margin: '0 0 6px 0' }}>
-                  판정 결과: {matchResult.status}
-                </p>
-                <p style={{ fontSize: '13px', color: '#334155', margin: '0 0 10px 0' }}>
-                  <strong>판정 요약:</strong> {matchResult.reason}
-                </p>
-                {matchResult.rawText && (
-                  <div style={{ backgroundColor: '#fff', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', marginBottom: '10px' }}>
-                    <p style={{ fontSize: '12px', color: '#64748b', margin: '0 0 4px 0', fontWeight: 'bold' }}>📄 시설 원문 정보:</p>
-                    <p style={{ fontSize: '13px', color: '#475569', margin: 0, whiteSpace: 'pre-line' }}>{matchResult.rawText}</p>
-                  </div>
-                )}
-                {(matchResult.status === '조건부' || matchResult.status === '조건부 방문 가능' || matchResult.status === '조건부 가능') && matchResult.tips && (
-                  <ConditionalBadge tips={matchResult.tips} />
+              <div style={{ backgroundColor: statusStyle.bg, padding: '16px', borderRadius: '12px', border: `1px solid ${statusStyle.border}` }}>
+
+                {isLoading ? (
+                  <p style={{ fontSize: '14px', color: '#64748b', margin: 0 }}>⏳ 판정 결과를 불러오는 중...</p>
+                ) : isError ? (
+                  <p style={{ fontSize: '14px', color: '#dc2626', margin: 0 }}>판정 결과를 불러올 수 없습니다. 잠시 후 다시 시도해주세요.</p>
+                ) : (
+                  <>
+                    {/* 판정 결과 뱃지 */}
+                    <div style={{ display: 'inline-block', padding: '4px 12px', borderRadius: '20px', backgroundColor: statusStyle.badge, color: '#fff', fontSize: '14px', fontWeight: 'bold', marginBottom: '10px' }}>
+                      {statusStyle.label}
+                    </div>
+
+                    {/* 판정 근거 */}
+                    {matchResult?.reason && (
+                      <p style={{ fontSize: '13px', color: '#334155', margin: '0 0 10px 0', lineHeight: '1.6' }}>
+                        <strong>판정 근거:</strong> {matchResult.reason}
+                      </p>
+                    )}
+
+                    {/* API 원문 정보 */}
+                    {matchResult?.rawText && (
+                      <div style={{ backgroundColor: '#fff', padding: '10px 14px', borderRadius: '8px', border: '1px solid #e2e8f0', marginBottom: '10px' }}>
+                        <p style={{ fontSize: '12px', color: '#64748b', margin: '0 0 6px 0', fontWeight: 'bold' }}>📄 시설 원문 정보</p>
+                        <p style={{ fontSize: '13px', color: '#475569', margin: 0, whiteSpace: 'pre-line', lineHeight: '1.7' }}>{matchResult.rawText}</p>
+                      </div>
+                    )}
+
+                    {/* 조건부 팁 */}
+                    {(status === '조건부' || status === '조건부 방문 가능' || status === '조건부 가능') && matchResult?.tips && (
+                      <ConditionalBadge tips={matchResult.tips} />
+                    )}
+                  </>
                 )}
               </div>
             </div>
           );
         }
 
-        // 2. 비로그인 + 크기 힌트 있음 → 자체 판정 로직 적용 (useTouristSpots와 유사)
+        // 비로그인: guestSizeHint 기반 간이 판정
         let guestStatus = '동반 확인 필요';
-        let guestReason = '반려동물 크기 정보가 선택되지 않았거나, 시설의 동반 규정 정보가 부족합니다.';
-        let guestColor = '#64748b';
+        let guestReason = '방문 판정을 위해 로그인 후 반려동물 프로필을 등록해주세요.';
+        let guestBg = '#f8fafc';
+        let guestBorder = '#e2e8f0';
+        let guestBadge = '#64748b';
+        let guestLabel = '확인 필요';
 
         if (guestSizeHint) {
-          const possibleSize = (cond.possibleBreeds || cond.relaAcmpyEntEnterPrn || '').toLowerCase();
+          const possibleSize = (cond.possibleBreeds || '').toLowerCase();
           const sizeLabel = { small: '소형견', medium: '중형견', large: '대형견' }[guestSizeHint];
+          const deniedBySize =
+            (guestSizeHint === 'large' && possibleSize.includes('소형')) ||
+            (guestSizeHint === 'large' && possibleSize.includes('중형') && !possibleSize.includes('대형')) ||
+            (guestSizeHint === 'medium' && possibleSize.includes('소형') && !possibleSize.includes('중형') && !possibleSize.includes('대형'));
 
           if (!possibleSize || possibleSize.trim() === '') {
-            guestStatus = '조건부 가능';
-            guestReason = `시설의 명확한 크기 제한 정보가 없습니다. 단, 반려용품이 필요할 수 있으므로 ${sizeLabel} 동반 시 사전 문의가 권장됩니다.`;
-            guestColor = '#d97706';
+            guestLabel = '⚠️ 조건부 가능';
+            guestReason = `시설의 명확한 크기 제한 정보가 없습니다. ${sizeLabel} 동반 시 사전 문의가 권장됩니다.`;
+            guestBg = '#fffbeb'; guestBorder = '#fcd34d'; guestBadge = '#b45309';
+          } else if (deniedBySize) {
+            guestLabel = '🚫 방문 불가';
+            guestReason = `이 시설은 ${sizeLabel}의 출입을 제한하고 있습니다. (규정: ${cond.possibleBreeds})`;
+            guestBg = '#fef2f2'; guestBorder = '#fca5a5'; guestBadge = '#dc2626';
           } else {
-            const deniedBySize =
-              (guestSizeHint === 'large' && possibleSize.includes('소형')) ||
-              (guestSizeHint === 'large' && possibleSize.includes('중형') && !possibleSize.includes('대형')) ||
-              (guestSizeHint === 'medium' && possibleSize.includes('소형') && !possibleSize.includes('중형') && !possibleSize.includes('대형'));
-
-            if (deniedBySize) {
-              guestStatus = '방문 불가';
-              guestReason = `이 시설은 ${sizeLabel}의 출입을 제한하고 있습니다. (규정: ${cond.possibleBreeds})`;
-              guestColor = '#dc2626';
-            } else {
-              guestStatus = '조건부 가능';
-              guestReason = `${sizeLabel} 크기 조건은 충족하지만, 비로그인 상태에서는 반려용품 소지 여부를 확인할 수 없어 '조건부 가능'으로 안내해 드립니다.`;
-              guestColor = '#d97706';
-            }
+            guestLabel = '⚠️ 조건부 가능';
+            guestReason = `${sizeLabel} 크기 조건은 충족하지만, 반려용품 소지 여부를 확인할 수 없어 사전 문의를 권장합니다.`;
+            guestBg = '#fffbeb'; guestBorder = '#fcd34d'; guestBadge = '#b45309';
           }
         }
 
-        // 비로그인 or 펫 미선택 렌더링
         return (
           <div style={{ marginBottom: '24px' }}>
             <h3 style={{ fontSize: '18px', color: '#1e293b', marginBottom: '10px' }}>🐾 반려동물 방문 판정</h3>
-            <div style={{ backgroundColor: '#f0f9ff', padding: '16px', borderRadius: '12px', border: '1px solid #bae6fd' }}>
-              <p style={{ fontSize: '15px', fontWeight: 'bold', color: guestColor, margin: '0 0 6px 0' }}>
-                판정 결과: {guestStatus}
-              </p>
-              <p style={{ fontSize: '13px', color: '#334155', margin: '0 0 16px 0' }}>
-                <strong>판정 요약:</strong> {guestReason}
-              </p>
-
-              <div style={{ backgroundColor: '#fff', padding: '14px', borderRadius: '8px', border: '1px dashed #93c5fd' }}>
-                <p style={{ fontSize: '13px', color: '#1e40af', margin: '0 0 10px 0', fontWeight: 'bold' }}>
-                  💡 정확한 AI 맞춤 판정을 원하시나요?
-                </p>
-                <p style={{ fontSize: '12px', color: '#64748b', margin: '0 0 12px 0' }}>
-                  프로필을 등록하면 체중뿐만 아니라 유모차, 이동장 등 내가 가진 반려용품까지 고려하여 정확한 방문 가능 여부를 알려드려요!
-                </p>
-                <button
-                  type="button"
-                  onClick={() => navigate('/profile')}
-                  style={{ width: '100%', padding: '10px', backgroundColor: '#2563eb', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}
-                >
-                  🐾 내 반려동물 프로필 등록하기
-                </button>
+            <div style={{ backgroundColor: guestBg, padding: '16px', borderRadius: '12px', border: `1px solid ${guestBorder}` }}>
+              <div style={{ display: 'inline-block', padding: '4px 12px', borderRadius: '20px', backgroundColor: guestBadge, color: '#fff', fontSize: '14px', fontWeight: 'bold', marginBottom: '10px' }}>
+                {guestLabel}
               </div>
+              <p style={{ fontSize: '13px', color: '#334155', margin: 0, lineHeight: '1.6' }}>
+                <strong>판정 근거:</strong> {guestReason}
+              </p>
             </div>
           </div>
         );

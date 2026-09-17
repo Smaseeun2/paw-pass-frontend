@@ -51,16 +51,16 @@ function DrawerContent({ spot, onClose, navigate, user, myPets }) {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid #e5e7eb', paddingBottom: '16px', marginBottom: '20px' }}>
-        <h3 style={{ margin: '0', fontSize: '24px', color: '#1f2937', lineHeight: '1.3', paddingRight: '12px' }}>
-          {d.name || spot.name}
-        </h3>
+      <div style={{ display: 'flex', alignItems: 'flex-start', borderBottom: '1px solid #e5e7eb', paddingBottom: '16px', marginBottom: '20px' }}>
         <button 
           onClick={onClose}
-          style={{ background: '#f1f5f9', border: 'none', fontSize: '18px', color: '#64748b', cursor: 'pointer', width: '36px', height: '36px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          style={{ background: '#f1f5f9', border: 'none', fontSize: '16px', fontWeight: 'bold', color: '#64748b', cursor: 'pointer', width: '36px', height: '36px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: '16px', flexShrink: 0 }}
         >
-          ✕
+          X
         </button>
+        <h3 style={{ margin: '0', fontSize: '22px', color: '#1f2937', lineHeight: '1.3', wordBreak: 'keep-all' }}>
+          {d.title || d.name || spot.title || spot.name || '이름 없음'}
+        </h3>
       </div>
       <div style={{ width: '100%', height: '240px', backgroundColor: '#e5e7eb', borderRadius: '12px', marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', overflow: 'hidden', position: 'relative' }}>
         <LazyImage spot={d.image ? d : spot} fallback={<span>🖼️ 대표 이미지 준비중</span>} />
@@ -284,7 +284,7 @@ function SearchPage() {
   const handlePetToggle = (petId, e) => {
     e.stopPropagation();
     setSelectedPetIds(prev => 
-      prev.includes(petId) ? [] : [petId]
+      prev.includes(petId) ? prev.filter(id => id !== petId) : [...prev, petId]
     );
   };
 
