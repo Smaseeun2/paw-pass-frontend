@@ -133,7 +133,7 @@ function DrawerContent({ spot, onClose, navigate, user, myPets }) {
             <strong style={{ color: '#475569' }}>판정 사유:</strong> {spot.matchReason}
           </p>
         )}
-        {(!user || myPets.length === 0) && spot.matchStatus === '동반 확인 필요' && (
+        {myPets.length === 0 && spot.matchStatus === '동반 확인 필요' && (
           <div style={{ marginTop: '12px', padding: '12px', backgroundColor: '#eff6ff', borderRadius: '8px', border: '1px solid #bfdbfe', cursor: 'pointer' }} onClick={() => navigate(user ? '/profile' : '/login')}>
             <p style={{ margin: 0, fontSize: '13px', color: '#1d4ed8', lineHeight: '1.5' }}>
               💡 <strong>로그인하고 펫 프로필을 등록해보세요!</strong><br/>AI가 내 반려동물을 분석해 맞춤 출입 여부를 알려드립니다. 🚀
@@ -206,9 +206,28 @@ function SearchPage() {
   const initMatchStatus = queryState.matchStatus || searchParams.get('matchStatus') || '';
   const initRawRegion = queryState.regionCode || queryState.region || searchParams.get('region') || '';
   const initRawCategory = queryState.category || queryState.type || searchParams.get('category') || '';
-  const initPetIds = queryState.selectedPetIds
-    || (queryState.petId ? [queryState.petId] : null)
-    || (searchParams.get('petIds') ? searchParams.get('petIds').split(',') : []);
+  const getInitialPetIds = () => {
+    let ids = queryState.selectedPetIds || (queryState.petId ? [queryState.petId] : null);
+    if (!ids && searchParams.get('petIds')) {
+      ids = searchParams.get('petIds').split(',');
+    }
+    if (!ids || ids.length === 0) {
+      try {
+        const guestPets = JSON.parse(localStorage.getItem('paw_pass_pets_guest') || '[]');
+        const userPets = JSON.parse(localStorage.getItem('paw_pass_pets') || '[]');
+        const userLocalPets = user ? JSON.parse(localStorage.getItem(`paw_pass_user_pets_${user.id}`) || '[]') : [];
+        const allPets = [...userLocalPets, ...userPets, ...guestPets];
+        if (allPets.length > 0) {
+          const rep = allPets.find(p => p.isPrimary || p.is_primary || p.isRepresentative || p.is_representative) || allPets[0];
+          if (rep && rep.id) ids = [rep.id];
+        }
+      } catch (e) {
+        // 무시
+      }
+    }
+    return ids || [];
+  };
+  const initPetIds = getInitialPetIds();
 
   const [selectedPetIds, setSelectedPetIds] = useState(initPetIds);
   const [keyword, setKeyword] = useState(initKeyword);
@@ -265,7 +284,19 @@ function SearchPage() {
           setMyPets([]);
         }
       } else {
-        setMyPets([]);
+        try {
+          const guestPets = JSON.parse(localStorage.getItem('paw_pass_pets_guest') || '[]');
+          setMyPets(guestPets);
+          
+          setSelectedPetIds(prev => {
+            if (prev.length > 0) return prev;
+            if (guestPets.length === 0) return prev;
+            const rep = guestPets.find(p => p.isPrimary || p.is_primary || p.isRepresentative || p.is_representative) || guestPets[0];
+            return rep ? [rep.id] : prev;
+          });
+        } catch {
+          setMyPets([]);
+        }
       }
     };
     loadUserPets();
@@ -350,7 +381,7 @@ function SearchPage() {
 
   const getPetFilterLabel = () => {
     const parts = [];
-    if (user && myPets.length > 0 && selectedPetIds.length > 0) {
+    if (myPets.length > 0 && selectedPetIds.length > 0) {
       const selectedNames = myPets.filter(p => selectedPetIds.includes(p.id)).map(p => p.name);
       if (selectedNames.length > 0) parts.push(selectedNames.join(', '));
     }
@@ -599,9 +630,9 @@ function SearchPage() {
                   + 반려동물 프로필 관리 / 등록
                 </div>
 
-                {user && myPets.length > 0 && (
+                {myPets.length > 0 && (
                   <div style={{ marginBottom: '14px' }}>
-                    <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#64748b', marginBottom: '8px' }}>등록된 우리 아이</div>
+                    <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#64748b', marginBottom: '8px' }}>등록된 우리 펫</div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '140px', overflowY: 'auto' }}>
                       {myPets.map((pet) => {
                         const isSelected = selectedPetIds.includes(pet.id);

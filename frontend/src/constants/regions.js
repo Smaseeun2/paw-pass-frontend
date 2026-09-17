@@ -10,6 +10,8 @@ export const REGION_OPTIONS = [
   { code: '대전', label: '대전', fullName: '대전광역시' },
   { code: '대구', label: '대구', fullName: '대구광역시' },
   { code: '광주', label: '광주', fullName: '광주광역시' },
+  { code: '전남', label: '전남', fullName: '전라남도' },
+  { code: '광주전남', label: '광주·전남', fullName: '광주·전라남도' },
   { code: '부산', label: '부산', fullName: '부산광역시' },
   { code: '울산', label: '울산', fullName: '울산광역시' },
   { code: '세종', label: '세종', fullName: '세종특별자치시' },
@@ -18,7 +20,6 @@ export const REGION_OPTIONS = [
   { code: '충북', label: '충북', fullName: '충청북도' },
   { code: '충남', label: '충남', fullName: '충청남도' },
   { code: '전북', label: '전북', fullName: '전라북도' },
-  { code: '전남', label: '전남', fullName: '전라남도' },
   { code: '경북', label: '경북', fullName: '경상북도' },
   { code: '경남', label: '경남', fullName: '경상남도' },
   { code: '제주', label: '제주', fullName: '제주도' }

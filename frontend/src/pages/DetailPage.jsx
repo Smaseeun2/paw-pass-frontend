@@ -550,8 +550,8 @@ function DetailPage() {
         const token = localStorage.getItem('paw_pass_access_token');
         const isLoggedIn = !!token;
 
-        // 로그인 상태일 때: API 판정 결과 표시
-        if (isLoggedIn) {
+        // matchResult가 있으면 API 판정 결과 표시 (로그인 사용자)
+        if (matchResult !== null) {
           const status = matchResult?.status || '';
           const isLoading = status === '조회 중...';
           const isError = status === '판정 불가';
@@ -635,35 +635,60 @@ function DetailPage() {
           );
         }
 
-        // 비로그인: guestSizeHint 기반 간이 판정
+        // 비로그인: 게스트 펫 프로필 기반 판정
         let guestStatus = '동반 확인 필요';
-        let guestReason = '방문 판정을 위해 로그인 후 반려동물 프로필을 등록해주세요.';
+        let guestReason = '방문 판정을 위해 반려동물 프로필을 등록해주세요.';
         let guestBg = '#f8fafc';
         let guestBorder = '#e2e8f0';
         let guestBadge = '#64748b';
         let guestLabel = '확인 필요';
 
-        if (guestSizeHint) {
+        // 로컬 스토리지에서 게스트 펫 읽기
+        let effectiveSizeHint = guestSizeHint;
+        let guestPetName = '';
+        try {
+          const storedPets = [
+            ...JSON.parse(localStorage.getItem('paw_pass_pets_guest') || '[]'),
+            ...JSON.parse(localStorage.getItem('paw_pass_pets') || '[]'),
+          ];
+          if (storedPets.length > 0) {
+            const rep = storedPets.find(p => p.isPrimary || p.is_primary || p.isRepresentative || p.is_representative) || storedPets[0];
+            guestPetName = rep.name || '';
+            if (!effectiveSizeHint && rep.size) {
+              const sizeMap = { '소형': 'small', '중형': 'medium', '대형': 'large', 'SMALL': 'small', 'MEDIUM': 'medium', 'LARGE': 'large' };
+              effectiveSizeHint = sizeMap[rep.size] || '';
+            }
+          }
+        } catch (e) {
+          // 무시
+        }
+
+        if (effectiveSizeHint) {
           const possibleSize = (cond.possibleBreeds || '').toLowerCase();
-          const sizeLabel = { small: '소형견', medium: '중형견', large: '대형견' }[guestSizeHint];
+          const sizeLabel = { small: '소형견', medium: '중형견', large: '대형견' }[effectiveSizeHint] || effectiveSizeHint;
+          const petLabel = guestPetName ? `${guestPetName}(${sizeLabel})` : sizeLabel;
           const deniedBySize =
-            (guestSizeHint === 'large' && possibleSize.includes('소형')) ||
-            (guestSizeHint === 'large' && possibleSize.includes('중형') && !possibleSize.includes('대형')) ||
-            (guestSizeHint === 'medium' && possibleSize.includes('소형') && !possibleSize.includes('중형') && !possibleSize.includes('대형'));
+            (effectiveSizeHint === 'large' && possibleSize.includes('소형')) ||
+            (effectiveSizeHint === 'large' && possibleSize.includes('중형') && !possibleSize.includes('대형')) ||
+            (effectiveSizeHint === 'medium' && possibleSize.includes('소형') && !possibleSize.includes('중형') && !possibleSize.includes('대형'));
 
           if (!possibleSize || possibleSize.trim() === '') {
             guestLabel = '⚠️ 조건부 가능';
-            guestReason = `시설의 명확한 크기 제한 정보가 없습니다. ${sizeLabel} 동반 시 사전 문의가 권장됩니다.`;
+            guestReason = `시설의 명확한 크기 제한 정보가 없습니다. ${petLabel} 동반 시 사전 문의가 권장됩니다.`;
             guestBg = '#fffbeb'; guestBorder = '#fcd34d'; guestBadge = '#b45309';
           } else if (deniedBySize) {
             guestLabel = '🚫 방문 불가';
-            guestReason = `이 시설은 ${sizeLabel}의 출입을 제한하고 있습니다. (규정: ${cond.possibleBreeds})`;
+            guestReason = `이 시설은 ${petLabel}의 출입을 제한하고 있습니다. (규정: ${cond.possibleBreeds})`;
             guestBg = '#fef2f2'; guestBorder = '#fca5a5'; guestBadge = '#dc2626';
           } else {
             guestLabel = '⚠️ 조건부 가능';
-            guestReason = `${sizeLabel} 크기 조건은 충족하지만, 반려용품 소지 여부를 확인할 수 없어 사전 문의를 권장합니다.`;
+            guestReason = `${petLabel} 크기 조건은 충족하지만, 반려용품 소지 여부를 확인할 수 없어 사전 문의를 권장합니다.`;
             guestBg = '#fffbeb'; guestBorder = '#fcd34d'; guestBadge = '#b45309';
           }
+        } else if (guestPetName) {
+          guestLabel = '⚠️ 조건부 가능';
+          guestReason = `${guestPetName} 동반 관련 상세 조건은 시설에 직접 문의해주세요.`;
+          guestBg = '#fffbeb'; guestBorder = '#fcd34d'; guestBadge = '#b45309';
         }
 
         return (

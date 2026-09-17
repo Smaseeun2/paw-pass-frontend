@@ -6,7 +6,11 @@ export const fetchExploreSpots = async ({ regionCode, category, keyword, matchSt
   if (regionCode) params.append('regionCode', regionCode);
   if (category) params.append('category', category);
   if (keyword) params.append('keyword', keyword);
-  if (matchStatus) params.append('matchStatus', matchStatus);
+  if (matchStatus) {
+    params.append('matchStatus', matchStatus);
+  } else if (petId) {
+    params.append('showAll', 'true');
+  }
   if (petId) params.append('petId', petId);
   params.append('page', page);
 

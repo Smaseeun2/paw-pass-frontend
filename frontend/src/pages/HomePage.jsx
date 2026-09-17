@@ -70,8 +70,20 @@ function HomePage() {
           setMyPets([]);
         }
       } else {
-        setMyPets([]);
-        setSelectedPetIds([]);
+        try {
+          const guestPets = JSON.parse(localStorage.getItem('paw_pass_pets_guest') || '[]');
+          setMyPets(guestPets);
+          
+          if (guestPets.length > 0) {
+            const representativePet = guestPets.find(p => p.isPrimary || p.is_primary || p.isRepresentative || p.is_representative) || guestPets[0];
+            if (representativePet) {
+              setSelectedPetIds(prev => (prev.length === 0 ? [representativePet.id] : prev));
+            }
+          }
+        } catch {
+          setMyPets([]);
+          setSelectedPetIds([]);
+        }
       }
     };
     loadUserPets();
@@ -167,7 +179,7 @@ function HomePage() {
 
   const getPetFilterLabel = () => {
     const parts = [];
-    if (user && myPets.length > 0 && selectedPetIds.length > 0) {
+    if (myPets.length > 0 && selectedPetIds.length > 0) {
       const selectedNames = myPets.filter(p => selectedPetIds.includes(p.id)).map(p => p.name);
       if (selectedNames.length > 0) parts.push(selectedNames.join(', '));
     }
@@ -272,7 +284,7 @@ function HomePage() {
                       + 반려동물 프로필 관리 / 등록
                     </div>
 
-                    {user && myPets.length > 0 && (
+                    {myPets.length > 0 && (
                       <div style={{ marginBottom: '14px' }}>
                         <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#64748b', marginBottom: '8px' }}>등록된 우리 아이</div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '140px', overflowY: 'auto' }}>

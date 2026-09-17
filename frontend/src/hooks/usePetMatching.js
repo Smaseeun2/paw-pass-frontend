@@ -72,6 +72,9 @@ export const usePetMatching = (spotId, source = 'tourapi', paramPetId = '') => {
     if (asyncResult) {
       return asyncResult;
     }
+    // 비로그인 상태: null 반환 → DetailPage에서 게스트 판정 로직 처리
+    const token = localStorage.getItem('paw_pass_access_token');
+    if (!token) return null;
     return {
       status: '조회 중...',
       color: '#64748b',
@@ -141,6 +144,14 @@ export const usePetMatching = (spotId, source = 'tourapi', paramPetId = '') => {
         if (isMounted) setIsLoading(false);
       }
     };
+
+    const token = localStorage.getItem('paw_pass_access_token');
+    if (!token) {
+      // 비로그인: API 호출 없이 null 유지 → DetailPage의 게스트 판정 로직이 처리
+      setAsyncResult(null);
+      setIsLoading(false);
+      return;
+    }
 
     fetchMatching();
 
