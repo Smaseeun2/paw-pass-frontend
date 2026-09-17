@@ -51,7 +51,7 @@ export const useTouristSpots = () => {
           regionCode,
           category,
           matchStatus,
-          petId: primaryPetId,
+          petIds: allPetIds.join(','),
           keyword,
           page: targetPage
         });
@@ -130,38 +130,9 @@ export const useTouristSpots = () => {
         } else if (allPetIds.length === 0 || !rawMatch) {
           // 펫 미선택이거나 정보 없으면 확인 필요
           assignedMatchStatus = '동반 확인 필요';
-        } else if (allPetIds.length === 1) {
-          // 단일 펫: 백엔드 판정값 그대로 사용 (조건부 보정 포함)
-          assignedMatchStatus = rawMatch;
         } else {
-          // 다견 AND 조건: 선택된 모든 펫에 대해 판정 후 가장 제한적인 결과 채택
-          // 대표 펫 판정은 이미 있으므로, 나머지 펫은 크기/준비물 기반으로 프론트 추정
-          const selectedLocalPets = localPets.filter(p => allPetIds.includes(p.id || p._id));
-          
-          const petStatuses = [rawMatch]; // 대표 펫 판정
-          for (const pet of selectedLocalPets.slice(1)) {
-            const petWeight = Number(pet.weight || 0);
-            const petSupplies = Array.isArray(pet.supplies) ? pet.supplies : [];
-            const needItem = spot.needItem || spot.need_item || '';
-            
-            // 간이 판정: 필요 용품이 명시되어 있는데 프로필에 없으면 조건부
-            if (needItem && petSupplies.length > 0) {
-              const needsExtra = needItem.split(/[,\/]+/).some(item => {
-                const itemStr = item.trim().toLowerCase();
-                return itemStr && !petSupplies.some(s => s.toLowerCase().includes(itemStr));
-              });
-              petStatuses.push(needsExtra ? '조건부' : rawMatch);
-            } else if (!needItem && rawMatch) {
-              petStatuses.push(rawMatch);
-            } else {
-              petStatuses.push('동반 확인 필요');
-            }
-          }
-
-          // 가장 제한적인 상태 채택 (AND 방식)
-          assignedMatchStatus = petStatuses.reduce((worst, cur) => {
-            return (MATCH_RANK[cur] || 3) > (MATCH_RANK[worst] || 3) ? cur : worst;
-          });
+          // 백엔드가 petIds 여러 개를 받아 AND 처리된 결과를 주므로 그대로 사용
+          assignedMatchStatus = rawMatch;
         }
 
         return {

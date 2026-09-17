@@ -1,17 +1,28 @@
 import { BASE_URL } from '../config/env';
 import { authFetch } from './client';
 
-export const fetchExploreSpots = async ({ regionCode, category, keyword, matchStatus, petId, page = 1 }) => {
+export const fetchExploreSpots = async ({ regionCode, category, keyword, matchStatus, petId, petIds, page = 1 }) => {
   const params = new URLSearchParams();
   if (regionCode) params.append('regionCode', regionCode);
   if (category) params.append('category', category);
   if (keyword) params.append('keyword', keyword);
+  
+  const rawPetIds = petIds ? (Array.isArray(petIds) ? petIds.join(',') : String(petIds)) : (petId ? String(petId) : '');
+  
+  // 프론트엔드 임시(게스트) 펫 ID인 13자리 타임스탬프는 백엔드로 전송하지 않음
+  const finalPetIds = rawPetIds
+    .split(',')
+    .map(id => id.trim())
+    .filter(id => id !== '' && !(id.length === 13 && !isNaN(Number(id))))
+    .join(',');
+  
   if (matchStatus) {
     params.append('matchStatus', matchStatus);
-  } else if (petId) {
+  } else if (finalPetIds) {
     params.append('showAll', 'true');
   }
-  if (petId) params.append('petId', petId);
+  
+  if (finalPetIds) params.append('petIds', finalPetIds);
   params.append('page', page);
 
   // 백엔드 /explore 엔드포인트 단일 호출 (지역명 변환, API 병합, AI 판정 모두 백엔드 위임)

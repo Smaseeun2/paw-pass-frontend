@@ -27,7 +27,7 @@ const MATCH_STATUS_BUTTONS = [
   { label: '🔴 방문 불가', value: '불가' }
 ];
 
-function DrawerContent({ spot, onClose, navigate, user, myPets }) {
+function DrawerContent({ spot, onClose, navigate, user, myPets, selectedPetIds = [] }) {
   const { detail, isLoading, error } = useSpotDetail(spot.id, spot.source);
   const mapRef = useRef(null);
 
@@ -169,7 +169,10 @@ function DrawerContent({ spot, onClose, navigate, user, myPets }) {
 
       <button 
         type="button"
-        onClick={() => navigate(`/detail/${spot.id}?source=${spot.source}`)}
+        onClick={() => {
+          const petIdsQuery = selectedPetIds?.length > 0 ? `&petIds=${selectedPetIds.join(',')}` : '';
+          navigate(`/detail/${spot.id}?source=${spot.source}${petIdsQuery}`);
+        }}
         style={{ width: '100%', padding: '16px', backgroundColor: '#4b5563', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold', fontSize: '15px', transition: 'background-color 0.2s' }}
         onMouseOver={(e) => e.target.style.backgroundColor = '#374151'}
         onMouseOut={(e) => e.target.style.backgroundColor = '#4b5563'}
@@ -772,7 +775,10 @@ function SearchPage() {
                   <div 
                     key={`${spot.id}-${idx}`}
                     onClick={() => setSelectedSpotId(spot.id)}
-                    onDoubleClick={() => navigate(`/detail/${spot.id}?source=${spot.source}`)}
+                    onDoubleClick={() => {
+                      const petIdsQuery = selectedPetIds?.length > 0 ? `&petIds=${selectedPetIds.join(',')}` : '';
+                      navigate(`/detail/${spot.id}?source=${spot.source}${petIdsQuery}`);
+                    }}
                     style={{ border: isSelected ? '2px solid #4b5563' : '1px solid #d1d5db', borderRadius: '12px', backgroundColor: isSelected ? '#f3f4f6' : '#fff', padding: '16px', cursor: 'pointer', transition: 'all 0.2s', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}
                     title="클릭하여 요약 보기, 더블 클릭하여 상세 페이지로 이동"
                   >
@@ -874,6 +880,7 @@ function SearchPage() {
                   navigate={navigate} 
                   user={user} 
                   myPets={myPets} 
+                  selectedPetIds={selectedPetIds}
                 />
               )}
             </div>

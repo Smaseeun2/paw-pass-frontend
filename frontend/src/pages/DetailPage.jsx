@@ -128,7 +128,7 @@ function DetailPage() {
   const source = searchParams.get('source') || 'tourapi';
   
   // 💡 카멜케이스 petId 명명 규칙을 적용하여 쿼리 및 스테이트에서 안전하게 추출
-  const petIdFromQuery = searchParams.get('petId') || location.state?.petId || '';
+  const petIdFromQuery = searchParams.get('petIds') || searchParams.get('petId') || location.state?.selectedPetIds?.join(',') || location.state?.petId || '';
   // 비로그인 시 크기 힌트 (small/medium/large)
   const guestSizeHint = searchParams.get('guestSize') || location.state?.guestSizeHint || '';
 

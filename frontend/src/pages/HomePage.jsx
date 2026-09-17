@@ -94,8 +94,7 @@ function HomePage() {
     const loadTopSpots = async () => {
       setIsLoadingSpots(true);
       try {
-        const primaryPetId = selectedPetIds[0] || '';
-        const data = await fetchExploreSpots({ page: 1, petId: primaryPetId });
+        const data = await fetchExploreSpots({ page: 1, petIds: selectedPetIds });
         const rawSpots = Array.isArray(data) ? data : (data?.data || []);
 
         const mapped = rawSpots.slice(0, 6).map((spot) => {
@@ -353,7 +352,10 @@ function HomePage() {
                 return (
                   <div 
                     key={`${spot.id}-${idx}`}
-                    onClick={() => navigate(`/detail/${spot.id}?source=${spot.source}`)}
+                    onClick={() => {
+                      const petIdsQuery = selectedPetIds?.length > 0 ? `&petIds=${selectedPetIds.join(',')}` : '';
+                      navigate(`/detail/${spot.id}?source=${spot.source}${petIdsQuery}`);
+                    }}
                     style={{ border: '1px solid #e2e8f0', borderRadius: '16px', backgroundColor: '#fff', overflow: 'hidden', cursor: 'pointer' }}
                   >
                     <div style={{ position: 'relative', width: '100%', height: '180px', backgroundColor: spot.source === 'kcisa' ? '#e0f2fe' : '#fef3c7', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>

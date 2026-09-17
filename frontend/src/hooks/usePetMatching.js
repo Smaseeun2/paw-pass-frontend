@@ -93,11 +93,23 @@ export const usePetMatching = (spotId, source = 'tourapi', paramPetId = '') => {
     const fetchMatching = async () => {
       setIsLoading(true);
       try {
-        const endpoint = source === 'kcisa' 
+        let endpoint = source === 'kcisa' 
           ? `${BASE_URL}/facilities/${resolvedId}/match` 
           : `${BASE_URL}/tours/${resolvedId}/match`;
 
-        // petId 파라미터 없이 호출하면 백엔드가 자동으로 대표 반려동물을 기준으로 매칭합니다.
+        if (petId) {
+          const validPetIds = String(petId)
+            .split(',')
+            .map(id => id.trim())
+            .filter(id => id !== '' && !(id.length === 13 && !isNaN(Number(id))))
+            .join(',');
+            
+          if (validPetIds) {
+            endpoint += `?petIds=${validPetIds}`;
+          }
+        }
+
+        // petId 파라미터가 없으면 백엔드가 자동으로 대표 반려동물을 기준으로 매칭합니다.
         const res = await authFetch(endpoint, { method: 'GET' });
         
         if (!res.ok) {
