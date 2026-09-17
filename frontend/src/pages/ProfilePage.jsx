@@ -65,10 +65,10 @@ function ProfilePage() {
 
     const hasCarrier = pet.supplies ? pet.supplies.includes('이동장/케이지') : Boolean(pet.has_carrier);
     const hasLeash = pet.supplies ? pet.supplies.includes('목줄/하네스') : Boolean(pet.has_leash);
-    const hasMuzzle = pet.supplies ? pet.supplies.includes('입마개') : false;
-    const hasWasteBags = pet.supplies ? pet.supplies.includes('배변봉투') : false;
+    const hasMuzzle = pet.supplies ? pet.supplies.includes('입마개') : Boolean(pet.has_muzzle);
+    const hasWasteBags = pet.supplies ? pet.supplies.includes('배변봉투') : Boolean(pet.has_waste_bags);
     const hasStroller = pet.supplies ? pet.supplies.includes('유모차/웨건') : Boolean(pet.has_stroller);
-    const hasDiaper = pet.supplies ? pet.supplies.includes('기저귀/매너벨트') : false;
+    const hasDiaper = pet.supplies ? pet.supplies.includes('기저귀/매너벨트') : Boolean(pet.has_diaper);
 
     return {
       species: pet.species || 'DOG',
@@ -82,7 +82,7 @@ function ProfilePage() {
       has_waste_bags: hasWasteBags,
       has_stroller: hasStroller,
       has_diaper: hasDiaper,
-      birthDate: pet.birthDate || pet.birth_date || '',
+      birth_date: (pet.birthDate === '모름' || pet.birthDate === '정보 없음' || !pet.birthDate) ? null : pet.birthDate,
       image: pet.image || pet.imageUrl || '',
       is_primary: Boolean(pet.isPrimary || pet.is_primary)
     };
@@ -153,13 +153,16 @@ function ProfilePage() {
       const formattedPets = rawPets.map((p) => ({
         ...p,
         size: reverseSizeMap[p.size] || p.size || '소형',
-        birthDate: p.birthDate || '정보 없음',
+        birthDate: p.birth_date || p.birthDate || '정보 없음',
         isPrimary: Boolean(p.is_primary || p.isPrimary),
-        image: p.image_url || p.imageUrl || p.image || '', // 서버 최신 규격 대응
+        image: p.image_url || p.imageUrl || p.image || '', // 서버 최신 규격 반영
         supplies: p.supplies || [
           ...(p.has_leash ? ['목줄/하네스'] : []),
           ...(p.has_carrier ? ['이동장/케이지'] : []),
-          ...(p.has_stroller ? ['유모차/웨건'] : [])
+          ...(p.has_stroller ? ['유모차/웨건'] : []),
+          ...(p.has_muzzle ? ['입마개'] : []),
+          ...(p.has_waste_bags ? ['배변봉투'] : []),
+          ...(p.has_diaper ? ['기저귀/매너벨트'] : [])
         ]
       }));
 
