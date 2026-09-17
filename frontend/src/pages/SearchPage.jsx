@@ -7,6 +7,7 @@ import { fetchPetsFromDB } from '../services/api';
 import LazyImage from '../components/LazyImage';
 import { useSpotDetail } from '../hooks/useSpotDetail';
 import { toast } from '../utils/toast';
+import { loadKakaoMapSdk } from '../utils/kakaoMapLoader';
 
 const CATEGORY_OPTIONS = [
   { label: '자연/풍경', value: 'NATURE' },
@@ -28,11 +29,52 @@ const MATCH_STATUS_BUTTONS = [
 
 function DrawerContent({ spot, onClose, navigate, user, myPets }) {
   const { detail, isLoading, error } = useSpotDetail(spot.id, spot.source);
+  const mapRef = useRef(null);
+
+  useEffect(() => {
+    if (!detail) return;
+    const apiLat = Number(detail.lat || detail.map_y || detail.mapy || detail.y);
+    const apiLng = Number(detail.lng || detail.map_x || detail.mapx || detail.x);
+    const hasValidCoords = !isNaN(apiLat) && !isNaN(apiLng) && apiLat !== 0 && apiLng !== 0;
+
+    let isMounted = true;
+    loadKakaoMapSdk().then(() => {
+      if (!isMounted || !mapRef.current) return;
+      const kakao = window.kakao;
+      if (!kakao || !kakao.maps) return;
+
+      const createMap = (lat, lng) => {
+        if (!mapRef.current) return;
+        mapRef.current.innerHTML = '';
+        const center = new kakao.maps.LatLng(lat, lng);
+        const map = new kakao.maps.Map(mapRef.current, { center, level: 4 });
+        new kakao.maps.Marker({ position: center }).setMap(map);
+      };
+
+      if (hasValidCoords) {
+        createMap(apiLat, apiLng);
+      } else if (detail.address && kakao.maps.services) {
+        const geocoder = new kakao.maps.services.Geocoder();
+        geocoder.addressSearch(detail.address, (result, status) => {
+          if (!isMounted) return;
+          if (status === kakao.maps.services.Status.OK && result[0]) {
+            createMap(Number(result[0].y), Number(result[0].x));
+          } else {
+            createMap(37.566826, 126.978656);
+          }
+        });
+      } else {
+        createMap(37.566826, 126.978656);
+      }
+    }).catch(err => console.error('맵 로드 오류:', err));
+
+    return () => { isMounted = false; };
+  }, [detail]);
   
   if (isLoading) {
     return (
       <div style={{ padding: '40px 20px', textAlign: 'center', color: '#64748b' }}>
-        <p>상세 정보를 불러오는 중입니다...</p>
+        <p>정보를 불러오는 중입니다...</p>
       </div>
     );
   }
@@ -115,6 +157,15 @@ function DrawerContent({ spot, onClose, navigate, user, myPets }) {
           {cond.needItem && <p style={{ margin: '0 0 8px 0' }}><strong>필요 용품:</strong> {cond.needItem}</p>}
         </div>
       )}
+
+      {/* 지도 표시 영역 */}
+      <div style={{ backgroundColor: '#fff', padding: '16px', border: '1px solid #e2e8f0', borderRadius: '12px', marginBottom: '24px' }}>
+        <h4 style={{ margin: '0 0 12px 0', color: '#1e293b', fontSize: '15px' }}>📍 위치 보기</h4>
+        <div 
+          ref={mapRef} 
+          style={{ width: '100%', height: '200px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: '#f1f5f9' }}
+        />
+      </div>
 
       <button 
         type="button"
