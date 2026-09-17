@@ -101,7 +101,7 @@ function HomePage() {
           const spotId = String(spot.id || spot.content_id);
           const rawMatch = spot.match_status || spot.matchStatus;
           // 로그아웃 상태이거나 펫 정보가 없으면 '동반 확인 필요'로 표기
-          const assignedMatchStatus = primaryPetId && rawMatch ? rawMatch : '동반 확인 필요';
+          const assignedMatchStatus = (selectedPetIds.length > 0) && rawMatch ? rawMatch : '동반 확인 필요';
 
           return {
             id: spotId,
