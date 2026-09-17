@@ -27,6 +27,7 @@ function ProfilePage() {
 
   // 수정 중인 반려동물 ID 추적 state (null이면 신규 등록 모드)
   const [editingPetId, setEditingPetId] = useState(null);
+  const [imageFile, setImageFile] = useState(null);
 
   const [form, setForm] = useState({
     name: '',
@@ -100,7 +101,7 @@ function ProfilePage() {
     }));
   };
 
-  // 데이터 동기화
+  // 펫 동기화
   useEffect(() => {
     const loadPets = async () => {
       const reverseSizeMap = {
@@ -116,7 +117,7 @@ function ProfilePage() {
           const res = await fetchPetsFromDB();
           rawPets = Array.isArray(res) ? res : (res?.data || []);
         } catch (err) {
-          console.warn('DB 목록 조회 실패 또는 등록된 데이터 없음:', err);
+          console.warn('DB 펫 조회 에러 (비로그인 처리):', err);
         }
 
         const guestSaved = localStorage.getItem('paw_pass_pets_guest');
@@ -129,26 +130,19 @@ function ProfilePage() {
           );
 
           results.forEach((result, idx) => {
-            const gPet = guestPets[idx];
             if (result.status === 'fulfilled') {
-              const createdPet = result.value?.data || result.value;
-              rawPets.push({
-                ...createdPet,
-                birthDate: gPet.birthDate || '생일 모름',
-                supplies: gPet.supplies || [],
-                image: gPet.image || ''
-              });
+              const resData = result.value?.data || result.value;
+              rawPets.push(resData);
             } else {
-              console.warn(`게스트 펫(${gPet.name}) 마이그레이션 실패:`, result.reason);
-              failedGuestPets.push(gPet);
+              failedGuestPets.push(guestPets[idx]);
             }
           });
 
-          if (failedGuestPets.length > 0) {
+          if (failedGuestPets.length === 0) {
+            localStorage.removeItem('paw_pass_pets_guest');
+          } else {
             localStorage.setItem('paw_pass_pets_guest', JSON.stringify(failedGuestPets));
             toast.error('일부 반려동물 정보를 서버로 이전하지 못했습니다.');
-          } else {
-            localStorage.removeItem('paw_pass_pets_guest');
           }
         }
       } else {
@@ -159,8 +153,9 @@ function ProfilePage() {
       const formattedPets = rawPets.map((p) => ({
         ...p,
         size: reverseSizeMap[p.size] || p.size || '소형',
-        birthDate: p.birthDate || '생일 정보 없음',
+        birthDate: p.birthDate || '정보 없음',
         isPrimary: Boolean(p.is_primary || p.isPrimary),
+        image: p.image_url || p.imageUrl || p.image || '', // 서버 최신 규격 대응
         supplies: p.supplies || [
           ...(p.has_leash ? ['목줄/하네스'] : []),
           ...(p.has_carrier ? ['이동장/케이지'] : []),
@@ -174,7 +169,7 @@ function ProfilePage() {
     loadPets();
   }, [user]);
 
-  // 💡 [핵심 수정] 대표 반려동물 설정 함수 (Optimistic Update로 버튼 안 눌리는 현상 방지)
+  // 🐾 [임시 낙관적] 대표 반려동물 설정 함수 (Optimistic Update로 먼저 화면 갱신)
   const handleSetPrimary = async (petId, e) => {
     if (e) {
       e.stopPropagation();
@@ -188,12 +183,12 @@ function ProfilePage() {
       is_primary: String(p.id) === String(petId)
     }))));
 
-    // 비로그인이면 로컬 스토리지에 자동 반영됨 (useEffect에 의해)
+    // 비로그인이면 로컬스토리지에만 저장 후 종료 (useEffect가 안 돎)
     if (!user) return;
 
-    // 2. 백엔드 반영 (실패 시 무시하거나 경고만 띄우고 UI는 유지)
+    // 2. 백엔드 반영 (실패 시 롤백하거나 에러 UI 표시)
     try {
-      // 방법 A: 전용 API가 있을 경우 (현재 404 에러 발생 가능성 높음)
+      // 방법 A: 유저 API로 대표 펫 설정 (백 404 에러 발생 가능성 대비)
       const res = await authFetch(`${BASE_URL}/users/me/primary-pet`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -201,14 +196,15 @@ function ProfilePage() {
       });
 
       if (!res.ok) {
-        // 방법 B: 전용 API 실패 시, 해당 펫을 updatePetInDB로 덮어씌워서 is_primary=true 강제 저장 시도
+        // 방법 B: 유저 API 실패 시, 해당 펫의 updatePetInDB를 돌려서 is_primary=true 로 강제 시도
         const targetPet = pets.find(p => String(p.id) === String(petId));
         if (targetPet) {
-          await updatePetInDB(petId, { ...formatPayloadForDB(targetPet), is_primary: true });
+          await updatePetInDB(petId, formatPayloadForDB({ ...targetPet, is_primary: true }));
         }
       }
-    } catch (err) {
-      console.warn('대표 설정 API 호출 에러 (UI는 정상 변경됨):', err);
+    } catch (error) {
+      console.error('대표 펫 설정 에러:', error);
+      // 필요 시 여기서 롤백 로직 추가 가능
     }
   };
 
@@ -254,6 +250,7 @@ function ProfilePage() {
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
+      setImageFile(file); // 실제 업로드를 위한 File 객체 저장
       const reader = new FileReader();
       reader.onloadend = () => {
         setForm((prev) => ({ ...prev, image: reader.result }));
@@ -279,17 +276,17 @@ function ProfilePage() {
       toast.warning('반려동물 품종을 입력해주세요.');
       return false;
     }
-    if (!form.weight || isNaN(Number(form.weight)) || Number(form.weight) <= 0) {
-      toast.warning('올바른 체중(0보다 큰 숫자)을 입력해주세요.');
+    if (!form.weight) {
+      toast.warning('몸무게를 입력해주세요.');
       return false;
     }
     return true;
   };
 
   const buildPetData = () => {
-    const formattedBirthDate = form.unknownBirth 
-      ? '생일 모름' 
-      : `${form.birthYear}.${form.birthMonth}.${form.birthDay}`;
+    let formattedBirthDate = form.unknownBirth 
+      ? '모름' 
+      : `${form.birthYear}-${form.birthMonth}-${form.birthDay}`;
 
     return {
       id: editingPetId || Date.now(),
@@ -300,23 +297,25 @@ function ProfilePage() {
       weight: Number(form.weight),
       size: form.size,
       image: form.image || '🐶',
-      supplies: form.supplies
+      supplies: form.supplies,
+      isPrimary: false
     };
   };
 
   const handleStartEdit = (pet, e) => {
     if (e) e.stopPropagation();
     setEditingPetId(pet.id);
+    setImageFile(null); // 수정 모드 진입 시 이미지 파일 초기화
 
     let year = '2024';
     let month = '01';
     let day = '01';
     let isUnknown = false;
 
-    if (pet.birthDate === '생일 모름' || !pet.birthDate) {
+    if (pet.birthDate === '모름' || pet.birthDate === '정보 없음' || !pet.birthDate) {
       isUnknown = true;
     } else {
-      const parts = pet.birthDate.split('.');
+      const parts = pet.birthDate.split('-');
       if (parts.length === 3) {
         year = parts[0];
         month = parts[1];
@@ -334,7 +333,7 @@ function ProfilePage() {
       unknownBirth: isUnknown,
       weight: pet.weight ? String(pet.weight) : '',
       size: pet.size || '소형',
-      image: pet.image || '🐶',
+      image: pet.image_url || pet.imageUrl || pet.image || '🐶',
       supplies: pet.supplies || []
     });
 
@@ -346,6 +345,7 @@ function ProfilePage() {
 
   const handleCancelEdit = () => {
     setEditingPetId(null);
+    setImageFile(null);
     setForm({
       name: '',
       species: 'DOG',
@@ -361,7 +361,7 @@ function ProfilePage() {
     });
   };
 
-  // 등록 및 수정 제출 분기 처리
+  // 새 펫 추가 및 수정 처리
   const handleAddPet = async (e) => {
     e.preventDefault();
     if (!validateForm()) return;
@@ -373,7 +373,14 @@ function ProfilePage() {
         try {
           const payload = formatPayloadForDB(petData);
           const res = await updatePetInDB(editingPetId, payload);
-          const updatedPet = res?.data || res;
+          let updatedPet = res?.data || res;
+
+          // 실제 이미지 파일이 등록된 경우 이미지 업로드 처리
+          if (imageFile) {
+            const { uploadPetProfileImage } = await import('../services/api');
+            const imgRes = await uploadPetProfileImage(editingPetId, imageFile);
+            updatedPet.image_url = imgRes?.image_url || imgRes?.imageUrl || updatedPet.image_url;
+          }
 
           const reverseSizeMap = { SMALL: '소형', MEDIUM: '중형', LARGE: '대형' };
 
@@ -386,13 +393,13 @@ function ProfilePage() {
                     size: reverseSizeMap[updatedPet.size] || petData.size,
                     birthDate: petData.birthDate,
                     supplies: petData.supplies,
-                    image: petData.image
+                    image: updatedPet.image_url || petData.image
                   }
                 : pet
             ))
           );
         } catch (err) {
-          console.error('서버 수정 에러:', err);
+          console.error('펫 수정 실패:', err);
           toast.error('수정 중 오류가 발생했습니다.');
           return;
         }
@@ -403,7 +410,7 @@ function ProfilePage() {
         localStorage.setItem(targetKey, JSON.stringify(updatedPets));
       }
 
-      toast.success(`${petData.name}의 프로필이 수정되었습니다! 🐾`);
+      toast.success(`${petData.name}가 수정되었습니다! 🐾`);
       handleCancelEdit();
     } else {
       let newlyCreatedId = petData.id;
@@ -411,8 +418,15 @@ function ProfilePage() {
         try {
           const payload = formatPayloadForDB(petData);
           const res = await createPetInDB(payload);
-          const createdPet = res?.data || res;
+          let createdPet = res?.data || res;
           newlyCreatedId = createdPet.id || petData.id;
+
+          // 새 펫 생성 후 파일이 있다면 이미지 업로드 연이어 처리
+          if (imageFile) {
+            const { uploadPetProfileImage } = await import('../services/api');
+            const imgRes = await uploadPetProfileImage(newlyCreatedId, imageFile);
+            createdPet.image_url = imgRes?.image_url || imgRes?.imageUrl || createdPet.image_url;
+          }
 
           const reverseSizeMap = { SMALL: '소형', MEDIUM: '중형', LARGE: '대형' };
 
@@ -423,15 +437,17 @@ function ProfilePage() {
               ...createdPet,
               size: reverseSizeMap[createdPet.size] || petData.size,
               id: newlyCreatedId,
-              isPrimary: isFirst
+              isPrimary: isFirst,
+              image: createdPet.image_url || petData.image
             };
             return enforceSinglePrimary([...prev, newPetObj]);
           });
         } catch (err) {
-          console.error('서버 저장 에러:', err);
-          toast.error('서버 저장 중 오류가 발생했습니다.');
+          console.error('펫 등록 실패:', err);
+          toast.error('등록 중 에러가 발생했습니다.');
           return;
         }
+
       } else {
         const targetKey = getActiveKey(user);
         setPets((prev) => {
@@ -577,7 +593,9 @@ function ProfilePage() {
                       )}
                     </div>
 
-                    <p style={{ margin: '2px 0', fontSize: '13px', color: '#555' }}>{pet.breed} ({pet.size}견/묘, {pet.weight}kg)</p>
+                    <p style={{ margin: '2px 0', fontSize: '13px', color: '#555' }}>
+                      {pet.breed} ({pet.size}{pet.species === 'CAT' ? '묘' : '견'}, {pet.weight}kg)
+                    </p>
                     <p style={{ margin: '2px 0', fontSize: '13px', color: '#777' }}>생일: {pet.birthDate}</p>
                     
                     {pet.supplies && pet.supplies.length > 0 && (
@@ -659,7 +677,10 @@ function ProfilePage() {
                   <button
                     key={idx}
                     type="button"
-                    onClick={() => setForm((prev) => ({ ...prev, image: icon }))}
+                    onClick={() => {
+                      setForm((prev) => ({ ...prev, image: icon }));
+                      setImageFile(null);
+                    }}
                     style={{
                       width: '40px', height: '40px', borderRadius: '50%', 
                       border: form.image === icon ? '2px solid #1976d2' : '1px solid #ccc',
@@ -741,6 +762,32 @@ function ProfilePage() {
           </div>
 
           <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontWeight: 'bold', fontSize: '14px' }}>
+            동물 종류 <span style={{ color: '#ef4444', fontSize: '12px' }}>*필수</span>
+            <div style={{ display: 'flex', gap: '16px', padding: '10px', borderRadius: '6px', border: '1px solid #ccc', backgroundColor: '#fff' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '14px', cursor: 'pointer' }}>
+                <input 
+                  type="radio" 
+                  name="species" 
+                  value="DOG" 
+                  checked={form.species === 'DOG'} 
+                  onChange={handleChange} 
+                />
+                반려견 🐶
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '14px', cursor: 'pointer' }}>
+                <input 
+                  type="radio" 
+                  name="species" 
+                  value="CAT" 
+                  checked={form.species === 'CAT'} 
+                  onChange={handleChange} 
+                />
+                반려묘 🐱
+              </label>
+            </div>
+          </label>
+
+          <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontWeight: 'bold', fontSize: '14px', marginTop: '16px' }}>
             반려동물 품종 <span style={{ color: '#ef4444', fontSize: '12px' }}>*필수</span>
             <input 
               type="text" 

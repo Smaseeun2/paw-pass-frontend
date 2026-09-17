@@ -43,3 +43,20 @@ export const updatePetInDB = async (petId, petData) => {
   const result = await res.json();
   return result.data || result;
 };
+
+export const uploadPetProfileImage = async (petId, file) => {
+  const formData = new FormData();
+  formData.append('image', file);
+
+  const res = await authFetch(`${BASE_URL}/pets/${petId}/profile-image`, {
+    method: 'POST',
+    body: formData
+  });
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(errorText || '반려동물 이미지 등록 실패');
+  }
+  const result = await res.json();
+  return result.data || result;
+};
