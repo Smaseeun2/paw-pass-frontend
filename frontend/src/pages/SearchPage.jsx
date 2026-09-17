@@ -51,19 +51,28 @@ function DrawerContent({ spot, onClose, navigate, user, myPets }) {
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'flex-start', borderBottom: '1px solid #e5e7eb', paddingBottom: '16px', marginBottom: '20px' }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: '16px' }}>
         <button 
           onClick={onClose}
-          style={{ background: '#f1f5f9', border: 'none', fontSize: '16px', fontWeight: 'bold', color: '#64748b', cursor: 'pointer', width: '36px', height: '36px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: '16px', flexShrink: 0 }}
+          style={{ background: '#f1f5f9', border: 'none', color: '#64748b', cursor: 'pointer', width: '36px', height: '36px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background-color 0.2s' }}
+          onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#e2e8f0'}
+          onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#f1f5f9'}
         >
-          X
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M18 6L6 18"></path>
+            <path d="M6 6l12 12"></path>
+          </svg>
         </button>
-        <h3 style={{ margin: '0', fontSize: '22px', color: '#1f2937', lineHeight: '1.3', wordBreak: 'keep-all' }}>
-          {d.title || d.name || spot.title || spot.name || '이름 없음'}
-        </h3>
       </div>
+
       <div style={{ width: '100%', height: '240px', backgroundColor: '#e5e7eb', borderRadius: '12px', marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', overflow: 'hidden', position: 'relative' }}>
         <LazyImage spot={d.image ? d : spot} fallback={<span>🖼️ 대표 이미지 준비중</span>} />
+      </div>
+
+      <div style={{ borderBottom: '1px solid #e5e7eb', paddingBottom: '16px', marginBottom: '20px' }}>
+        <h3 style={{ margin: '0', fontSize: '24px', color: '#1f2937', lineHeight: '1.3', wordBreak: 'keep-all' }}>
+          {d.title || d.name || spot.title || spot.name || '이름 없음'}
+        </h3>
       </div>
       
       <div style={{ marginBottom: '24px', padding: '16px', backgroundColor: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
@@ -772,18 +781,20 @@ function SearchPage() {
               width: '560px', maxWidth: '90vw', height: '100vh', 
               backgroundColor: '#fff', boxShadow: '-4px 0 20px rgba(0,0,0,0.15)', 
               zIndex: 50, transition: 'right 0.3s cubic-bezier(0.4, 0, 0.2, 1)', 
-              padding: '30px 24px', boxSizing: 'border-box', overflowY: 'auto' 
+              boxSizing: 'border-box', paddingTop: '60px'
             }}
           >
-            {selectedSpotDetail && (
-              <DrawerContent 
-                spot={selectedSpotDetail} 
-                onClose={() => setSelectedSpotId(null)} 
-                navigate={navigate} 
-                user={user} 
-                myPets={myPets} 
-              />
-            )}
+            <div style={{ height: '100%', overflowY: 'auto', padding: '24px 24px 30px 24px', boxSizing: 'border-box' }}>
+              {selectedSpotDetail && (
+                <DrawerContent 
+                  spot={selectedSpotDetail} 
+                  onClose={() => setSelectedSpotId(null)} 
+                  navigate={navigate} 
+                  user={user} 
+                  myPets={myPets} 
+                />
+              )}
+            </div>
           </div>
         </div>
       )}

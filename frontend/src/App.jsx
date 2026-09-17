@@ -16,6 +16,7 @@ import NotFoundPage from './pages/NotFoundPage';
 import Footer from './components/Footer';
 import ToastContainer from './components/ToastContainer';
 import ProtectedRoute from './components/ProtectedRoute';
+import ScrollToTop from './components/ScrollToTop';
 
 function AppNav() {
   const { user, login, logout } = useAuth();
@@ -108,6 +109,7 @@ function App() {
       <PetProvider>
         <FavoritesProvider>
           <BrowserRouter>
+            <ScrollToTop />
             <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
               <AppNav />
               <div style={{ padding: '20px', flex: 1 }}>
