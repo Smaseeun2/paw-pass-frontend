@@ -95,7 +95,7 @@ function FavoritesPage() {
       </p>
 
       {favorites.length > 0 ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '20px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '20px' }}>
           {favorites.map((spot, index) => {
             const spotId = spot.content_id || spot.contentId || spot.id;
             return (

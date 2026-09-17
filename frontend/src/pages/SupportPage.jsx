@@ -56,7 +56,13 @@ function SupportPage() {
       id: 4, 
       category: 'service',
       question: '방문 판정 결과가 "방문 불가"로 나오는 이유는 무엇인가요?', 
-      answer: '등록하신 반려동물의 체중 제한 초과 혹은 해당 시설의 동반 제한 규정에 부합하지 않을 경우 안전을 위해 "방문 불가"로 판정됩니다.' 
+      answer: '반려동물 출입이 제한된 구역이거나, 등록된 시설 정보 기준으로 동반 입장이 불가능한 장소일 때 "방문 불가"로 표시돼요.\n\n다만, 현장 상황이나 시설 규정에 따라 변동이 있을 수 있으니, 방문하시기 전에 해당 장소나 업체를 통해 한 번 더 확인해 보시는 걸 추천해드립니다.' 
+    },
+    { 
+      id: 5, 
+      category: 'service',
+      question: '특정 지역을 선택했는데 관광지가 나오지 않거나 비어 있어요.', 
+      answer: '현재 PawPass는 오픈 API 연동 및 데이터 정합성 검증을 순차적으로 진행하고 있습니다. 데이터가 아직 충분히 수집되지 않은 일부 지역의 경우 검색 결과가 조회되지 않을 수 있습니다.\n\n누락된 지역의 관광지 정보는 지속적으로 업데이트될 예정이오니, 이용에 조금만 양해를 부탁드립니다. 빠른 시일내에 더 많은 지역에서 편리하게 반려동물 동반 장소를 찾으실 수 있도록 최선을 다하겠습니다.' 
     }
   ];
 
@@ -211,7 +217,8 @@ function SupportPage() {
                     {isOpen && (
                       <div style={{ 
                         padding: '16px 20px 20px 20px', backgroundColor: '#f8fafc', 
-                        borderTop: '1px solid #f1f5f9', fontSize: '14px', color: '#475569', lineHeight: '1.6' 
+                        borderTop: '1px solid #f1f5f9', fontSize: '14px', color: '#475569', lineHeight: '1.6',
+                        whiteSpace: 'pre-wrap'
                       }}>
                         <span style={{ color: '#16a34a', fontWeight: 'bold', marginRight: '8px' }}>A.</span> {faq.answer}
                       </div>

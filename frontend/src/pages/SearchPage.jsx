@@ -284,7 +284,7 @@ function SearchPage() {
   const handlePetToggle = (petId, e) => {
     e.stopPropagation();
     setSelectedPetIds(prev => 
-      prev.includes(petId) ? prev.filter(id => id !== petId) : [...prev, petId]
+      prev.includes(petId) ? [] : [petId]
     );
   };
 
@@ -591,12 +591,6 @@ function SearchPage() {
             </button>
           </div>
         </div>
-
-        {selectedPetIds.length > 1 && (
-          <div style={{ padding: '10px 14px', backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '8px', marginBottom: '16px', fontSize: '13px', color: '#1e40af' }}>
-            🐾 <strong>다중 펫 AND 검색 중:</strong> 선택한 반려동물 모두를 함께 데려갈 수 있는 장소만 표시됩니다. 한 마리라도 조건이 까다롭다면 '조건부'로, 정보가 부족하면 '확인 필요'로 표시됩니다.
-          </div>
-        )}
 
         {/* 방문 판정 필터 버튼 바 */}
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
