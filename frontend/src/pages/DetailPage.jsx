@@ -587,13 +587,42 @@ function DetailPage() {
                       </p>
                     )}
 
-                    {/* API 원문 정보 */}
-                    {matchResult?.rawText && (
-                      <div style={{ backgroundColor: '#fff', padding: '10px 14px', borderRadius: '8px', border: '1px solid #e2e8f0', marginBottom: '10px' }}>
-                        <p style={{ fontSize: '12px', color: '#64748b', margin: '0 0 6px 0', fontWeight: 'bold' }}>📄 시설 원문 정보</p>
-                        <p style={{ fontSize: '13px', color: '#475569', margin: 0, whiteSpace: 'pre-line', lineHeight: '1.7' }}>{matchResult.rawText}</p>
-                      </div>
-                    )}
+                    {/* 시설 원문 정보 - 필드별 라벨 표시 */}
+                    {(() => {
+                      const pc = detail?.petCondition || {};
+                      const fields = [
+                        { label: '동반 가능 유형', value: pc.acmpyType },
+                        { label: '입장 가능 크기/견종', value: pc.possibleBreeds },
+                        { label: '필수 준비물', value: pc.needItem },
+                        { label: '기타 안내', value: pc.etcInfo },
+                        { label: '관련 구비 시설', value: pc.relaPosesFclty },
+                        { label: '관련 비치 품목', value: pc.relaFrnshPrdlst },
+                        { label: '관련 구매 품목', value: pc.relaPurcPrdlst },
+                        { label: '관련 렌탈 품목', value: pc.relaRntlPrdlst },
+                        { label: '동반 안내 규정', value: pc.petPolicy },
+                        { label: '입장 제한 조건', value: pc.petRestriction },
+                        { label: '시설 비치물품', value: pc.petAmenities },
+                      ].filter(f => f.value && f.value.trim() !== '');
+
+                      if (fields.length === 0 && !matchResult?.rawText) return null;
+
+                      return (
+                        <div style={{ backgroundColor: '#fff', padding: '10px 14px', borderRadius: '8px', border: '1px solid #e2e8f0', marginBottom: '10px' }}>
+                          <p style={{ fontSize: '12px', color: '#64748b', margin: '0 0 8px 0', fontWeight: 'bold' }}>📄 시설 원문 정보</p>
+                          {fields.length > 0 ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                              {fields.map((f, i) => (
+                                <p key={i} style={{ fontSize: '13px', color: '#475569', margin: 0, lineHeight: '1.6' }}>
+                                  <strong style={{ color: '#334155' }}>{f.label}:</strong> {f.value}
+                                </p>
+                              ))}
+                            </div>
+                          ) : (
+                            <p style={{ fontSize: '13px', color: '#475569', margin: 0, whiteSpace: 'pre-line', lineHeight: '1.7' }}>{matchResult.rawText}</p>
+                          )}
+                        </div>
+                      );
+                    })()}
 
                     {/* 조건부 팁 */}
                     {(status === '조건부' || status === '조건부 방문 가능' || status === '조건부 가능') && matchResult?.tips && (
