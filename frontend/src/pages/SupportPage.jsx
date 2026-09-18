@@ -4,24 +4,24 @@ import { useState } from 'react';
 const notices = [
   {
     id: 1,
-    title: '가을맞이 전국 반려견 동반 힐링 명소 대규모 업데이트 안내',
-    date: '2026-09-15',
-    category: 'UPDATE',
-    content: '전국 500여 개 가을 단풍 산책로, 신규 반려동물 동반 카페 및 글램핑 숙소 데이터가 최신화되었습니다. 상세 필터(체급, 리드줄/케이지 필수 규정)를 통해 우리 아이에게 꼭 맞는 장소를 찾아보세요!'
+    title: 'PawPass 서비스 그랜드 오픈 안내',
+    date: '2026-09-19',
+    category: 'NOTICE',
+    content: '반려견과 함께하는 가장 완벽한 여행 파트너, PawPass(포패스)가 정식 오픈했습니다! 🐾 우리 아이 몸무게와 체급에 맞춘 실시간 동반 가능 여부 판정, 전국 동반 명소를 한눈에 보는 인터랙티브 지도 & 길찾기, 헛걸음 없는 공식 출입 규정 안내, 그리고 나만의 맞춤 여행을 완성하는 여행 동선 플래너까지! 이제 PawPass와 함께 반려견과의 소중한 여행을 안심하고 시작해보세요.'
   },
   {
     id: 2,
-    title: 'PawPass 2.0 서비스 그랜드 리뉴얼 오픈',
-    date: '2026-08-25',
-    category: 'NOTICE',
-    content: '새로워진 PawPass를 만나보세요! 반응형 인터랙티브 지도, 에어비앤비 스타일 와이드 갤러리, 다둥이 맞춤 판정 시스템 및 직관적인 여행 동선 플래너가 정식 적용되었습니다.'
+    title: '지도형 관광지 탐색 & 인터랙티브 핀 기능 오픈',
+    date: '2026-09-18',
+    category: 'UPDATE',
+    content: '탐색 페이지에서 지도형 뷰(Map View)가 새롭게 추가되었습니다! 🗺️ 지도 위에서 전국의 반려동물 동반 가능 장소를 한눈에 탐색하고, 출입 가능 상태별 맞춤 핀 색상(🟢가능/🟡조건부/🔴불가), 내 현재 위치 기반 검색, 장소 클릭 시 실시간 지도 중심 이동 및 좌측 리스트 무한 스크롤 연동까지 편리하게 이용해보세요.'
   },
   {
     id: 3,
-    title: '카카오 지도 & 네이버 지도 원클릭 실시간 길찾기 연동 안내',
-    date: '2026-08-10',
+    title: '공공데이터 & 지도 플랫폼 공식 API 연동 안내',
+    date: '2026-08-22',
     category: 'SERVICE',
-    content: '장소 상세 정보 및 탐색 퀵 드로어에서 카카오맵 및 네이버 지도 길찾기 바로가기를 지원하여 여행지까지 빠르고 편리하게 이동하실 수 있습니다.'
+    content: 'PawPass는 신뢰할 수 있는 정확한 정보를 제공하기 위해 한국관광공사 반려동물 동반 여행 API(TourAPI), 한국문화정보원(KCISA) 문화·여가 데이터, 카카오맵(Kakao Maps) 인터랙티브 지도 및 행정구역 역지오코딩 API, 네이버 지도 실시간 길찾기 바로가기 연동을 완료하였습니다.'
   }
 ];
 
@@ -156,17 +156,35 @@ function SupportPage() {
           </p>
         </div>
 
-        {/* 모던 탭 네비게이션 */}
+        {/* 모던 탭 네비게이션 (선택 시 뚜렷한 브랜드 보라색 강조) */}
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '32px' }}>
-          <div style={{ display: 'flex', backgroundColor: '#f8fafc', padding: '6px', borderRadius: '50px', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02)', width: '100%', maxWidth: '360px' }}>
+          <div style={{ 
+            display: 'flex', 
+            backgroundColor: 'rgba(255, 255, 255, 0.85)', 
+            backdropFilter: 'blur(10px)',
+            border: '1.5px solid #e2e8f0',
+            padding: '6px', 
+            borderRadius: '50px', 
+            boxShadow: '0 6px 20px rgba(0,0,0,0.05)', 
+            width: '100%', 
+            maxWidth: '380px',
+            gap: '6px'
+          }}>
             <button 
               onClick={() => setActiveTab('notice')}
               style={{
-                flex: 1, padding: '10px 0', borderRadius: '50px', border: 'none', cursor: 'pointer',
-                fontWeight: 'bold', fontSize: '14px', transition: 'all 0.2s',
-                backgroundColor: activeTab === 'notice' ? '#fff' : 'transparent',
-                color: activeTab === 'notice' ? '#0f172a' : '#64748b',
-                boxShadow: activeTab === 'notice' ? '0 2px 4px rgba(0,0,0,0.05)' : 'none'
+                flex: 1, 
+                padding: '12px 0', 
+                borderRadius: '50px', 
+                border: 'none', 
+                cursor: 'pointer',
+                fontWeight: '800', 
+                fontSize: '14.5px', 
+                transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                backgroundColor: activeTab === 'notice' ? '#5F50A9' : 'transparent',
+                color: activeTab === 'notice' ? '#ffffff' : '#64748b',
+                boxShadow: activeTab === 'notice' ? '0 4px 14px rgba(95, 80, 169, 0.35)' : 'none',
+                transform: activeTab === 'notice' ? 'scale(1.02)' : 'none'
               }}
             >
               📢 공지사항
@@ -174,11 +192,18 @@ function SupportPage() {
             <button 
               onClick={() => setActiveTab('faq')}
               style={{
-                flex: 1, padding: '10px 0', borderRadius: '50px', border: 'none', cursor: 'pointer',
-                fontWeight: 'bold', fontSize: '14px', transition: 'all 0.2s',
-                backgroundColor: activeTab === 'faq' ? '#fff' : 'transparent',
-                color: activeTab === 'faq' ? '#0f172a' : '#64748b',
-                boxShadow: activeTab === 'faq' ? '0 2px 4px rgba(0,0,0,0.05)' : 'none'
+                flex: 1, 
+                padding: '12px 0', 
+                borderRadius: '50px', 
+                border: 'none', 
+                cursor: 'pointer',
+                fontWeight: '800', 
+                fontSize: '14.5px', 
+                transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                backgroundColor: activeTab === 'faq' ? '#5F50A9' : 'transparent',
+                color: activeTab === 'faq' ? '#ffffff' : '#64748b',
+                boxShadow: activeTab === 'faq' ? '0 4px 14px rgba(95, 80, 169, 0.35)' : 'none',
+                transform: activeTab === 'faq' ? 'scale(1.02)' : 'none'
               }}
             >
               ❓ 자주 묻는 질문
@@ -225,7 +250,7 @@ function SupportPage() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 style={{
-                  flex: 1, minWidth: '220px', padding: '12px 16px', borderRadius: '50px', border: 'none', fontSize: '14px', outline: 'none', backgroundColor: '#fff', boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
+                  flex: 1, minWidth: '220px', padding: '12px 16px', borderRadius: '50px', border: '1px solid #e2e8f0', fontSize: '14px', outline: 'none', backgroundColor: '#fff', boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
                 }}
               />
               <div style={{ display: 'flex', gap: '6px' }}>
@@ -240,11 +265,13 @@ function SupportPage() {
                     className="support-pill-btn"
                     onClick={() => setSelectedCategory(cat.value)}
                     style={{
-                      padding: '0 16px', height: '45px', borderRadius: '50px', fontSize: '13px', cursor: 'pointer',
-                      backgroundColor: selectedCategory === cat.value ? '#C9B6D7' : '#fff',
-                      color: selectedCategory === cat.value ? '#fff' : '#64748b',
-                      border: 'none', boxShadow: '0 2px 6px rgba(0,0,0,0.03)',
-                      fontWeight: selectedCategory === cat.value ? 'bold' : 'normal'
+                      padding: '0 18px', height: '45px', borderRadius: '50px', fontSize: '13.5px', cursor: 'pointer',
+                      backgroundColor: selectedCategory === cat.value ? '#5F50A9' : '#ffffff',
+                      color: selectedCategory === cat.value ? '#ffffff' : '#64748b',
+                      border: selectedCategory === cat.value ? 'none' : '1px solid #e2e8f0',
+                      boxShadow: selectedCategory === cat.value ? '0 4px 12px rgba(95, 80, 169, 0.3)' : '0 2px 6px rgba(0,0,0,0.03)',
+                      fontWeight: selectedCategory === cat.value ? '800' : '600',
+                      transition: 'all 0.2s ease'
                     }}
                   >
                     {cat.label}
