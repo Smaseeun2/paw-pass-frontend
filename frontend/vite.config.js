@@ -7,12 +7,9 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'https://lagged-juiciness-refreeze.ngrok-free.dev',
+        target: 'https://api.pawpass.site',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ''),
-        headers: {
-          'ngrok-skip-browser-warning': 'true',
-        },
       },
     },
   },

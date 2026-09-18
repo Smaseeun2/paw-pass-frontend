@@ -570,7 +570,7 @@ function ProfilePage() {
         <div style={{ backgroundColor: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: '12px', padding: '14px 18px', marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
           <div>
             <strong style={{ color: '#0369a1', display: 'block', fontSize: '14px', marginBottom: '2px' }}>🐾 현재 체험 모드(비로그인) 이용 중</strong>
-            <span style={{ fontSize: '13px', color: '#0c4a6e' }}>정보 입력 후 바로 로그인하시면 해당 구글 계정으로 즉시 영구 저장됩니다.</span>
+            <span style={{ fontSize: '13px', color: '#0c4a6e' }}>정보 입력 후 바로 로그인하시면 해당 구글 계정으로 프로필이 저장됩니다.</span>
           </div>
         </div>
       ) : (
@@ -1243,7 +1243,7 @@ function ProfilePage() {
                 }}
               >
                 <span>🔑</span>
-                <span>구글 로그인하고 영구 저장하기</span>
+                <span>구글 로그인하고 프로필 저장하기</span>
               </button>
             )}
 
