@@ -102,7 +102,37 @@ function Footer() {
       }}>
         <div style={{ maxWidth: '1000px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'center', textAlign: 'center' }}>
           
-          <h2 style={{ fontSize: '18px', fontWeight: 'bold', color: '#1e293b', margin: 0 }}>🐾 PawPass</h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
+            <img 
+              src="/logo.png" 
+              alt="PawPass 로고" 
+              style={{ 
+                width: '28px', 
+                height: '28px', 
+                objectFit: 'contain',
+                display: 'block'
+              }} 
+            />
+            <span style={{ 
+              fontFamily: "'Nunito', 'Comfortaa', -apple-system, sans-serif",
+              fontWeight: '900', 
+              fontSize: '20px', 
+              letterSpacing: '-0.3px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              lineHeight: 1
+            }}>
+              <span style={{ color: '#5F50A9' }}>Paw</span>
+              <span style={{ 
+                background: 'linear-gradient(135deg, #F472B6 0%, #60A5FA 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                fontWeight: '1000'
+              }}>
+                Pass
+              </span>
+            </span>
+          </div>
           <p style={{ fontSize: '13px', color: '#64748b', margin: 0 }}>반려동물과 함께하는 완벽한 여행 설계</p>
           
           <div style={{ display: 'flex', gap: '16px', fontSize: '13px', margin: '10px 0', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
