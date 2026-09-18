@@ -435,6 +435,8 @@ function SearchMapView({
     if (selectedSpotId) {
       const found = spots.find(s => String(s.id) === String(selectedSpotId));
       if (found) setActiveSpot(found);
+    } else {
+      setActiveSpot(null);
     }
   }, [selectedSpotId, spots]);
 
@@ -449,17 +451,17 @@ function SearchMapView({
       const validSpots = spots.filter(s => {
         const lat = Number(s.lat);
         const lng = Number(s.lng);
-        return !isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0;
+        return !isNaN(lat) && !isNaN(lng) && lat >= 33.0 && lat <= 38.9 && lng >= 124.5 && lng <= 132.0;
       });
 
-      const initialLat = validSpots.length > 0 ? Number(validSpots[0].lat) : 37.566826;
-      const initialLng = validSpots.length > 0 ? Number(validSpots[0].lng) : 126.978656;
+      const initialLat = validSpots.length > 0 ? Number(validSpots[0].lat) : 36.3504119;
+      const initialLng = validSpots.length > 0 ? Number(validSpots[0].lng) : 127.3845475;
 
       let map = mapInstanceRef.current;
       if (!map) {
         const options = {
           center: new kakao.maps.LatLng(initialLat, initialLng),
-          level: 7
+          level: 11
         };
         map = new kakao.maps.Map(mapContainerRef.current, options);
         mapInstanceRef.current = map;
@@ -469,7 +471,11 @@ function SearchMapView({
       markersRef.current.forEach(m => m.setMap(null));
       markersRef.current = [];
 
-      if (validSpots.length === 0) return;
+      if (validSpots.length === 0) {
+        map.setCenter(new kakao.maps.LatLng(36.3504119, 127.3845475));
+        map.setLevel(11);
+        return;
+      }
 
       const bounds = new kakao.maps.LatLngBounds();
 
@@ -509,9 +515,18 @@ function SearchMapView({
 
         markerDiv.onclick = (e) => {
           e.stopPropagation();
-          onSpotSelect(spot.id);
-          setActiveSpot(spot);
-          map.panTo(position);
+          if (String(selectedSpotId) === String(spot.id) || String(activeSpot?.id) === String(spot.id)) {
+            onSpotSelect(null);
+            setActiveSpot(null);
+          } else {
+            onSpotSelect(spot.id);
+            setActiveSpot(spot);
+            map.setCenter(position);
+            if (map.getLevel() > 5) {
+              map.setLevel(5);
+            }
+            map.panTo(position);
+          }
         };
 
         const customOverlay = new kakao.maps.CustomOverlay({
@@ -525,9 +540,33 @@ function SearchMapView({
         markersRef.current.push(customOverlay);
       });
 
-      // 영역 자동 맞춤
+      // 영역 자동 맞춤 (전국 단위 vs 특정 지역 단위)
       if (validSpots.length > 0) {
-        map.setBounds(bounds);
+        const latValues = validSpots.map(s => Number(s.lat));
+        const lngValues = validSpots.map(s => Number(s.lng));
+        const minLat = Math.min(...latValues);
+        const maxLat = Math.max(...latValues);
+        const minLng = Math.min(...lngValues);
+        const maxLng = Math.max(...lngValues);
+
+        const latSpan = maxLat - minLat;
+        const lngSpan = maxLng - minLng;
+
+        if (latSpan > 1.8 || lngSpan > 1.8) {
+          // 전국 단위인 경우: 대한민국 내륙 중심 기준으로 level: 10 설정 (세계지도로 과도 축소 방지)
+          const avgLat = (minLat + maxLat) / 2;
+          const avgLng = (minLng + maxLng) / 2;
+          map.setCenter(new kakao.maps.LatLng(avgLat || 36.2, avgLng || 127.8));
+          map.setLevel(10);
+        } else {
+          // 특정 지역 단위인 경우
+          map.setBounds(bounds);
+          setTimeout(() => {
+            if (map && map.getLevel() > 9) {
+              map.setLevel(9);
+            }
+          }, 60);
+        }
       }
     }).catch(err => console.error('지도 로드 오류:', err));
 
@@ -535,12 +574,22 @@ function SearchMapView({
   }, [spots, selectedSpotId]);
 
   const handleSpotCardClick = (spot) => {
+    if (String(selectedSpotId) === String(spot.id) || String(activeSpot?.id) === String(spot.id)) {
+      onSpotSelect(null);
+      setActiveSpot(null);
+      return;
+    }
     onSpotSelect(spot.id);
     setActiveSpot(spot);
     const lat = Number(spot.lat);
     const lng = Number(spot.lng);
     if (!isNaN(lat) && !isNaN(lng) && mapInstanceRef.current && window.kakao) {
-      mapInstanceRef.current.panTo(new window.kakao.maps.LatLng(lat, lng));
+      const position = new window.kakao.maps.LatLng(lat, lng);
+      mapInstanceRef.current.setCenter(position);
+      if (mapInstanceRef.current.getLevel() > 5) {
+        mapInstanceRef.current.setLevel(5);
+      }
+      mapInstanceRef.current.panTo(position);
     }
   };
 
@@ -548,8 +597,8 @@ function SearchMapView({
     <div style={{
       display: 'flex',
       flexDirection: 'row',
-      gap: '16px',
-      height: '660px',
+      gap: '14px',
+      height: '500px',
       backgroundColor: '#ffffff',
       borderRadius: '24px',
       overflow: 'hidden',
@@ -559,8 +608,8 @@ function SearchMapView({
     }}>
       {/* 1. 좌측 관광지 미니 리스트 패널 */}
       <div style={{
-        width: '320px',
-        minWidth: '280px',
+        width: '290px',
+        minWidth: '260px',
         height: '100%',
         overflowY: 'auto',
         borderRight: '1px solid #f1f5f9',
@@ -704,25 +753,7 @@ function SearchMapView({
               </div>
             </div>
 
-            <div style={{ display: 'flex', gap: '6px' }}>
-              <button
-                type="button"
-                onClick={() => onSpotSelect(activeSpot.id)}
-                style={{
-                  flex: 1,
-                  padding: '8px 10px',
-                  borderRadius: '50px',
-                  backgroundColor: '#5F50A9',
-                  color: '#ffffff',
-                  border: 'none',
-                  fontSize: '12px',
-                  fontWeight: 'bold',
-                  cursor: 'pointer',
-                  boxShadow: '0 2px 8px rgba(95, 80, 169, 0.25)'
-                }}
-              >
-                📖 빠른 요약 드로어
-              </button>
+            <div style={{ marginTop: '4px' }}>
               <button
                 type="button"
                 onClick={() => {
@@ -730,18 +761,27 @@ function SearchMapView({
                   navigate(`/detail/${activeSpot.id}?source=${activeSpot.source}${petIdsQuery}`);
                 }}
                 style={{
-                  flex: 1,
-                  padding: '8px 10px',
+                  width: '100%',
+                  padding: '10px 14px',
                   borderRadius: '50px',
-                  backgroundColor: '#f1f5f9',
-                  color: '#334155',
+                  backgroundColor: '#5F50A9',
+                  color: '#ffffff',
                   border: 'none',
-                  fontSize: '12px',
+                  fontSize: '13px',
                   fontWeight: 'bold',
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 12px rgba(95, 80, 169, 0.25)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  transition: 'all 0.2s ease'
                 }}
+                onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-1px)'}
+                onMouseOut={(e) => e.currentTarget.style.transform = 'none'}
               >
-                상세보기 →
+                <span>전체 상세 정보 보기</span>
+                <span>→</span>
               </button>
             </div>
           </div>
@@ -1144,12 +1184,13 @@ function SearchPage() {
       {/* 상단 모던 히어로 & 플로팅 검색창 */}
       <div style={{ 
         textAlign: 'center', 
-        padding: '44px 20px 40px 20px', 
+        padding: '34px 20px 28px 20px', 
         background: 'linear-gradient(135deg, rgba(201, 182, 215, 0.45) 0%, rgba(246, 202, 221, 0.35) 35%, rgba(197, 224, 251, 0.45) 70%, rgba(174, 210, 249, 0.4) 100%)',
-        borderRadius: '32px',
+        borderRadius: '28px',
         boxShadow: '0 12px 35px rgba(201, 182, 215, 0.22)',
-        marginBottom: '32px',
+        marginBottom: '20px',
         position: 'relative',
+        zIndex: 50,
         backdropFilter: 'blur(12px)',
         border: '1px solid rgba(255, 255, 255, 0.7)'
       }}>
@@ -1180,7 +1221,7 @@ function SearchPage() {
             border: '1px solid rgba(226, 232, 240, 0.9)',
             boxSizing: 'border-box',
             position: 'relative',
-            zIndex: 20
+            zIndex: 60
           }}
         >
           <style>{`
@@ -1237,7 +1278,7 @@ function SearchPage() {
             </div>
             
             {activeDropdown === 'region' && (
-              <div style={{ position: 'absolute', top: '56px', left: 0, width: '270px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '16px', boxShadow: '0 12px 30px rgba(0,0,0,0.12)', zIndex: 40, padding: '8px', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '3px' }}>
+              <div style={{ position: 'absolute', top: '56px', left: 0, width: '270px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '16px', boxShadow: '0 12px 30px rgba(0,0,0,0.12)', zIndex: 100, padding: '8px', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '3px' }}>
                 {REGION_OPTIONS.map(r => {
                   const isSelected = (!selectedRegionCode && !r.code) || (selectedRegionCode === r.code);
                   return (
@@ -1297,7 +1338,7 @@ function SearchPage() {
             </div>
             
             {activeDropdown === 'category' && (
-              <div style={{ position: 'absolute', top: '56px', left: 0, width: '220px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '16px', boxShadow: '0 12px 30px rgba(0,0,0,0.12)', zIndex: 40, padding: '8px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px' }}>
+              <div style={{ position: 'absolute', top: '56px', left: 0, width: '220px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '16px', boxShadow: '0 12px 30px rgba(0,0,0,0.12)', zIndex: 100, padding: '8px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px' }}>
                 <div
                   onClick={(e) => { 
                     e.stopPropagation(); 
@@ -1362,7 +1403,7 @@ function SearchPage() {
             </div>
             
             {activeDropdown === 'pet' && (
-              <div style={{ position: 'absolute', top: '56px', right: 0, width: '260px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '18px', boxShadow: '0 12px 30px rgba(0,0,0,0.12)', zIndex: 40, padding: '12px' }}>
+              <div style={{ position: 'absolute', top: '56px', right: 0, width: '260px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '18px', boxShadow: '0 12px 30px rgba(0,0,0,0.12)', zIndex: 100, padding: '12px' }}>
                 <div onClick={(e) => { e.stopPropagation(); navigate('/profile'); }} style={{ padding: '8px 10px', cursor: 'pointer', borderRadius: '10px', color: '#fff', backgroundColor: '#5F50A9', fontWeight: 'bold', textAlign: 'center', marginBottom: '12px', fontSize: '12px', boxShadow: '0 3px 10px rgba(95, 80, 169, 0.2)' }}>
                   + 내 반려동물 프로필 등록
                 </div>
@@ -1437,7 +1478,7 @@ function SearchPage() {
       </div>
 
       {/* 방문 판정 필터 버튼 바 & 뷰 모드 전환 토글 (카드형 / 지도형) */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px', marginBottom: '28px', padding: '0 4px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px', marginBottom: '16px', padding: '0 4px' }}>
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
           <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#475569', marginRight: '6px' }}>💡 방문 판정:</span>
           {MATCH_STATUS_BUTTONS.map((btn) => {
@@ -1535,36 +1576,6 @@ function SearchPage() {
             selectedPetIds={selectedPetIds}
             user={user}
           />
-
-          <div 
-            className="search-detail-drawer" 
-            style={{ 
-              position: 'fixed', top: 0, right: selectedSpotDetail ? 0 : '-620px', 
-              width: '540px', maxWidth: '92vw', height: '100vh', 
-              backgroundColor: '#ffffff', 
-              borderRadius: '28px 0 0 28px',
-              borderLeft: '1px solid rgba(226, 232, 240, 0.8)',
-              boxShadow: '-15px 0 45px rgba(95, 80, 169, 0.15)', 
-              zIndex: 100, 
-              transition: 'right 0.35s cubic-bezier(0.4, 0, 0.2, 1)', 
-              boxSizing: 'border-box', 
-              paddingTop: '60px',
-              overflow: 'hidden',
-              display: 'flex',
-              flexDirection: 'column'
-            }}
-          >
-            {selectedSpotDetail && (
-              <DrawerContent 
-                spot={selectedSpotDetail} 
-                onClose={() => setSelectedSpotId(null)} 
-                navigate={navigate} 
-                user={user} 
-                myPets={myPets} 
-                selectedPetIds={selectedPetIds}
-              />
-            )}
-          </div>
         </div>
       ) : isInitialLoading ? (
         <div className="search-layout-wrapper" style={{ display: 'flex', gap: '24px', alignItems: 'flex-start' }}>
@@ -1606,11 +1617,16 @@ function SearchPage() {
       ) : (
         <div className="search-layout-wrapper" style={{ display: 'flex', gap: '24px', alignItems: 'flex-start' }}>
           <div className="search-list-panel" style={{ flex: 1, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '24px' }}>
-            {spots.length > 0 ? (
-              spots.map((spot, idx) => {
-                const isSelected = selectedSpotId === spot.id;
-                const liked = isFavorite(spot.id);
-                const spotImg = spot.image || spot.imageUrl || spot.first_image || '';
+            {(() => {
+              const displaySpots = (spots.length >= 3)
+                ? spots.slice(0, Math.floor(spots.length / 3) * 3)
+                : spots;
+
+              return displaySpots.length > 0 ? (
+                displaySpots.map((spot, idx) => {
+                  const isSelected = selectedSpotId === spot.id;
+                  const liked = isFavorite(spot.id);
+                  const spotImg = spot.image || spot.imageUrl || spot.first_image || '';
 
                 // 카카오맵 및 네이버 지도 링크 생성
                 const lat = Number(spot.lat);
@@ -1624,7 +1640,7 @@ function SearchPage() {
                 return (
                   <div 
                     key={`${spot.id}-${idx}`}
-                    onClick={() => setSelectedSpotId(spot.id)}
+                    onClick={() => setSelectedSpotId(prev => (String(prev) === String(spot.id) ? null : spot.id))}
                     onDoubleClick={() => {
                       const petIdsQuery = selectedPetIds?.length > 0 ? `&petIds=${selectedPetIds.join(',')}` : '';
                       navigate(`/detail/${spot.id}?source=${spot.source}${petIdsQuery}`);
@@ -1655,6 +1671,7 @@ function SearchPage() {
                       <div style={{ position: 'relative', width: '100%', height: '208px', backgroundColor: spot.source === 'kcisa' ? '#C5E0FB' : '#fef3c7', borderRadius: '18px', marginBottom: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
                         <LazyImage 
                           spot={spot} 
+                          categoryHint={selectedCategory}
                           fallback={<div style={{ color: '#94a3b8', fontSize: '13px', fontWeight: 'bold', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}><span style={{ fontSize: '24px' }}>🖼️</span><span>대표 이미지 준비중</span></div>}
                         />
 
@@ -1724,7 +1741,8 @@ function SearchPage() {
               })
             ) : (
               <p style={{ gridColumn: '1 / -1', textAlign: 'center', color: '#6b7280', padding: '40px' }}>검색 조건에 일치하는 장소가 없습니다.</p>
-            )}
+            );
+          })()}
 
             {spots.length > 0 && (
               <div ref={observerTarget} style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '28px 0', color: '#94a3b8', fontSize: '14px' }}>

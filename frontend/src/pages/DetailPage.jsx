@@ -392,6 +392,89 @@ function DetailPage() {
 
   const naverMapUrl = `https://map.naver.com/p/search/${encodeURIComponent(detail.name)}`;
 
+  const getDetailPlaceholder = () => {
+    const cat = String(detail.category || detail.rawCategory || detail.type || detail.contentTypeId || detail.category_name || detail.part_name || '').toUpperCase();
+    const title = String(detail.name || detail.title || '').toLowerCase();
+    
+    // 1단계: 명시적 카테고리 최우선 매핑
+    if (cat.includes('CULTURE') || cat.includes('문화') || cat.includes('예술') || cat.includes('미술') || cat.includes('박물관') || cat.includes('전시') || cat === '14' || cat === '15' || cat.includes('A02')) {
+      return '/images/placeholders/CULTURE.png';
+    }
+    if (cat.includes('HOSPITAL') || cat.includes('병원') || cat.includes('의료') || cat.includes('약국') || cat.includes('클리닉') || cat.includes('반려의료')) {
+      return '/images/placeholders/HOSPITAL.png';
+    }
+    if (cat.includes('STAY') || cat.includes('숙박') || cat.includes('펜션') || cat.includes('호텔') || cat.includes('리조트') || cat.includes('글램핑') || cat.includes('캠핑') || cat === '32' || cat.includes('B02')) {
+      return '/images/placeholders/STAY.png';
+    }
+    if (cat.includes('CAFE') || cat.includes('카페') || cat.includes('커피') || cat.includes('디저트') || cat.includes('베이커리') || cat.includes('A0502')) {
+      return '/images/placeholders/CAFE.png';
+    }
+    if (cat.includes('FOOD') || cat.includes('음식') || cat.includes('식당') || cat.includes('맛집') || cat.includes('레스토랑') || cat.includes('식음료') || cat === '39' || cat.includes('A05')) {
+      return '/images/placeholders/FOOD.png';
+    }
+    if (cat.includes('NATURE') || cat.includes('자연') || cat.includes('풍경') || cat.includes('공원') || cat.includes('관광지') || cat.includes('휴양림') || cat === '12' || cat === '28' || cat.includes('A01') || cat.includes('A03')) {
+      return '/images/placeholders/NATURE.png';
+    }
+
+    // 2단계: 제목 기반 키워드 매핑
+    if (
+      title.includes('전시관') || title.includes('박물관') || title.includes('미술관') || title.includes('과학관') ||
+      title.includes('연구소') || title.includes('기념관') || title.includes('생태관') || title.includes('체험관') ||
+      title.includes('수족관') || title.includes('아쿠아리움') || title.includes('홍보관') || title.includes('갤러리') ||
+      title.includes('극장') || title.includes('아트') || title.includes('테마파크') || title.includes('랜드') ||
+      title.includes('목장') || title.includes('사찰') || title.includes('서원') || title.includes('향교') || title.includes('유적')
+    ) {
+      return '/images/placeholders/CULTURE.png';
+    }
+
+    if (
+      title.includes('동물병원') || title.includes('병원') || title.includes('약국') || title.includes('클리닉') ||
+      title.includes('메디컬') || title.includes('수의') || title.includes('동물의료')
+    ) {
+      return '/images/placeholders/HOSPITAL.png';
+    }
+
+    if (
+      title.includes('펜션') || title.includes('호텔') || title.includes('리조트') || title.includes('글램핑') ||
+      title.includes('캠핑') || title.includes('민박') || title.includes('스테이') || title.includes('모텔') ||
+      title.includes('야영장') || title.includes('카라반') || title.includes('게스트하우스')
+    ) {
+      return '/images/placeholders/STAY.png';
+    }
+
+    if (
+      title.includes('카페') || title.includes('커피') || title.includes('베이커리') || title.includes('디저트') ||
+      title.includes('coffee') || title.includes('cafe') || title.includes('roasters') || title.includes('찻집') || title.includes('다방')
+    ) {
+      return '/images/placeholders/CAFE.png';
+    }
+
+    const isFood = (
+      title.includes('식당') || title.includes('갈비') || title.includes('가든') || title.includes('밥집') ||
+      title.includes('구이') || title.includes('한식') || title.includes('중식') || title.includes('일식') ||
+      title.includes('양식') || title.includes('치킨') || title.includes('피자') || title.includes('버거') ||
+      title.includes('삼겹살') || title.includes('불고기') || title.includes('고깃집') || title.includes('정육') ||
+      title.includes('국밥') || title.includes('횟집') || title.includes('생선회') || title.includes('숙성회') ||
+      title.includes('주막') || title.includes('포차') || title.includes('키친') || title.includes('테이블') ||
+      title.includes('돈까스') || title.includes('초밥') || title.includes('칼국수') || title.includes('파스타') ||
+      ((title.includes('고기') || title.includes('육류')) && !title.includes('물고기') && !title.includes('민물고기'))
+    );
+    if (isFood) {
+      return '/images/placeholders/FOOD.png';
+    }
+
+    if (
+      title.includes('공원') || title.includes('산책') || title.includes('휴양림') || title.includes('해수욕장') ||
+      title.includes('숲') || title.includes('계곡') || title.includes('수목원') || title.includes('해변') ||
+      title.includes('둘레길') || title.includes('등산로') || title.includes('폭포') || title.includes('호수') ||
+      title.includes('저수지') || title.includes('섬') || title.includes('해안')
+    ) {
+      return '/images/placeholders/NATURE.png';
+    }
+    
+    return '/images/placeholders/DEFAULT.png';
+  };
+
   return (
     <>
       <div style={{
@@ -528,7 +611,7 @@ function DetailPage() {
               src={imageList[currentImageIdx]} 
               alt={`${detail.name} 대표 사진 ${currentImageIdx + 1}`} 
               style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-              onError={(e) => { e.currentTarget.src = '/images/placeholders/DEFAULT.png'; }}
+              onError={(e) => { e.currentTarget.src = getDetailPlaceholder(); }}
             />
 
             {imageList.length > 1 && (
@@ -578,9 +661,12 @@ function DetailPage() {
             )}
           </div>
         ) : (
-          <div style={{ width: '100%', height: '260px', backgroundColor: '#ffffff', borderRadius: '28px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', marginBottom: '32px', boxShadow: '0 10px 30px rgba(0,0,0,0.04)' }}>
-            <span style={{ fontSize: '40px', marginBottom: '10px' }}>🖼️</span>
-            <span style={{ fontSize: '15px', fontWeight: 'bold' }}>등록된 대표 이미지가 준비 중입니다</span>
+          <div style={{ position: 'relative', width: '100%', height: '360px', marginBottom: '32px', borderRadius: '28px', overflow: 'hidden', backgroundColor: '#f1f5f9', boxShadow: '0 15px 35px rgba(0,0,0,0.08)' }}>
+            <img 
+              src={getDetailPlaceholder()} 
+              alt={detail.name}
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            />
           </div>
         )}
 
