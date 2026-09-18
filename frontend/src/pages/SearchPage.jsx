@@ -409,7 +409,7 @@ function DrawerContent({ spot, onClose, navigate, user, myPets, selectedPetIds =
           onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 12px 28px rgba(95, 80, 169, 0.45)'; }}
           onMouseOut={(e) => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(95, 80, 169, 0.35)'; }}
         >
-          <span>전체 상세 페이지 보기</span>
+          <span>장소 상세정보 보기</span>
           <span>→</span>
         </button>
       </div>
@@ -423,24 +423,52 @@ function SearchMapView({
   onSpotSelect, 
   navigate, 
   selectedPetIds = [],
-  user 
+  user,
+  userLocation = null,
+  loadMore,
+  isFetchingMore = false,
+  hasMore = false
 }) {
   const mapContainerRef = useRef(null);
   const mapInstanceRef = useRef(null);
-  const markersRef = useRef([]);
+  const markersRef = useRef(new Map());
+  const userMarkerRef = useRef(null);
+  const mapObserverTarget = useRef(null);
   const [activeSpot, setActiveSpot] = useState(null);
 
-  // 선택된 spot이 변경되면 activeSpot 동기화
+  // 0. 좌측 리스트 무한 스크롤 연동
   useEffect(() => {
-    if (selectedSpotId) {
-      const found = spots.find(s => String(s.id) === String(selectedSpotId));
-      if (found) setActiveSpot(found);
-    } else {
-      setActiveSpot(null);
-    }
-  }, [selectedSpotId, spots]);
+    const target = mapObserverTarget.current;
+    if (!target) return;
 
-  // 카카오맵 렌더링 및 마커 등록
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !isFetchingMore && hasMore && loadMore) {
+          loadMore();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [loadMore, isFetchingMore, hasMore]);
+
+  // 1. 관광지 선택 토글 핸들러
+  const handleSpotSelection = useCallback((spot) => {
+    if (!spot) {
+      onSpotSelect(null);
+      return;
+    }
+    if (String(selectedSpotId) === String(spot.id)) {
+      // 이미 선택된 관광지 클릭 시 해제
+      onSpotSelect(null);
+      return;
+    }
+    onSpotSelect(spot.id);
+  }, [selectedSpotId, onSpotSelect]);
+
+  // 2. 카카오맵 인스턴스 초기화 및 전체 마커 등록 (spots 변경 시에만 최초 1회 실행)
   useEffect(() => {
     let isMounted = true;
     loadKakaoMapSdk().then(() => {
@@ -448,164 +476,431 @@ function SearchMapView({
       const kakao = window.kakao;
       if (!kakao || !kakao.maps) return;
 
-      const validSpots = spots.filter(s => {
-        const lat = Number(s.lat);
-        const lng = Number(s.lng);
-        return !isNaN(lat) && !isNaN(lng) && lat >= 33.0 && lat <= 38.9 && lng >= 124.5 && lng <= 132.0;
+      // 기존 오버레이 정리
+      markersRef.current.forEach(item => {
+        if (item?.overlay) item.overlay.setMap(null);
       });
-
-      const initialLat = validSpots.length > 0 ? Number(validSpots[0].lat) : 36.3504119;
-      const initialLng = validSpots.length > 0 ? Number(validSpots[0].lng) : 127.3845475;
+      markersRef.current.clear();
 
       let map = mapInstanceRef.current;
-      if (!map) {
+      if (!map || !mapContainerRef.current.hasChildNodes()) {
+        mapContainerRef.current.innerHTML = '';
         const options = {
-          center: new kakao.maps.LatLng(initialLat, initialLng),
-          level: 11
+          center: new kakao.maps.LatLng(35.9, 127.8),
+          level: 13
         };
         map = new kakao.maps.Map(mapContainerRef.current, options);
         mapInstanceRef.current = map;
+
+        // 줌 컨트롤러 추가
+        const zoomControl = new kakao.maps.ZoomControl();
+        map.addControl(zoomControl, kakao.maps.ControlPosition.RIGHT);
       }
 
-      // 기존 마커 및 오버레이 제거
-      markersRef.current.forEach(m => m.setMap(null));
-      markersRef.current = [];
+      setTimeout(() => {
+        if (map) map.relayout();
+      }, 60);
 
-      if (validSpots.length === 0) {
-        map.setCenter(new kakao.maps.LatLng(36.3504119, 127.3845475));
-        map.setLevel(11);
+      if (!spots || spots.length === 0) {
+        map.setCenter(new kakao.maps.LatLng(35.9, 127.8));
+        map.setLevel(13);
         return;
       }
 
-      const bounds = new kakao.maps.LatLngBounds();
-
-      validSpots.forEach((spot) => {
-        const lat = Number(spot.lat);
-        const lng = Number(spot.lng);
-        const position = new kakao.maps.LatLng(lat, lng);
-        bounds.extend(position);
+      // 개별 스팟에 대해 마커 생성 함수
+      const createMarkerForSpot = (spot, position) => {
+        if (!isMounted || !map) return;
 
         const isPossible = spot.matchStatus === '가능';
         const isConditional = spot.matchStatus === '조건부 가능' || spot.matchStatus === '조건부';
         const isRestricted = spot.matchStatus === '불가' || spot.matchStatus === '방문 불가';
-        
-        const pinBg = isPossible ? '#16A34A' : isConditional ? '#D97706' : isRestricted ? '#DC2626' : '#5F50A9';
-        const isSelected = selectedSpotId && String(selectedSpotId) === String(spot.id);
+        const pinBg = isPossible ? '#16A34A' : isConditional ? '#EAB308' : isRestricted ? '#DC2626' : '#5F50A9';
+        const isSelected = String(selectedSpotId) === String(spot.id);
 
-        const markerDiv = document.createElement('div');
-        markerDiv.style.cssText = `
-          background-color: ${pinBg};
+        // 마커 컨테이너 (핀 + 상단 명칭 말풍선 태그)
+        const containerDiv = document.createElement('div');
+        containerDiv.id = `marker-pin-${spot.id}`;
+        containerDiv.style.cssText = `
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          cursor: pointer;
+          transform: translate3d(0, 0, 0);
+          transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+          z-index: ${isSelected ? 50 : 10};
+        `;
+
+        // 1) 상단 장소명 말풍선 라벨
+        const labelDiv = document.createElement('div');
+        labelDiv.className = 'pawpass-pin-label';
+        labelDiv.style.cssText = `
+          background: rgba(15, 23, 42, 0.9);
           color: #ffffff;
+          font-size: 11px;
+          font-weight: 800;
+          padding: 3px 8px;
+          border-radius: 6px;
+          white-space: nowrap;
+          margin-bottom: 4px;
+          box-shadow: 0 4px 10px rgba(0,0,0,0.25);
+          display: ${isSelected ? 'block' : 'none'};
+          pointer-events: none;
+          letter-spacing: -0.2px;
+          border: 1px solid rgba(255, 255, 255, 0.2);
+        `;
+        labelDiv.innerText = spot.name;
+        containerDiv.appendChild(labelDiv);
+
+        // 2) 눈에 띄는 핀 본체 (물방울/핀 형태)
+        const pinBody = document.createElement('div');
+        pinBody.className = 'pawpass-pin-body';
+        pinBody.style.cssText = `
+          position: relative;
           width: ${isSelected ? '38px' : '32px'};
           height: ${isSelected ? '38px' : '32px'};
-          border-radius: 50%;
+          background: ${pinBg};
+          border-radius: 50% 50% 50% 0;
+          transform: rotate(-45deg);
+          border: 2.5px solid #ffffff;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.35);
           display: flex;
           align-items: center;
           justify-content: center;
-          font-weight: 800;
-          font-size: 13px;
-          border: 2.5px solid #ffffff;
-          box-shadow: 0 4px 14px rgba(0,0,0,0.3);
-          cursor: pointer;
-          transition: transform 0.2s ease, width 0.2s ease, height 0.2s ease;
-          position: relative;
+          transition: all 0.2s ease;
         `;
-        markerDiv.innerHTML = `<span>🐾</span>`;
-        markerDiv.title = `${spot.name} (${spot.matchStatus || '동반 확인'})`;
 
-        markerDiv.onclick = (e) => {
-          e.stopPropagation();
-          if (String(selectedSpotId) === String(spot.id) || String(activeSpot?.id) === String(spot.id)) {
-            onSpotSelect(null);
-            setActiveSpot(null);
-          } else {
-            onSpotSelect(spot.id);
-            setActiveSpot(spot);
-            map.setCenter(position);
-            if (map.getLevel() > 5) {
-              map.setLevel(5);
-            }
-            map.panTo(position);
+        // 3) 핀 내부 발자국 아이콘
+        const iconSpan = document.createElement('span');
+        iconSpan.style.cssText = `
+          transform: rotate(45deg);
+          font-size: ${isSelected ? '16px' : '14px'};
+          line-height: 1;
+          display: inline-block;
+          user-select: none;
+        `;
+        iconSpan.innerText = '🐾';
+        pinBody.appendChild(iconSpan);
+        containerDiv.appendChild(pinBody);
+
+        containerDiv.title = `${spot.name} (${spot.matchStatus || '동반 확인'})`;
+
+        // 마우스 호버 인터랙션
+        containerDiv.onmouseenter = () => {
+          if (String(selectedSpotId) !== String(spot.id)) {
+            labelDiv.style.display = 'block';
+            containerDiv.style.transform = 'translateY(-4px) scale(1.1)';
+            containerDiv.style.zIndex = '40';
           }
+        };
+        containerDiv.onmouseleave = () => {
+          if (String(selectedSpotId) !== String(spot.id)) {
+            labelDiv.style.display = 'none';
+            containerDiv.style.transform = 'none';
+            containerDiv.style.zIndex = '10';
+          }
+        };
+
+        // 클릭 이벤트
+        containerDiv.onclick = (e) => {
+          e.stopPropagation();
+          handleSpotSelection(spot);
         };
 
         const customOverlay = new kakao.maps.CustomOverlay({
           position,
-          content: markerDiv,
-          yAnchor: 0.5,
-          zIndex: isSelected ? 10 : 2
+          content: containerDiv,
+          clickable: true,
+          xAnchor: 0.5,
+          yAnchor: 1.0, // 핀 끝점이 정확한 좌표를 가리킴
+          zIndex: isSelected ? 50 : 10
         });
 
         customOverlay.setMap(map);
-        markersRef.current.push(customOverlay);
+        markersRef.current.set(String(spot.id), { 
+          overlay: customOverlay, 
+          element: containerDiv, 
+          labelElement: labelDiv,
+          bodyElement: pinBody,
+          position, 
+          spot 
+        });
+      };
+
+      // 스팟 목록 순회 및 좌표 등록 (좌표 없는 경우 Geocoder 폴백)
+      const geocoder = kakao.maps.services ? new kakao.maps.services.Geocoder() : null;
+
+      spots.forEach((spot) => {
+        const lat = Number(spot.lat);
+        const lng = Number(spot.lng);
+        const hasCoords = !isNaN(lat) && !isNaN(lng) && lat >= 33.0 && lat <= 38.9 && lng >= 124.5 && lng <= 132.0;
+
+        if (hasCoords) {
+          const position = new kakao.maps.LatLng(lat, lng);
+          createMarkerForSpot(spot, position);
+        } else if (spot.address && geocoder) {
+          // 좌표가 없을 경우 주소 지오코딩으로 마커 자동 생성
+          geocoder.addressSearch(spot.address, (result, status) => {
+            if (!isMounted || !map) return;
+            if (status === kakao.maps.services.Status.OK && result[0]) {
+              const geoLat = Number(result[0].y);
+              const geoLng = Number(result[0].x);
+              spot.lat = geoLat;
+              spot.lng = geoLng;
+              const position = new kakao.maps.LatLng(geoLat, geoLng);
+              createMarkerForSpot(spot, position);
+            }
+          });
+        }
       });
 
-      // 영역 자동 맞춤 (전국 단위 vs 특정 지역 단위)
-      if (validSpots.length > 0) {
-        const latValues = validSpots.map(s => Number(s.lat));
-        const lngValues = validSpots.map(s => Number(s.lng));
-        const minLat = Math.min(...latValues);
-        const maxLat = Math.max(...latValues);
-        const minLng = Math.min(...lngValues);
-        const maxLng = Math.max(...lngValues);
+      // 전체 뷰 영역 자동 맞춤 (선택된 스팟이 없을 때만 실행)
+      if (!selectedSpotId) {
+        setTimeout(() => {
+          if (!isMounted || !map) return;
+          const validCoords = Array.from(markersRef.current.values()).map(m => m.position);
+          if (validCoords.length > 0) {
+            const latValues = validCoords.map(p => p.getLat());
+            const lngValues = validCoords.map(p => p.getLng());
+            const minLat = Math.min(...latValues);
+            const maxLat = Math.max(...latValues);
+            const minLng = Math.min(...lngValues);
+            const maxLng = Math.max(...lngValues);
+            const latSpan = maxLat - minLat;
+            const lngSpan = maxLng - minLng;
 
-        const latSpan = maxLat - minLat;
-        const lngSpan = maxLng - minLng;
-
-        if (latSpan > 1.8 || lngSpan > 1.8) {
-          // 전국 단위인 경우: 대한민국 내륙 중심 기준으로 level: 10 설정 (세계지도로 과도 축소 방지)
-          const avgLat = (minLat + maxLat) / 2;
-          const avgLng = (minLng + maxLng) / 2;
-          map.setCenter(new kakao.maps.LatLng(avgLat || 36.2, avgLng || 127.8));
-          map.setLevel(10);
-        } else {
-          // 특정 지역 단위인 경우
-          map.setBounds(bounds);
-          setTimeout(() => {
-            if (map && map.getLevel() > 9) {
-              map.setLevel(9);
+            if (latSpan > 1.5 || lngSpan > 1.5) {
+              map.setCenter(new kakao.maps.LatLng(35.9, 127.8));
+              map.setLevel(13);
+            } else {
+              const fitBounds = new kakao.maps.LatLngBounds();
+              validCoords.forEach(p => fitBounds.extend(p));
+              map.setBounds(fitBounds);
+              setTimeout(() => {
+                if (map && map.getLevel() > 9) {
+                  map.setLevel(9);
+                }
+              }, 80);
             }
-          }, 60);
-        }
+          } else {
+            map.setCenter(new kakao.maps.LatLng(35.9, 127.8));
+            map.setLevel(13);
+          }
+        }, 100);
       }
+
     }).catch(err => console.error('지도 로드 오류:', err));
 
-    return () => { isMounted = false; };
-  }, [spots, selectedSpotId]);
+    return () => { 
+      isMounted = false; 
+      markersRef.current.forEach(item => {
+        if (item?.overlay) item.overlay.setMap(null);
+      });
+      markersRef.current.clear();
+    };
+  }, [spots]);
 
-  const handleSpotCardClick = (spot) => {
-    if (String(selectedSpotId) === String(spot.id) || String(activeSpot?.id) === String(spot.id)) {
-      onSpotSelect(null);
-      setActiveSpot(null);
-      return;
-    }
-    onSpotSelect(spot.id);
-    setActiveSpot(spot);
-    const lat = Number(spot.lat);
-    const lng = Number(spot.lng);
-    if (!isNaN(lat) && !isNaN(lng) && mapInstanceRef.current && window.kakao) {
-      const position = new window.kakao.maps.LatLng(lat, lng);
-      mapInstanceRef.current.setCenter(position);
-      if (mapInstanceRef.current.getLevel() > 5) {
-        mapInstanceRef.current.setLevel(5);
+  // 3. 선택된 관광지 중심 이동 및 마커 핀 하이라이트 동기화
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    const kakao = window.kakao;
+
+    if (selectedSpotId) {
+      const found = spots.find(s => String(s.id) === String(selectedSpotId));
+      setActiveSpot(found || null);
+
+      if (map && kakao && found) {
+        const lat = Number(found.lat);
+        const lng = Number(found.lng);
+        const hasValidCoords = !isNaN(lat) && !isNaN(lng) && lat >= 33.0 && lat <= 38.9 && lng >= 124.5 && lng <= 132.0;
+
+        if (hasValidCoords) {
+          const targetPos = new kakao.maps.LatLng(lat, lng);
+          map.setLevel(4);
+          map.setCenter(targetPos);
+          map.panTo(targetPos);
+        } else if (found.address && kakao.maps.services) {
+          const geocoder = new kakao.maps.services.Geocoder();
+          geocoder.addressSearch(found.address, (result, status) => {
+            if (status === kakao.maps.services.Status.OK && result[0]) {
+              const targetPos = new kakao.maps.LatLng(Number(result[0].y), Number(result[0].x));
+              map.setLevel(4);
+              map.setCenter(targetPos);
+              map.panTo(targetPos);
+            }
+          });
+        }
       }
-      mapInstanceRef.current.panTo(position);
+    } else {
+      setActiveSpot(null);
+      // 선택 해제 시 전체 뷰로 복귀
+      if (map && kakao) {
+        const validCoords = Array.from(markersRef.current.values()).map(m => m.position);
+        if (validCoords.length > 0) {
+          const latValues = validCoords.map(p => p.getLat());
+          const lngValues = validCoords.map(p => p.getLng());
+          const latSpan = Math.max(...latValues) - Math.min(...latValues);
+          const lngSpan = Math.max(...lngValues) - Math.min(...lngValues);
+
+          if (latSpan > 1.5 || lngSpan > 1.5) {
+            map.setCenter(new kakao.maps.LatLng(35.9, 127.8));
+            map.setLevel(13);
+          } else {
+            const fitBounds = new kakao.maps.LatLngBounds();
+            validCoords.forEach(p => fitBounds.extend(p));
+            map.setBounds(fitBounds);
+            setTimeout(() => {
+              if (map && map.getLevel() > 9) map.setLevel(9);
+            }, 80);
+          }
+        } else {
+          map.setCenter(new kakao.maps.LatLng(35.9, 127.8));
+          map.setLevel(13);
+        }
+      }
     }
-  };
+
+    // 마커 UI 하이라이트 동기화
+    markersRef.current.forEach(({ element, labelElement, bodyElement, overlay }, id) => {
+      const isSelected = String(id) === String(selectedSpotId);
+      if (element) {
+        element.style.zIndex = isSelected ? '50' : '10';
+        element.style.transform = isSelected ? 'translateY(-6px) scale(1.2)' : 'none';
+      }
+      if (labelElement) {
+        labelElement.style.display = isSelected ? 'block' : 'none';
+      }
+      if (bodyElement) {
+        bodyElement.style.width = isSelected ? '38px' : '32px';
+        bodyElement.style.height = isSelected ? '38px' : '32px';
+        bodyElement.style.boxShadow = isSelected 
+          ? '0 6px 18px rgba(95, 80, 169, 0.5), 0 0 0 3px rgba(95, 80, 169, 0.35)' 
+          : '0 4px 12px rgba(0,0,0,0.35)';
+      }
+      if (overlay) {
+        overlay.setZIndex(isSelected ? 50 : 10);
+      }
+    });
+  }, [selectedSpotId, spots]);
+
+  // 4. 내 현위치 마커 렌더링 및 중심 이동
+  useEffect(() => {
+    let isMounted = true;
+    loadKakaoMapSdk().then(() => {
+      if (!isMounted) return;
+      const map = mapInstanceRef.current;
+      const kakao = window.kakao;
+      if (!map || !kakao || !kakao.maps) return;
+
+      if (userMarkerRef.current) {
+        userMarkerRef.current.setMap(null);
+        userMarkerRef.current = null;
+      }
+
+      if (!userLocation || !userLocation.lat || !userLocation.lng) return;
+
+      const userPos = new kakao.maps.LatLng(userLocation.lat, userLocation.lng);
+
+      const userPinDiv = document.createElement('div');
+      userPinDiv.style.cssText = `
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        z-index: 60;
+        pointer-events: none;
+      `;
+      userPinDiv.innerHTML = `
+        <div style="
+          background: #3B82F6;
+          color: #ffffff;
+          font-size: 11px;
+          font-weight: 800;
+          padding: 3px 9px;
+          border-radius: 6px;
+          white-space: nowrap;
+          margin-bottom: 4px;
+          box-shadow: 0 4px 10px rgba(59, 130, 246, 0.4);
+          border: 1px solid rgba(255,255,255,0.6);
+          letter-spacing: -0.2px;
+        ">
+          📍 내 현재 위치
+        </div>
+        <div style="
+          position: relative;
+          width: 24px;
+          height: 24px;
+          background: #3B82F6;
+          border-radius: 50%;
+          border: 3px solid #ffffff;
+          box-shadow: 0 4px 12px rgba(59, 130, 246, 0.5);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        ">
+          <div style="
+            width: 8px;
+            height: 8px;
+            background: #ffffff;
+            border-radius: 50%;
+          "></div>
+          <div style="
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            border: 2px solid #3B82F6;
+            animation: user-loc-pulse 1.8s infinite ease-out;
+          "></div>
+        </div>
+      `;
+
+      const userOverlay = new kakao.maps.CustomOverlay({
+        position: userPos,
+        content: userPinDiv,
+        xAnchor: 0.5,
+        yAnchor: 1.0,
+        zIndex: 60
+      });
+
+      userOverlay.setMap(map);
+      userMarkerRef.current = userOverlay;
+
+      // 관광지가 선택되어 있지 않은 경우 내 위치로 이동
+      if (!selectedSpotId) {
+        map.setLevel(6);
+        map.setCenter(userPos);
+        map.panTo(userPos);
+      }
+    }).catch(err => console.error('내 위치 마커 표시 오류:', err));
+
+    return () => {
+      isMounted = false;
+      if (userMarkerRef.current) {
+        userMarkerRef.current.setMap(null);
+        userMarkerRef.current = null;
+      }
+    };
+  }, [userLocation, selectedSpotId]);
 
   return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'row',
-      gap: '14px',
-      height: '500px',
-      backgroundColor: '#ffffff',
-      borderRadius: '24px',
-      overflow: 'hidden',
-      boxShadow: '0 10px 30px rgba(0,0,0,0.06)',
-      border: '1px solid #e2e8f0',
-      position: 'relative'
-    }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      <div style={{
+        display: 'flex',
+        flexDirection: 'row',
+        gap: '14px',
+        height: '500px',
+        backgroundColor: '#ffffff',
+        borderRadius: '24px',
+        overflow: 'hidden',
+        boxShadow: '0 10px 30px rgba(0,0,0,0.06)',
+        border: '1px solid #e2e8f0',
+        position: 'relative'
+      }}>
+      <style>{`
+        @keyframes user-loc-pulse {
+          0% { transform: scale(1); opacity: 0.9; }
+          100% { transform: scale(2.6); opacity: 0; }
+        }
+      `}</style>
       {/* 1. 좌측 관광지 미니 리스트 패널 */}
       <div style={{
         width: '290px',
@@ -618,12 +913,13 @@ function SearchMapView({
         flexDirection: 'column',
         boxSizing: 'border-box'
       }}>
-        <div style={{ padding: '16px 18px', backgroundColor: '#ffffff', borderBottom: '1px solid #f1f5f9', position: 'sticky', top: 0, zIndex: 5 }}>
-          <span style={{ fontSize: '13px', fontWeight: '800', color: '#1e293b' }}>
+        <div style={{ padding: '14px 16px', backgroundColor: '#ffffff', borderBottom: '1px solid #f1f5f9', position: 'sticky', top: 0, zIndex: 5 }}>
+          <span style={{ fontSize: '13px', fontWeight: '800', color: '#1e293b', display: 'block', marginBottom: '4px' }}>
             📍 지도 표시 장소 ({spots.length}개)
           </span>
-          <p style={{ margin: '2px 0 0 0', fontSize: '11px', color: '#64748b' }}>
-            장소를 누르면 지도가 해당 위치로 이동합니다
+          <p style={{ margin: 0, fontSize: '11px', color: '#64748b', lineHeight: '1.5' }}>
+            장소 클릭 시 해당 위치로 이동하며,<br />
+            목록을 아래로 스크롤하면 장소가 더 추가됩니다.
           </p>
         </div>
 
@@ -638,7 +934,7 @@ function SearchMapView({
               return (
                 <div
                   key={`${spot.id}-${idx}`}
-                  onClick={() => handleSpotCardClick(spot)}
+                  onClick={() => handleSpotSelection(spot)}
                   style={{
                     backgroundColor: isSelected ? '#F3EEFA' : '#ffffff',
                     border: isSelected ? '1.5px solid #5F50A9' : '1px solid #f1f5f9',
@@ -688,6 +984,41 @@ function SearchMapView({
           ) : (
             <div style={{ textAlign: 'center', padding: '40px 10px', color: '#94a3b8', fontSize: '12px' }}>
               검색된 장소가 없습니다.
+            </div>
+          )}
+
+          {spots.length > 0 && (
+            <div ref={mapObserverTarget} style={{ textAlign: 'center', padding: '14px 8px', color: '#94a3b8', fontSize: '11.5px', borderTop: '1px dashed #f1f5f9' }}>
+              {isFetchingMore ? (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', color: '#5F50A9', fontWeight: 'bold' }}>
+                  <span>⏳</span>
+                  <span>추가 장소를 지도에 로딩 중...</span>
+                </div>
+              ) : hasMore ? (
+                <button
+                  type="button"
+                  onClick={() => loadMore && loadMore()}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    backgroundColor: '#F3EEFA',
+                    color: '#5F50A9',
+                    border: '1px solid rgba(95, 80, 169, 0.25)',
+                    borderRadius: '10px',
+                    fontSize: '11.5px',
+                    fontWeight: '800',
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 6px rgba(95, 80, 169, 0.08)',
+                    transition: 'all 0.15s ease'
+                  }}
+                  onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#EAE1F7'}
+                  onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#F3EEFA'}
+                >
+                  ➕ 스크롤하여 더 많은 장소 불러오기
+                </button>
+              ) : (
+                <span style={{ fontWeight: '600' }}>✨ 모든 장소를 지도에 표시했습니다!</span>
+              )}
             </div>
           )}
         </div>
@@ -780,7 +1111,7 @@ function SearchMapView({
                 onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-1px)'}
                 onMouseOut={(e) => e.currentTarget.style.transform = 'none'}
               >
-                <span>전체 상세 정보 보기</span>
+                <span>장소 상세정보 보기</span>
                 <span>→</span>
               </button>
             </div>
@@ -788,6 +1119,98 @@ function SearchMapView({
         )}
       </div>
     </div>
+
+    {/* 🗺️ 지도 핀 색상 체계 범례 (Legend) */}
+    <div style={{
+      padding: '12px 20px',
+      backgroundColor: '#ffffff',
+      borderRadius: '18px',
+      border: '1px solid #e2e8f0',
+      boxShadow: '0 4px 14px rgba(0,0,0,0.03)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      flexWrap: 'wrap',
+      gap: '12px'
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <span style={{ fontSize: '13px', fontWeight: '800', color: '#1e293b' }}>📍 핀 색상 가이드</span>
+        <span style={{ fontSize: '11px', color: '#94a3b8' }}>| 판정 결과 및 상태별 마커 안내</span>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+        {/* 🟢 동반 가능 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{
+            width: '12px',
+            height: '12px',
+            borderRadius: '50%',
+            backgroundColor: '#16A34A',
+            border: '2px solid #ffffff',
+            boxShadow: '0 0 0 1.5px #16A34A',
+            display: 'inline-block'
+          }} />
+          <span style={{ fontSize: '12px', fontWeight: '700', color: '#334155' }}>동반 가능</span>
+        </div>
+
+        {/* 🟡 조건부 가능 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{
+            width: '12px',
+            height: '12px',
+            borderRadius: '50%',
+            backgroundColor: '#EAB308',
+            border: '2px solid #ffffff',
+            boxShadow: '0 0 0 1.5px #EAB308',
+            display: 'inline-block'
+          }} />
+          <span style={{ fontSize: '12px', fontWeight: '700', color: '#334155' }}>조건부 가능</span>
+        </div>
+
+        {/* 🔴 방문 불가 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{
+            width: '12px',
+            height: '12px',
+            borderRadius: '50%',
+            backgroundColor: '#DC2626',
+            border: '2px solid #ffffff',
+            boxShadow: '0 0 0 1.5px #DC2626',
+            display: 'inline-block'
+          }} />
+          <span style={{ fontSize: '12px', fontWeight: '700', color: '#334155' }}>방문 불가</span>
+        </div>
+
+        {/* 🟣 기본 / 동반 확인 필요 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{
+            width: '12px',
+            height: '12px',
+            borderRadius: '50%',
+            backgroundColor: '#5F50A9',
+            border: '2px solid #ffffff',
+            boxShadow: '0 0 0 1.5px #5F50A9',
+            display: 'inline-block'
+          }} />
+          <span style={{ fontSize: '12px', fontWeight: '700', color: '#334155' }}>동반 확인 필요</span>
+        </div>
+
+        {/* 🔵 내 현재 위치 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{
+            width: '12px',
+            height: '12px',
+            borderRadius: '50%',
+            backgroundColor: '#3B82F6',
+            border: '2px solid #ffffff',
+            boxShadow: '0 0 0 1.5px #3B82F6',
+            display: 'inline-block'
+          }} />
+          <span style={{ fontSize: '12px', fontWeight: '700', color: '#334155' }}>내 현재 위치</span>
+        </div>
+      </div>
+    </div>
+  </div>
   );
 }
 
@@ -859,12 +1282,89 @@ function SearchPage() {
 
   const [activeDropdown, setActiveDropdown] = useState(null);
   const [selectedSpotId, setSelectedSpotId] = useState(null);
+  const [userLocation, setUserLocation] = useState(null);
+  const [isLocating, setIsLocating] = useState(false);
+  const [showLocationModal, setShowLocationModal] = useState(false);
 
   const dropdownRef = useRef(null);
   const observerTarget = useRef(null);
   // 선택된 펫 IDs를 ref에도 동기화 (클로저 캡처 문제 방지 → 검색 시 최신값 보장)
   const selectedPetIdsRef = useRef(selectedPetIds);
   useEffect(() => { selectedPetIdsRef.current = selectedPetIds; }, [selectedPetIds]);
+
+  // 📍 GPS 기반 현재 내 위치 검색 & 지역 필터링 핸들러
+  const handleCurrentLocationSearch = useCallback(() => {
+    if (!navigator.geolocation) {
+      toast.error('현재 브라우저에서 위치 정보를 지원하지 않습니다.');
+      setShowLocationModal(false);
+      return;
+    }
+
+    setIsLocating(true);
+    toast.info('현재 위치를 확인 중입니다...');
+
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        setUserLocation({ lat, lng });
+
+        try {
+          await loadKakaoMapSdk();
+          const kakao = window.kakao;
+          if (kakao && kakao.maps && kakao.maps.services) {
+            const geocoder = new kakao.maps.services.Geocoder();
+            geocoder.coord2RegionCode(lng, lat, (result, status) => {
+              setIsLocating(false);
+              setShowLocationModal(false);
+              setActiveDropdown(null);
+
+              if (status === kakao.maps.services.Status.OK && result && result.length > 0) {
+                const regionInfo = result.find(r => r.region_type === 'H') || result[0];
+                const region1Name = regionInfo.region_1depth_name || '';
+                const matched = findRegion(region1Name);
+
+                setSelectedRegionCode(matched.code);
+                setSelectedRegionName(`📍 ${matched.label}`);
+
+                fetchSpots({
+                  regionCode: matched.code,
+                  category: selectedCategory,
+                  matchStatus: selectedMatchStatus,
+                  petIds: selectedPetIdsRef.current,
+                  keyword: keyword.trim()
+                }, false);
+
+                toast.success(`현재 위치(${regionInfo.address_name || matched.fullName}) 기준으로 장소를 검색합니다.`);
+              } else {
+                toast.info('내 위치를 지도에 표시했습니다.');
+              }
+            });
+          } else {
+            setIsLocating(false);
+            setShowLocationModal(false);
+            setActiveDropdown(null);
+          }
+        } catch (err) {
+          console.error('위치 지오코딩 실패:', err);
+          setIsLocating(false);
+          setShowLocationModal(false);
+          setActiveDropdown(null);
+        }
+      },
+      (err) => {
+        setIsLocating(false);
+        setShowLocationModal(false);
+        console.warn('위치 권한 오류:', err);
+        if (err.code === 1) {
+          toast.error('위치 권한이 차단되었습니다. 브라우저 위치 권한을 허용해주세요.');
+        } else {
+          toast.error('위치 정보를 가져올 수 없습니다. 다시 시도해주세요.');
+        }
+      },
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
+    );
+  }, [selectedCategory, selectedMatchStatus, keyword, fetchSpots]);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -1278,41 +1778,80 @@ function SearchPage() {
             </div>
             
             {activeDropdown === 'region' && (
-              <div style={{ position: 'absolute', top: '56px', left: 0, width: '270px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '16px', boxShadow: '0 12px 30px rgba(0,0,0,0.12)', zIndex: 100, padding: '8px', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '3px' }}>
-                {REGION_OPTIONS.map(r => {
-                  const isSelected = (!selectedRegionCode && !r.code) || (selectedRegionCode === r.code);
-                  return (
-                    <div 
-                      key={r.code || 'all'}
-                      onClick={(e) => { 
-                        e.stopPropagation(); 
-                        setSelectedRegionCode(r.code); 
-                        setSelectedRegionName(r.code ? r.label : ''); 
-                        setActiveDropdown(null);
-                        fetchSpots({
-                          regionCode: r.code,
-                          category: selectedCategory,
-                          matchStatus: selectedMatchStatus,
-                          petIds: selectedPetIdsRef.current,
-                          keyword: keyword.trim()
-                        }, false);
-                      }}
-                      style={{ 
-                        padding: '7px 4px', 
-                        fontSize: '12.5px', 
-                        borderRadius: '8px', 
-                        cursor: 'pointer', 
-                        textAlign: 'center', 
-                        backgroundColor: isSelected ? '#5F50A9' : 'transparent', 
-                        color: isSelected ? '#fff' : '#334155', 
-                        fontWeight: isSelected ? 'bold' : '600',
-                        transition: 'all 0.15s ease'
-                      }}
-                    >
-                      {r.label}
-                    </div>
-                  );
-                })}
+              <div style={{ position: 'absolute', top: '56px', left: 0, width: '280px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '20px', boxShadow: '0 16px 36px rgba(0,0,0,0.12)', zIndex: 100, padding: '12px', boxSizing: 'border-box' }}>
+                {/* 📍 현재 내 위치 GPS 버튼 */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActiveDropdown(null);
+                    setShowLocationModal(true);
+                  }}
+                  disabled={isLocating}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    marginBottom: '10px',
+                    backgroundColor: '#F3EEFA',
+                    color: '#5F50A9',
+                    border: '1.5px solid rgba(95, 80, 169, 0.25)',
+                    borderRadius: '12px',
+                    fontSize: '13px',
+                    fontWeight: '800',
+                    cursor: isLocating ? 'wait' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    boxShadow: '0 2px 8px rgba(95, 80, 169, 0.1)',
+                    transition: 'all 0.2s ease',
+                    opacity: isLocating ? 0.7 : 1
+                  }}
+                  onMouseOver={(e) => { if (!isLocating) { e.currentTarget.style.backgroundColor = '#EAE1F7'; e.currentTarget.style.transform = 'translateY(-1px)'; } }}
+                  onMouseOut={(e) => { if (!isLocating) { e.currentTarget.style.backgroundColor = '#F3EEFA'; e.currentTarget.style.transform = 'none'; } }}
+                >
+                  <span style={{ fontSize: '15px' }}>📍</span>
+                  <span>{isLocating ? '현재 위치 확인 중...' : '현재 내 위치로 검색'}</span>
+                </button>
+
+                <div style={{ height: '1px', backgroundColor: '#f1f5f9', marginBottom: '10px' }} />
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }}>
+                  {REGION_OPTIONS.map(r => {
+                    const isSelected = (!selectedRegionCode && !r.code) || (selectedRegionCode === r.code);
+                    return (
+                      <div 
+                        key={r.code || 'all'}
+                        onClick={(e) => { 
+                          e.stopPropagation(); 
+                          setSelectedRegionCode(r.code); 
+                          setSelectedRegionName(r.code ? r.label : ''); 
+                          setActiveDropdown(null);
+                          fetchSpots({
+                            regionCode: r.code,
+                            category: selectedCategory,
+                            matchStatus: selectedMatchStatus,
+                            petIds: selectedPetIdsRef.current,
+                            keyword: keyword.trim()
+                          }, false);
+                        }}
+                        style={{ 
+                          padding: '7px 4px', 
+                          fontSize: '12.5px', 
+                          borderRadius: '8px', 
+                          cursor: 'pointer', 
+                          textAlign: 'center', 
+                          backgroundColor: isSelected ? '#5F50A9' : 'transparent', 
+                          color: isSelected ? '#fff' : '#334155', 
+                          fontWeight: isSelected ? 'bold' : '600',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        {r.label}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </div>
@@ -1575,6 +2114,10 @@ function SearchPage() {
             navigate={navigate}
             selectedPetIds={selectedPetIds}
             user={user}
+            userLocation={userLocation}
+            loadMore={loadMore}
+            isFetchingMore={isFetchingMore}
+            hasMore={hasMore}
           />
         </div>
       ) : isInitialLoading ? (
@@ -1779,6 +2322,150 @@ function SearchPage() {
                 selectedPetIds={selectedPetIds}
               />
             )}
+          </div>
+        </div>
+      )}
+
+      {/* 📍 사이트 중앙 위치 권한 요청 팝업 모달 */}
+      {showLocationModal && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 99999,
+            padding: '20px',
+            boxSizing: 'border-box'
+          }}
+          onClick={() => !isLocating && setShowLocationModal(false)}
+        >
+          <div
+            style={{
+              backgroundColor: '#ffffff',
+              borderRadius: '28px',
+              maxWidth: '420px',
+              width: '100%',
+              padding: '34px 26px',
+              textAlign: 'center',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+              position: 'relative',
+              animation: 'locModalFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+              fontFamily: 'sans-serif'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <style>{`
+              @keyframes locModalFadeIn {
+                from { opacity: 0; transform: scale(0.92) translateY(10px); }
+                to { opacity: 1; transform: scale(1) translateY(0); }
+              }
+              @keyframes pulseIconRing {
+                0% { transform: scale(0.95); opacity: 0.8; }
+                50% { transform: scale(1.15); opacity: 0.3; }
+                100% { transform: scale(0.95); opacity: 0.8; }
+              }
+            `}</style>
+
+            {/* 상단 핀 아이콘 일러스트 */}
+            <div style={{
+              width: '72px',
+              height: '72px',
+              margin: '0 auto 18px auto',
+              borderRadius: '50%',
+              backgroundColor: '#F3EEFA',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              position: 'relative',
+              boxShadow: '0 8px 20px rgba(95, 80, 169, 0.15)'
+            }}>
+              <span style={{ fontSize: '32px' }}>📍</span>
+              <div style={{
+                position: 'absolute',
+                width: '100%',
+                height: '100%',
+                borderRadius: '50%',
+                border: '2px dashed #5F50A9',
+                animation: 'pulseIconRing 3s infinite ease-in-out'
+              }} />
+            </div>
+
+            <h3 style={{ fontSize: '20px', fontWeight: '800', color: '#1e293b', margin: '0 0 10px 0', letterSpacing: '-0.3px' }}>
+              현재 위치로 관광지 탐색
+            </h3>
+
+            <p style={{ fontSize: '13.5px', color: '#64748b', lineHeight: '1.65', margin: '0 0 26px 0', wordBreak: 'keep-all' }}>
+              현재 계신 위치를 기반으로 <strong style={{ color: '#5F50A9' }}>가장 가까운 반려동물 동반 장소</strong>를 추천해 드립니다.<br/>
+              위치 정보 제공을 허용하시겠습니까?
+            </p>
+
+            {/* 액션 버튼 그룹 */}
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                type="button"
+                onClick={() => setShowLocationModal(false)}
+                disabled={isLocating}
+                style={{
+                  flex: 1,
+                  padding: '13px 0',
+                  backgroundColor: '#f1f5f9',
+                  color: '#64748b',
+                  border: 'none',
+                  borderRadius: '50px',
+                  fontSize: '14px',
+                  fontWeight: '700',
+                  cursor: isLocating ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseOver={(e) => !isLocating && (e.currentTarget.style.backgroundColor = '#e2e8f0')}
+                onMouseOut={(e) => !isLocating && (e.currentTarget.style.backgroundColor = '#f1f5f9')}
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={handleCurrentLocationSearch}
+                disabled={isLocating}
+                style={{
+                  flex: 1.5,
+                  padding: '13px 0',
+                  backgroundColor: '#5F50A9',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '50px',
+                  fontSize: '14px',
+                  fontWeight: '700',
+                  cursor: isLocating ? 'wait' : 'pointer',
+                  boxShadow: '0 6px 18px rgba(95, 80, 169, 0.35)',
+                  transition: 'all 0.2s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px'
+                }}
+                onMouseOver={(e) => !isLocating && (e.currentTarget.style.transform = 'translateY(-2px)', e.currentTarget.style.boxShadow = '0 8px 22px rgba(95, 80, 169, 0.45)')}
+                onMouseOut={(e) => !isLocating && (e.currentTarget.style.transform = 'none', e.currentTarget.style.boxShadow = '0 6px 18px rgba(95, 80, 169, 0.35)')}
+              >
+                {isLocating ? (
+                  <>
+                    <span>⏳</span>
+                    <span>위치 확인 중...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>위치 공유 및 검색</span>
+                    <span>🐾</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -115,21 +115,27 @@ function Footer() {
             />
             <span style={{ 
               fontFamily: "'Nunito', 'Comfortaa', -apple-system, sans-serif",
-              fontWeight: '900', 
+              fontWeight: '1000', 
               fontSize: '20px', 
-              letterSpacing: '-0.3px',
+              letterSpacing: '-0.7px',
               display: 'inline-flex',
-              alignItems: 'center',
+              alignItems: 'baseline',
               lineHeight: 1
             }}>
-              <span style={{ color: '#5F50A9' }}>Paw</span>
+              <span style={{ color: '#5F50A9', fontWeight: '1000', display: 'inline-flex', alignItems: 'baseline' }}>
+                <span style={{ marginRight: '-1.2px' }}>P</span>
+                <span style={{ fontSize: '0.84em', letterSpacing: '-0.5px' }}>AW</span>
+              </span>
               <span style={{ 
                 background: 'linear-gradient(135deg, #F472B6 0%, #60A5FA 100%)',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
-                fontWeight: '1000'
+                fontWeight: '1000',
+                display: 'inline-flex',
+                alignItems: 'baseline'
               }}>
-                Pass
+                <span style={{ marginRight: '-1.2px' }}>P</span>
+                <span style={{ fontSize: '0.84em', letterSpacing: '-0.5px' }}>ASS</span>
               </span>
             </span>
           </div>
