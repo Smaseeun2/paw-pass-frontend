@@ -706,40 +706,6 @@ function DetailPage() {
         );
       })()}
 
-
-      <h3 style={{ fontSize: '18px', color: '#1e293b', marginBottom: '10px' }}>🐶 반려동물 동반 조건 안내</h3>
-      <div style={{ backgroundColor: '#f0fdf4', padding: '18px 20px', borderRadius: '12px', border: '1px solid #bbf7d0', lineHeight: '1.7', color: '#166534' }}>
-        {detail.source === 'tourapi' ? (
-          <>
-            <p style={{ margin: '0 0 8px 0' }}><strong>동반 가능 유형:</strong> {cond.acmpyType || '현장 문의 필요'}</p>
-            <p style={{ margin: '0 0 8px 0' }}><strong>입장 가능 크기/견종:</strong> {cond.possibleBreeds || '제한 없음 (현장 확인 권장)'}</p>
-            <p style={{ margin: '0 0 8px 0' }}><strong>필수 준비물:</strong> {cond.needItem || '목줄 및 배변봉투 지참'}</p>
-            {cond.etcInfo && (
-              <p style={{ margin: '0 0 8px 0' }}><strong>기타 안내:</strong> {cond.etcInfo}</p>
-            )}
-            
-            {cond.relaPosesFclty && (
-              <p style={{ margin: '0 0 8px 0' }}><strong>관련 구비 시설:</strong> {cond.relaPosesFclty}</p>
-            )}
-            {cond.relaFrnshPrdlst && (
-              <p style={{ margin: '0 0 8px 0' }}><strong>관련 비치 품목:</strong> {cond.relaFrnshPrdlst}</p>
-            )}
-            {cond.relaPurcPrdlst && (
-              <p style={{ margin: '0 0 8px 0' }}><strong>관련 구매 품목:</strong> {cond.relaPurcPrdlst}</p>
-            )}
-            {cond.relaRntlPrdlst && (
-              <p style={{ margin: '0 0 8px 0' }}><strong>관련 렌탈 품목:</strong> {cond.relaRntlPrdlst}</p>
-            )}
-          </>
-        ) : (
-          <>
-            <p style={{ margin: '0 0 8px 0' }}><strong>동반 안내 규정:</strong> {cond.petPolicy || '현장 규정 확인 필요'}</p>
-            <p style={{ margin: '0 0 8px 0' }}><strong>입장 제한 조건:</strong> {cond.petRestriction || '특이 제한 없음'}</p>
-            <p style={{ margin: '0 0 8px 0' }}><strong>시설 비치물품:</strong> {cond.petAmenities || '기본 지참 필요'}</p>
-          </>
-        )}
-      </div>
-
       <SpotChecklist />
 
     </div>
