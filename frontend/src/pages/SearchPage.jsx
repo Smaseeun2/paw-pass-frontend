@@ -73,112 +73,346 @@ function DrawerContent({ spot, onClose, navigate, user, myPets, selectedPetIds =
   
   if (isLoading) {
     return (
-      <div style={{ padding: '40px 20px', textAlign: 'center', color: '#64748b' }}>
-        <p>정보를 불러오는 중입니다...</p>
+      <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 20px', color: '#64748b' }}>
+        <div style={{ fontSize: '36px', marginBottom: '12px' }}>🐾</div>
+        <p style={{ fontSize: '15px', fontWeight: 'bold', margin: 0 }}>장소 정보를 불러오는 중입니다...</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div style={{ padding: '40px 20px', textAlign: 'center', color: '#ef4444' }}>
-        <p>{error}</p>
-        <button onClick={onClose} style={{ marginTop: '12px', padding: '8px 16px', background: '#f1f5f9', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>닫기</button>
+      <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 20px', color: '#ef4444' }}>
+        <p style={{ fontWeight: 'bold' }}>{error}</p>
+        <button onClick={onClose} style={{ marginTop: '16px', padding: '10px 24px', background: '#f1f5f9', color: '#475569', border: 'none', borderRadius: '50px', cursor: 'pointer', fontWeight: 'bold' }}>닫기</button>
       </div>
     );
   }
 
   const d = detail || {};
   const cond = d.petCondition || {};
+  const spotName = d.title || d.name || spot.title || spot.name || '이름 없음';
+  const spotAddress = d.address || spot.address || '주소 정보 없음';
+
+  const lat = Number(d.lat || spot.lat);
+  const lng = Number(d.lng || spot.lng);
+  const kakaoMapUrl = (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0)
+    ? `https://map.kakao.com/link/map/${encodeURIComponent(spotName)},${lat},${lng}`
+    : `https://map.kakao.com/link/search/${encodeURIComponent(spotAddress || spotName)}`;
+  const naverMapUrl = `https://map.naver.com/p/search/${encodeURIComponent(spotName)}`;
+
+  const isMatchPossible = spot.matchStatus === '가능';
+  const isMatchConditional = spot.matchStatus === '조건부 가능' || spot.matchStatus === '조건부';
 
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: '16px' }}>
-        <button 
-          onClick={onClose}
-          style={{ background: '#f1f5f9', border: 'none', color: '#64748b', cursor: 'pointer', width: '36px', height: '36px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background-color 0.2s' }}
-          onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#e2e8f0'}
-          onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#f1f5f9'}
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M18 6L6 18"></path>
-            <path d="M6 6l12 12"></path>
-          </svg>
-        </button>
-      </div>
-
-      <div style={{ width: '100%', height: '240px', backgroundColor: '#e5e7eb', borderRadius: '12px', marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', overflow: 'hidden', position: 'relative' }}>
-        <LazyImage spot={d.image ? d : spot} fallback={<span>🖼️ 대표 이미지 준비중</span>} />
-      </div>
-
-      <div style={{ borderBottom: '1px solid #e5e7eb', paddingBottom: '16px', marginBottom: '20px' }}>
-        <h3 style={{ margin: '0', fontSize: '24px', color: '#1f2937', lineHeight: '1.3', wordBreak: 'keep-all' }}>
-          {d.title || d.name || spot.title || spot.name || '이름 없음'}
-        </h3>
-      </div>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative', overflow: 'hidden' }}>
       
-      <div style={{ marginBottom: '24px', padding: '16px', backgroundColor: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-          <span style={{ fontWeight: 'bold', fontSize: '15px', color: '#334155' }}>반려동물 출입 판정:</span>
+      {/* 1. 스크롤 가능한 본문 영역 */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '24px 28px 24px 28px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        
+        {/* 상단 액션 바 (카테고리 뱃지 & 원형 닫기 버튼) */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ 
-            fontSize: '13px', padding: '4px 10px', borderRadius: '6px', fontWeight: 'bold', 
-            backgroundColor: spot.matchStatus === '가능' ? '#dcfce7' : spot.matchStatus === '조건부 가능' || spot.matchStatus === '조건부' ? '#fef9c3' : '#f1f5f9', 
-            color: spot.matchStatus === '가능' ? '#15803d' : spot.matchStatus === '조건부 가능' || spot.matchStatus === '조건부' ? '#a16207' : '#64748b' 
+            fontSize: '11px', 
+            fontWeight: '800', 
+            letterSpacing: '0.6px', 
+            backgroundColor: '#F3EEFA', 
+            color: '#5F50A9', 
+            padding: '5px 14px', 
+            borderRadius: '50px' 
           }}>
-            {spot.matchStatus}
+            {spot.source === 'kcisa' ? '🏥 한국문화정보원' : '🏞️ 한국관광공사'}
           </span>
+          
+          <button 
+            onClick={onClose}
+            aria-label="닫기"
+            style={{ 
+              background: '#f1f5f9', 
+              border: 'none', 
+              color: '#475569', 
+              cursor: 'pointer', 
+              width: '36px', 
+              height: '36px', 
+              borderRadius: '50%', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              boxShadow: '0 2px 6px rgba(0,0,0,0.04)',
+              transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)' 
+            }}
+            onMouseOver={(e) => { e.currentTarget.style.backgroundColor = '#e2e8f0'; e.currentTarget.style.transform = 'scale(1.08)'; }}
+            onMouseOut={(e) => { e.currentTarget.style.backgroundColor = '#f1f5f9'; e.currentTarget.style.transform = 'none'; }}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 6L6 18"></path>
+              <path d="M6 6l12 12"></path>
+            </svg>
+          </button>
         </div>
-        {spot.matchReason && (
-          <p style={{ margin: 0, fontSize: '14px', color: '#64748b', lineHeight: '1.5' }}>
-            <strong style={{ color: '#475569' }}>판정 사유:</strong> {spot.matchReason}
+
+        {/* 히어로 이미지 & 플로팅 판정 뱃지 */}
+        <div style={{ 
+          width: '100%', 
+          height: '240px', 
+          backgroundColor: '#f1f5f9', 
+          borderRadius: '24px', 
+          overflow: 'hidden', 
+          position: 'relative',
+          boxShadow: '0 10px 25px rgba(0,0,0,0.08)',
+          flexShrink: 0
+        }}>
+          <LazyImage spot={d.image ? d : spot} fallback={<div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: '14px', fontWeight: 'bold' }}>🖼️ 대표 이미지 준비중</div>} />
+          
+          {/* 플로팅 글래스 출입 판정 뱃지 */}
+          <div style={{ 
+            position: 'absolute', 
+            bottom: '14px', 
+            left: '14px', 
+            backdropFilter: 'blur(10px)', 
+            WebkitBackdropFilter: 'blur(10px)',
+            backgroundColor: isMatchPossible ? 'rgba(220, 252, 231, 0.92)' : isMatchConditional ? 'rgba(254, 249, 195, 0.92)' : 'rgba(241, 245, 249, 0.92)',
+            color: isMatchPossible ? '#15803d' : isMatchConditional ? '#a16207' : '#334155',
+            border: isMatchPossible ? '1px solid rgba(187, 247, 208, 0.8)' : isMatchConditional ? '1px solid rgba(253, 230, 138, 0.8)' : '1px solid rgba(226, 232, 240, 0.8)',
+            padding: '6px 14px',
+            borderRadius: '50px',
+            fontSize: '12px',
+            fontWeight: '800',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px'
+          }}>
+            <span>{isMatchPossible ? '🟢' : isMatchConditional ? '🟡' : '⚪'}</span>
+            <span>출입 판정: {spot.matchStatus}</span>
+          </div>
+        </div>
+
+        {/* 타이틀 및 주소 */}
+        <div>
+          <h3 style={{ margin: '0 0 6px 0', fontSize: '24px', fontWeight: '800', color: '#1e293b', lineHeight: '1.3', letterSpacing: '-0.3px', wordBreak: 'keep-all' }}>
+            {spotName}
+          </h3>
+          <p style={{ margin: 0, fontSize: '13px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <span>📍</span>
+            <span>{spotAddress}</span>
           </p>
-        )}
-        {myPets.length === 0 && spot.matchStatus === '동반 확인 필요' && (
-          <div style={{ marginTop: '12px', padding: '12px', backgroundColor: '#eff6ff', borderRadius: '8px', border: '1px solid #bfdbfe', cursor: 'pointer' }} onClick={() => navigate(user ? '/profile' : '/login')}>
-            <p style={{ margin: 0, fontSize: '13px', color: '#1d4ed8', lineHeight: '1.5' }}>
-              💡 <strong>로그인하고 펫 프로필을 등록해보세요!</strong><br/>AI가 내 반려동물을 분석해 맞춤 출입 여부를 알려드립니다. 🚀
+        </div>
+
+        {/* AI 맞춤 판정 결과 카드 */}
+        <div style={{ 
+          padding: '20px', 
+          backgroundColor: isMatchPossible ? '#f0fdf4' : isMatchConditional ? '#fffbeb' : '#f8fafc', 
+          borderRadius: '24px', 
+          border: isMatchPossible ? '1.5px solid #bbf7d0' : isMatchConditional ? '1.5px solid #fde68a' : '1.5px solid #e2e8f0',
+          boxShadow: '0 6px 20px rgba(0,0,0,0.03)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+            <span style={{ fontSize: '16px' }}>🐾</span>
+            <span style={{ fontWeight: '800', fontSize: '14px', color: '#1e293b' }}>
+              내 반려동물 맞춤 판정 사유
+            </span>
+          </div>
+
+          {spot.matchReason ? (
+            <p style={{ margin: 0, fontSize: '13px', color: '#475569', lineHeight: '1.6' }}>
+              {spot.matchReason}
             </p>
+          ) : (
+            <p style={{ margin: 0, fontSize: '13px', color: '#64748b', lineHeight: '1.6' }}>
+              현장 방문 시 시설의 동반 수칙을 준수해주세요.
+            </p>
+          )}
+
+          {myPets.length === 0 && spot.matchStatus === '동반 확인 필요' && (
+            <div 
+              onClick={() => navigate(user ? '/profile' : '/login')}
+              style={{ 
+                marginTop: '12px', 
+                padding: '12px 16px', 
+                backgroundColor: '#ffffff', 
+                borderRadius: '16px', 
+                border: '1px solid #bae6fd', 
+                cursor: 'pointer',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.03)',
+                transition: 'transform 0.2s'
+              }}
+              onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-1px)'}
+              onMouseOut={(e) => e.currentTarget.style.transform = 'none'}
+            >
+              <p style={{ margin: 0, fontSize: '12px', color: '#0369a1', lineHeight: '1.5', fontWeight: 'bold' }}>
+                💡 펫 프로필을 등록하면 아이 맞춤 출입 조건을 AI가 실시간으로 분석해드립니다! 🚀
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* 핵심 기본 정보 그리드 (주소, 전화, 영업시간, 주차) */}
+        <div style={{ 
+          backgroundColor: '#ffffff', 
+          borderRadius: '24px', 
+          padding: '20px', 
+          border: '1px solid #e2e8f0', 
+          boxShadow: '0 6px 20px rgba(0,0,0,0.03)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '12px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '15px', flexShrink: 0 }}>
+              📞
+            </div>
+            <div style={{ flex: 1 }}>
+              <span style={{ fontSize: '11px', color: '#94a3b8', display: 'block', fontWeight: 'bold' }}>전화번호</span>
+              <span style={{ fontSize: '13px', color: '#1e293b', fontWeight: '600' }}>{d.phone || spot.tel || '정보 미제공'}</span>
+            </div>
+          </div>
+
+          <div style={{ height: '1px', backgroundColor: '#f1f5f9' }}></div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '15px', flexShrink: 0 }}>
+              ⏰
+            </div>
+            <div style={{ flex: 1 }}>
+              <span style={{ fontSize: '11px', color: '#94a3b8', display: 'block', fontWeight: 'bold' }}>운영시간</span>
+              <span style={{ fontSize: '13px', color: '#1e293b', fontWeight: '600' }}>{d.hours || '현장 또는 전화 문의'}</span>
+            </div>
+          </div>
+
+          {cond.parkingAvailable && (
+            <>
+              <div style={{ height: '1px', backgroundColor: '#f1f5f9' }}></div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '15px', flexShrink: 0 }}>
+                  🚗
+                </div>
+                <div style={{ flex: 1 }}>
+                  <span style={{ fontSize: '11px', color: '#94a3b8', display: 'block', fontWeight: 'bold' }}>주차 정보</span>
+                  <span style={{ fontSize: '13px', color: '#1e293b', fontWeight: '600' }}>{cond.parkingAvailable}</span>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* 상세 동반 규정 카드 */}
+        {cond.petPolicy && (
+          <div style={{ 
+            backgroundColor: '#ffffff', 
+            borderRadius: '24px', 
+            padding: '20px', 
+            border: '1px solid #e2e8f0', 
+            boxShadow: '0 6px 20px rgba(0,0,0,0.03)'
+          }}>
+            <h4 style={{ margin: '0 0 12px 0', color: '#1e293b', fontSize: '14px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span>🐶</span>
+              <span>상세 동반 규정 및 안내</span>
+            </h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px', color: '#475569' }}>
+              {cond.petPolicy && <p style={{ margin: 0 }}><strong>규정:</strong> {cond.petPolicy}</p>}
+              {cond.petRestriction && <p style={{ margin: 0, color: '#e11d48' }}><strong>제한사항:</strong> {cond.petRestriction}</p>}
+              {cond.needItem && <p style={{ margin: 0, color: '#5F50A9' }}><strong>필요 용품:</strong> {cond.needItem}</p>}
+            </div>
           </div>
         )}
-      </div>
 
-      <div style={{ lineHeight: '1.7', backgroundColor: '#fff', padding: '16px', border: '1px solid #e2e8f0', borderRadius: '12px', marginBottom: '24px', fontSize: '14px' }}>
-        <p style={{ margin: '0 0 8px 0' }}><strong>📍 주소:</strong> {d.address || spot.address}</p>
-        <p style={{ margin: '0 0 8px 0' }}><strong>📞 전화번호:</strong> {d.phone || spot.tel || '정보 미제공'}</p>
-        <p style={{ margin: '0 0 8px 0' }}><strong>⏰ 운영시간:</strong> {d.hours || '현장 또는 전화 문의'}</p>
-        {cond.parkingAvailable && <p style={{ margin: '0 0 8px 0' }}><strong>🚗 주차 정보:</strong> {cond.parkingAvailable}</p>}
-      </div>
+        {/* 미니 지도 및 길찾기 액션 */}
+        <div style={{ 
+          backgroundColor: '#ffffff', 
+          borderRadius: '24px', 
+          padding: '20px', 
+          border: '1px solid #e2e8f0', 
+          boxShadow: '0 6px 20px rgba(0,0,0,0.03)' 
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+            <h4 style={{ margin: 0, color: '#1e293b', fontSize: '14px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span>📍</span>
+              <span>위치 & 길찾기</span>
+            </h4>
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <a 
+                href={kakaoMapUrl} 
+                target="_blank" 
+                rel="noreferrer" 
+                style={{ 
+                  padding: '5px 12px', 
+                  backgroundColor: '#A2B9EE', 
+                  color: '#1e3a8a', 
+                  borderRadius: '50px', 
+                  fontSize: '11px', 
+                  fontWeight: 'bold', 
+                  textDecoration: 'none' 
+                }}
+              >
+                카카오맵 ↗
+              </a>
+              <a 
+                href={naverMapUrl} 
+                target="_blank" 
+                rel="noreferrer" 
+                style={{ 
+                  padding: '5px 12px', 
+                  backgroundColor: '#CBF5AF', 
+                  color: '#166534', 
+                  borderRadius: '50px', 
+                  fontSize: '11px', 
+                  fontWeight: 'bold', 
+                  textDecoration: 'none' 
+                }}
+              >
+                네이버 지도 ↗
+              </a>
+            </div>
+          </div>
 
-      {cond.petPolicy && (
-        <div style={{ backgroundColor: '#fff', padding: '16px', border: '1px solid #e2e8f0', borderRadius: '12px', marginBottom: '24px', fontSize: '14px' }}>
-          <h4 style={{ margin: '0 0 10px 0', color: '#1e293b' }}>🐶 상세 동반 규정</h4>
-          {cond.petPolicy && <p style={{ margin: '0 0 8px 0' }}><strong>규정:</strong> {cond.petPolicy}</p>}
-          {cond.petRestriction && <p style={{ margin: '0 0 8px 0' }}><strong>제한사항:</strong> {cond.petRestriction}</p>}
-          {cond.needItem && <p style={{ margin: '0 0 8px 0' }}><strong>필요 용품:</strong> {cond.needItem}</p>}
+          <div 
+            ref={mapRef} 
+            style={{ width: '100%', height: '180px', borderRadius: '16px', border: '1px solid #e2e8f0', backgroundColor: '#f8fafc', overflow: 'hidden' }}
+          />
         </div>
-      )}
-
-      {/* 지도 표시 영역 */}
-      <div style={{ backgroundColor: '#fff', padding: '16px', border: '1px solid #e2e8f0', borderRadius: '12px', marginBottom: '24px' }}>
-        <h4 style={{ margin: '0 0 12px 0', color: '#1e293b', fontSize: '15px' }}>📍 위치 보기</h4>
-        <div 
-          ref={mapRef} 
-          style={{ width: '100%', height: '200px', borderRadius: '8px', border: '1px solid #cbd5e1', backgroundColor: '#f1f5f9' }}
-        />
       </div>
 
-      <button 
-        type="button"
-        onClick={() => {
-          const petIdsQuery = selectedPetIds?.length > 0 ? `&petIds=${selectedPetIds.join(',')}` : '';
-          navigate(`/detail/${spot.id}?source=${spot.source}${petIdsQuery}`);
-        }}
-        style={{ width: '100%', padding: '16px', backgroundColor: '#4b5563', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold', fontSize: '15px', transition: 'background-color 0.2s' }}
-        onMouseOver={(e) => e.target.style.backgroundColor = '#374151'}
-        onMouseOut={(e) => e.target.style.backgroundColor = '#4b5563'}
-      >
-        전체 상세 페이지 보기 →
-      </button>
+      {/* 2. 패널 하단에 항상 고정된 플로팅 액션 바 (스크롤 불필요) */}
+      <div style={{ 
+        padding: '16px 28px 24px 28px', 
+        backgroundColor: '#ffffff', 
+        borderTop: '1px solid #f1f5f9', 
+        boxShadow: '0 -8px 24px rgba(0,0,0,0.06)',
+        zIndex: 10,
+        flexShrink: 0
+      }}>
+        <button 
+          type="button"
+          onClick={() => {
+            const petIdsQuery = selectedPetIds?.length > 0 ? `&petIds=${selectedPetIds.join(',')}` : '';
+            navigate(`/detail/${spot.id}?source=${spot.source}${petIdsQuery}`);
+          }}
+          style={{ 
+            width: '100%', 
+            height: '52px',
+            padding: '0 24px', 
+            backgroundColor: '#5F50A9', 
+            color: 'white', 
+            border: 'none', 
+            borderRadius: '50px', 
+            cursor: 'pointer', 
+            fontWeight: '800', 
+            fontSize: '15px', 
+            boxShadow: '0 8px 24px rgba(95, 80, 169, 0.35)', 
+            transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px'
+          }}
+          onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 12px 28px rgba(95, 80, 169, 0.45)'; }}
+          onMouseOut={(e) => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(95, 80, 169, 0.35)'; }}
+        >
+          <span>전체 상세 페이지 보기</span>
+          <span>→</span>
+        </button>
+      </div>
     </div>
   );
 }
@@ -305,23 +539,77 @@ function SearchPage() {
     loadUserPets();
   }, [user]);
 
+  const [randomPlaceholder, setRandomPlaceholder] = useState('예: 남이섬');
+
+  // API로부터 로드된 실제 관광지 이름들을 기반으로 랜덤 플레이스홀더 순환
   useEffect(() => {
-    // 초기 검색 시 guestSizeHint 계산 (홈에서 넘어온 크기 힌트 OR 직접 카운터)
-    const initGuestSize = queryState.guestSizeHint ||
-      (initPetIds.length === 0
-        ? (queryState.petCounts?.large > 0 ? 'large' : queryState.petCounts?.medium > 0 ? 'medium' : queryState.petCounts?.small > 0 ? 'small' : '')
+    const defaultList = ['남이섬', '해운대해수욕장', '순천만국가정원', '아침고요수목원', '스타필드 하남', '안면도자연휴양림', '경포대'];
+    let spotNames = defaultList;
+
+    if (spots && spots.length > 0) {
+      const apiNames = spots
+        .map(s => s.title || s.name)
+        .filter(n => n && n !== '장소명 없음' && n.trim().length > 1);
+      if (apiNames.length > 0) {
+        spotNames = apiNames;
+      }
+    }
+
+    let currentIndex = Math.floor(Math.random() * spotNames.length);
+    setRandomPlaceholder(`예: ${spotNames[currentIndex]}`);
+
+    const timer = setInterval(() => {
+      currentIndex = (currentIndex + 1) % spotNames.length;
+      setRandomPlaceholder(`예: ${spotNames[currentIndex]}`);
+    }, 3500);
+
+    return () => clearInterval(timer);
+  }, [spots]);
+
+  useEffect(() => {
+    const currentState = location.state || {};
+    const curKeyword = currentState.keyword || searchParams.get('keyword') || '';
+    const curMatchStatus = currentState.matchStatus || searchParams.get('matchStatus') || '';
+    const curRawRegion = currentState.regionCode || currentState.region || searchParams.get('region') || '';
+    const curRawCategory = currentState.category || currentState.type || searchParams.get('category') || '';
+    
+    const curMatchedRegion = findRegion(curRawRegion);
+    const curMatchedCategory = CATEGORY_OPTIONS.find(c => c.value === String(curRawCategory) || c.label === String(curRawCategory));
+
+    let curPetIds = currentState.selectedPetIds || (currentState.petId ? [currentState.petId] : null);
+    if (!curPetIds && searchParams.get('petIds')) {
+      curPetIds = searchParams.get('petIds').split(',');
+    }
+    if (!curPetIds || curPetIds.length === 0) {
+      curPetIds = selectedPetIdsRef.current;
+    }
+
+    const curGuestSize = currentState.guestSizeHint ||
+      (curPetIds.length === 0
+        ? (currentState.petCounts?.large > 0 ? 'large' : currentState.petCounts?.medium > 0 ? 'medium' : currentState.petCounts?.small > 0 ? 'small' : '')
         : '');
 
+    // State 동기화
+    setSelectedRegionCode(curMatchedRegion.code || '');
+    setSelectedRegionName(curMatchedRegion.code ? curMatchedRegion.label : '');
+    setSelectedCategory(curMatchedCategory ? curMatchedCategory.value : (curRawCategory || ''));
+    setSelectedCategoryName(curMatchedCategory ? curMatchedCategory.label : (curRawCategory ? String(curRawCategory) : ''));
+    setKeyword(curKeyword);
+    setSelectedMatchStatus(curMatchStatus);
+    if (curPetIds && curPetIds.length > 0) setSelectedPetIds(curPetIds);
+
+    // 즉시 검색 실행
     fetchSpots({
-      regionCode: matchedRegion.code || initRawRegion,
-      category: matchedCategory ? matchedCategory.value : initRawCategory,
-      matchStatus: initMatchStatus,
-      petIds: initPetIds,
-      guestSizeHint: initGuestSize,
-      keyword: initKeyword
+      regionCode: curMatchedRegion.code || curRawRegion,
+      category: curMatchedCategory ? curMatchedCategory.value : curRawCategory,
+      matchStatus: curMatchStatus,
+      petIds: curPetIds,
+      guestSizeHint: curGuestSize,
+      keyword: curKeyword
     }, false);
+    setSelectedSpotId(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [location.key]);
 
   useEffect(() => {
     const target = observerTarget.current;
@@ -473,7 +761,16 @@ function SearchPage() {
   const selectedSpotDetail = spots.find(s => String(s.id) === String(selectedSpotId));
 
   return (
-    <div style={{ padding: '0 20px', paddingBottom: '60px', maxWidth: '1200px', margin: '0 auto' }}>
+    <>
+      <div style={{
+        position: 'fixed',
+        top: 0, left: 0, right: 0, bottom: 0,
+        background: 'linear-gradient(135deg, #C9B6D7 0%, #F6CADD 35%, #C5E0FB 70%, #AED2F9 100%)',
+        zIndex: 0,
+        opacity: 0.35,
+        pointerEvents: 'none'
+      }} />
+      <div className="pawpass-search-container" style={{ padding: '40px 20px 60px 20px', minHeight: 'calc(100vh - 120px)', maxWidth: '1200px', margin: '0 auto', position: 'relative', zIndex: 1 }}>
       {/* 반응형 스타일 처리 (3-4 상세 패널 모바일 바텀시트 화) */}
       <style>{`
         @media (max-width: 768px) {
@@ -509,164 +806,261 @@ function SearchPage() {
         }
       `}</style>
       
-      <div style={{ position: 'sticky', top: '0', zIndex: 30, backgroundColor: 'rgba(255, 255, 255, 0.95)', padding: '16px 0 4px 0', backdropFilter: 'blur(8px)', borderBottom: '1px solid #e5e7eb', marginBottom: '24px' }}>
-        <h2 style={{ textAlign: 'center', margin: '0 0 10px 0' }}>반려동물 동반 장소 탐색</h2>
-        <h1 style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '32px', margin: '0 0 5px 0', color: '#333' }}>Paw Pass</h1>
-        <p style={{ textAlign: 'center', color: '#777', margin: '0 0 20px 0' }}>장소 탐색</p>
+      {/* 상단 모던 히어로 & 플로팅 검색창 */}
+      <div style={{ 
+        textAlign: 'center', 
+        padding: '44px 20px 40px 20px', 
+        background: 'linear-gradient(135deg, rgba(201, 182, 215, 0.45) 0%, rgba(246, 202, 221, 0.35) 35%, rgba(197, 224, 251, 0.45) 70%, rgba(174, 210, 249, 0.4) 100%)',
+        borderRadius: '32px',
+        boxShadow: '0 12px 35px rgba(201, 182, 215, 0.22)',
+        marginBottom: '32px',
+        position: 'relative',
+        backdropFilter: 'blur(12px)',
+        border: '1px solid rgba(255, 255, 255, 0.7)'
+      }}>
+        <span style={{ fontSize: '12px', fontWeight: '800', letterSpacing: '1.5px', color: '#5F50A9', textTransform: 'uppercase', display: 'inline-block', marginBottom: '10px', backgroundColor: 'rgba(255, 255, 255, 0.85)', padding: '5px 16px', borderRadius: '50px', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+          Explore Destinations
+        </span>
+        <h1 style={{ fontSize: '32px', fontWeight: '800', color: '#1e293b', margin: '0 0 8px 0', letterSpacing: '-0.5px' }}>
+          우리 아이 맞춤 관광지 탐색
+        </h1>
+        <p style={{ fontSize: '15px', color: '#64748b', margin: '0 0 28px 0' }}>
+          아이와 딱 맞는 관광지를 찾아보세요
+        </p>
 
-        {/* 검색 필터 바 */}
+        {/* 플로팅 검색창 (모던 웹 Pill 스타일) */}
         <div 
           ref={dropdownRef} 
-          style={{ display: 'flex', gap: '12px', backgroundColor: '#eef0f2', padding: '16px', borderRadius: '12px', marginBottom: '12px', flexWrap: 'wrap', alignItems: 'center', border: '1px solid #d1d5db', position: 'relative' }}
+          style={{ 
+            backgroundColor: '#ffffff', 
+            borderRadius: '50px', 
+            padding: '6px 8px 6px 20px', 
+            display: 'flex', 
+            alignItems: 'center', 
+            boxShadow: '0 20px 40px -10px rgba(95, 80, 169, 0.16), 0 4px 12px rgba(0, 0, 0, 0.05)', 
+            width: '100%', 
+            maxWidth: '960px', 
+            margin: '0 auto',
+            color: '#333',
+            border: '1px solid rgba(226, 232, 240, 0.9)',
+            boxSizing: 'border-box',
+            position: 'relative',
+            zIndex: 20
+          }}
         >
-          <div style={{ flex: 2, minWidth: '200px', position: 'relative' }}>
-            <input 
-              type="text"
-              value={keyword}
-              onChange={(e) => {
-                setKeyword(e.target.value);
-                if (e.target.value.trim().length > 0) {
-                  // 키워드 검색 시 전국/전체 카테고리로 강제 전환 (백엔드 스펙)
-                  setSelectedRegionCode('');
-                  setSelectedRegionName('');
-                  setSelectedCategory('');
-                  setSelectedCategoryName('');
-                }
-              }}
-              onKeyDown={(e) => { 
-                if (e.key === 'Enter') {
-                  if (e.nativeEvent.isComposing) return; // 한글 조합 중 엔터 무시
-                  handleSearchButtonClick(); 
-                }
-              }}
-              placeholder="장소명이나 키워드 검색"
-              style={{ width: '100%', padding: '12px 15px 12px 35px', backgroundColor: '#fff', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '14px', outline: 'none', color: '#333', boxSizing: 'border-box' }}
-            />
-            <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#6b7280' }}>🔍</span>
+          <style>{`
+            .search-segment-btn {
+              padding: 6px 14px;
+              border-radius: 40px;
+              transition: background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+              cursor: pointer;
+              text-align: left;
+            }
+            .search-segment-btn:hover {
+              background-color: #f8fafc;
+            }
+          `}</style>
+
+          {/* 1. 키워드 / 여행지 */}
+          <div style={{ flex: 1.4, display: 'flex', flexDirection: 'column', justifyContent: 'center', textAlign: 'left', padding: '6px 12px' }}>
+            <span style={{ fontSize: '11px', fontWeight: '800', color: '#64748b', letterSpacing: '0.4px', textTransform: 'uppercase', marginBottom: '2px' }}>
+              여행지
+            </span>
+              <input 
+                type="text" 
+                value={keyword} 
+                onChange={(e) => setKeyword(e.target.value)} 
+                onKeyDown={(e) => { 
+                  if (e.key === 'Enter') { 
+                    if (e.nativeEvent.isComposing) return;
+                    handleSearchButtonClick(); 
+                  } 
+                }} 
+                placeholder={randomPlaceholder} 
+                style={{ fontSize: '14px', fontWeight: '600', border: 'none', background: 'transparent', width: '100%', padding: '2px 0', color: '#1e293b', outline: 'none', boxSizing: 'border-box' }} 
+              />
           </div>
 
-          {/* 지역 드롭다운 */}
-          <div style={{ position: 'relative', flex: 1, minWidth: '130px' }}>
-            <button 
-              type="button"
-              onClick={() => setActiveDropdown(activeDropdown === 'region' ? null : 'region')}
-              style={{ width: '100%', height: '45px', padding: '0 14px', backgroundColor: '#fff', border: '1px solid #cbd5e1', borderRadius: '8px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 'bold', fontSize: '14px', color: '#374151', boxSizing: 'border-box' }}
-            >
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>📍 {selectedRegionName || '전체 지역'}</span>
-              <span style={{ marginLeft: '4px', fontSize: '12px' }}>▾</span>
-            </button>
+          <div style={{ width: '1px', height: '32px', backgroundColor: '#e2e8f0', margin: '0 4px' }}></div>
 
+          {/* 2. 지역 */}
+          <div 
+            className="search-segment-btn" 
+            style={{ flex: 1, position: 'relative' }} 
+            onClick={() => setActiveDropdown(activeDropdown === 'region' ? null : 'region')}
+          >
+            <span style={{ fontSize: '11px', fontWeight: '800', color: '#64748b', letterSpacing: '0.4px', textTransform: 'uppercase', marginBottom: '2px', display: 'block' }}>
+              지역
+            </span>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '4px' }}>
+              <span style={{ fontSize: '14px', fontWeight: '600', color: selectedRegionCode ? '#1e293b' : '#94a3b8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {selectedRegionName || '전체 지역'}
+              </span>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M6 9l6 6 6-6"/>
+              </svg>
+            </div>
+            
             {activeDropdown === 'region' && (
-              <div style={{ position: 'absolute', top: '105%', left: 0, width: '170px', maxHeight: '250px', overflowY: 'auto', backgroundColor: '#fff', border: '1px solid #cbd5e1', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.12)', zIndex: 30, padding: '6px' }}>
-                {REGION_OPTIONS.map((reg) => (
-                  <div 
-                    key={reg.code || 'all'} 
-                    onClick={() => { 
-                      setSelectedRegionCode(reg.code); 
-                      setSelectedRegionName(reg.code ? reg.label : ''); 
-                      setKeyword(''); // 지역 선택 시 키워드 초기화 (전국 검색 방지)
-                      setActiveDropdown(null); 
-                    }} 
-                    style={{ padding: '8px 12px', cursor: 'pointer', borderRadius: '6px', color: '#374151', backgroundColor: selectedRegionCode === reg.code ? '#eff6ff' : 'transparent', fontWeight: selectedRegionCode === reg.code ? 'bold' : 'normal', fontSize: '13px' }}
-                  >
-                    {reg.label}
-                  </div>
-                ))}
+              <div style={{ position: 'absolute', top: '56px', left: 0, width: '270px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '16px', boxShadow: '0 12px 30px rgba(0,0,0,0.12)', zIndex: 40, padding: '8px', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '3px' }}>
+                {REGION_OPTIONS.map(r => {
+                  const isSelected = (!selectedRegionCode && !r.code) || (selectedRegionCode === r.code);
+                  return (
+                    <div 
+                      key={r.code || 'all'}
+                      onClick={(e) => { 
+                        e.stopPropagation(); 
+                        setSelectedRegionCode(r.code); 
+                        setSelectedRegionName(r.code ? r.label : ''); 
+                        setActiveDropdown(null);
+                        fetchSpots({
+                          regionCode: r.code,
+                          category: selectedCategory,
+                          matchStatus: selectedMatchStatus,
+                          petIds: selectedPetIdsRef.current,
+                          keyword: keyword.trim()
+                        }, false);
+                      }}
+                      style={{ 
+                        padding: '7px 4px', 
+                        fontSize: '12.5px', 
+                        borderRadius: '8px', 
+                        cursor: 'pointer', 
+                        textAlign: 'center', 
+                        backgroundColor: isSelected ? '#5F50A9' : 'transparent', 
+                        color: isSelected ? '#fff' : '#334155', 
+                        fontWeight: isSelected ? 'bold' : '600',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      {r.label}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
 
-          {/* 카테고리 드롭다운 */}
-          <div style={{ position: 'relative', flex: 1, minWidth: '130px' }}>
-            <button 
-              type="button"
-              onClick={() => setActiveDropdown(activeDropdown === 'category' ? null : 'category')}
-              style={{ width: '100%', height: '45px', padding: '0 14px', backgroundColor: '#fff', border: '1px solid #cbd5e1', borderRadius: '8px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 'bold', fontSize: '14px', color: '#374151', boxSizing: 'border-box' }}
-            >
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>🏷️ {selectedCategoryName || '전체 카테고리'}</span>
-              <span style={{ marginLeft: '4px', fontSize: '12px' }}>▾</span>
-            </button>
+          <div style={{ width: '1px', height: '32px', backgroundColor: '#e2e8f0', margin: '0 4px' }}></div>
 
+          {/* 3. 카테고리 */}
+          <div 
+            className="search-segment-btn" 
+            style={{ flex: 1, position: 'relative' }} 
+            onClick={() => setActiveDropdown(activeDropdown === 'category' ? null : 'category')}
+          >
+            <span style={{ fontSize: '11px', fontWeight: '800', color: '#64748b', letterSpacing: '0.4px', textTransform: 'uppercase', marginBottom: '2px', display: 'block' }}>
+              테마
+            </span>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '4px' }}>
+              <span style={{ fontSize: '14px', fontWeight: '600', color: selectedCategory ? '#1e293b' : '#94a3b8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {selectedCategoryName || '모든 테마'}
+              </span>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M6 9l6 6 6-6"/>
+              </svg>
+            </div>
+            
             {activeDropdown === 'category' && (
-              <div style={{ position: 'absolute', top: '105%', left: 0, width: '180px', backgroundColor: '#fff', border: '1px solid #cbd5e1', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.12)', zIndex: 30, padding: '6px' }}>
-                <div 
-                  onClick={() => { setSelectedCategory(''); setSelectedCategoryName(''); setKeyword(''); setActiveDropdown(null); }} 
-                  style={{ padding: '8px 12px', cursor: 'pointer', borderRadius: '6px', color: '#374151', backgroundColor: !selectedCategory ? '#eff6ff' : 'transparent', fontWeight: !selectedCategory ? 'bold' : 'normal', fontSize: '13px' }}
+              <div style={{ position: 'absolute', top: '56px', left: 0, width: '220px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '16px', boxShadow: '0 12px 30px rgba(0,0,0,0.12)', zIndex: 40, padding: '8px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px' }}>
+                <div
+                  onClick={(e) => { 
+                    e.stopPropagation(); 
+                    setSelectedCategory(''); 
+                    setSelectedCategoryName(''); 
+                    setActiveDropdown(null); 
+                    fetchSpots({
+                      regionCode: selectedRegionCode,
+                      category: '',
+                      matchStatus: selectedMatchStatus,
+                      petIds: selectedPetIdsRef.current,
+                      keyword: keyword.trim()
+                    }, false);
+                  }}
+                  style={{ gridColumn: '1 / -1', padding: '7px 8px', fontSize: '12.5px', borderRadius: '8px', cursor: 'pointer', textAlign: 'center', backgroundColor: selectedCategory === '' ? '#5F50A9' : '#f8fafc', color: selectedCategory === '' ? '#fff' : '#334155', fontWeight: selectedCategory === '' ? 'bold' : '600', transition: 'all 0.15s ease' }}
                 >
-                  전체 카테고리
+                  전체 테마
                 </div>
-                {CATEGORY_OPTIONS.map((t) => (
+                {CATEGORY_OPTIONS.map(c => (
                   <div 
-                    key={t.value} 
-                    onClick={() => { 
-                      setSelectedCategory(t.value); 
-                      setSelectedCategoryName(t.label); 
-                      setKeyword(''); // 카테고리 선택 시 키워드 초기화
+                    key={c.value}
+                    onClick={(e) => { 
+                      e.stopPropagation(); 
+                      setSelectedCategory(c.value); 
+                      setSelectedCategoryName(c.label); 
                       setActiveDropdown(null); 
-                    }} 
-                    style={{ padding: '8px 12px', cursor: 'pointer', borderRadius: '6px', color: '#374151', backgroundColor: selectedCategory === t.value ? '#eff6ff' : 'transparent', fontWeight: selectedCategory === t.value ? 'bold' : 'normal', fontSize: '13px' }}
+                      fetchSpots({
+                        regionCode: selectedRegionCode,
+                        category: c.value,
+                        matchStatus: selectedMatchStatus,
+                        petIds: selectedPetIdsRef.current,
+                        keyword: keyword.trim()
+                      }, false);
+                    }}
+                    style={{ padding: '7px 6px', fontSize: '12.5px', borderRadius: '8px', cursor: 'pointer', textAlign: 'center', backgroundColor: selectedCategory === c.value ? '#5F50A9' : 'transparent', color: selectedCategory === c.value ? '#fff' : '#334155', fontWeight: selectedCategory === c.value ? 'bold' : '600', transition: 'all 0.15s ease' }}
                   >
-                    {t.label}
+                    {c.label}
                   </div>
                 ))}
               </div>
             )}
           </div>
 
-          {/* 반려동물 선택 드롭다운 (- 0 + 컨트롤러 포함) */}
-          <div style={{ position: 'relative', flex: 1.5, minWidth: '180px' }}>
-            <button 
-              type="button"
-              onClick={() => setActiveDropdown(activeDropdown === 'pet' ? null : 'pet')}
-              style={{ width: '100%', height: '45px', padding: '0 14px', backgroundColor: '#fff', border: '1px solid #cbd5e1', borderRadius: '8px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 'bold', fontSize: '13px', color: '#374151', boxSizing: 'border-box' }}
-            >
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>🐾 {getPetFilterLabel()}</span>
-              <span style={{ marginLeft: '4px', fontSize: '12px' }}>▾</span>
-            </button>
+          <div style={{ width: '1px', height: '32px', backgroundColor: '#e2e8f0', margin: '0 4px' }}></div>
 
+          {/* 4. 반려동물 */}
+          <div 
+            className="search-segment-btn" 
+            style={{ flex: 1.2, position: 'relative' }} 
+            onClick={() => setActiveDropdown(activeDropdown === 'pet' ? null : 'pet')}
+          >
+            <span style={{ fontSize: '11px', fontWeight: '800', color: '#64748b', letterSpacing: '0.4px', textTransform: 'uppercase', marginBottom: '2px', display: 'block' }}>
+              반려동물
+            </span>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '4px' }}>
+              <span style={{ fontSize: '14px', fontWeight: '600', color: (selectedPetIds.length > 0 || petCounts.small > 0 || petCounts.medium > 0 || petCounts.large > 0) ? '#1e293b' : '#94a3b8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {getPetFilterLabel()}
+              </span>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M6 9l6 6 6-6"/>
+              </svg>
+            </div>
+            
             {activeDropdown === 'pet' && (
-              <div style={{ position: 'absolute', top: '105%', left: 0, width: '280px', backgroundColor: '#fff', border: '1px solid #cbd5e1', borderRadius: '10px', boxShadow: '0 8px 18px rgba(0,0,0,0.15)', zIndex: 30, padding: '14px' }}>
-                <div 
-                  onClick={() => navigate('/profile')} 
-                  style={{ padding: '8px', cursor: 'pointer', borderRadius: '6px', color: '#2563eb', fontWeight: 'bold', borderBottom: '1px solid #f1f5f9', textAlign: 'center', backgroundColor: '#f8fafc', marginBottom: '12px', fontSize: '13px' }}
-                >
-                  + 반려동물 프로필 관리 / 등록
+              <div style={{ position: 'absolute', top: '56px', right: 0, width: '260px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '18px', boxShadow: '0 12px 30px rgba(0,0,0,0.12)', zIndex: 40, padding: '12px' }}>
+                <div onClick={(e) => { e.stopPropagation(); navigate('/profile'); }} style={{ padding: '8px 10px', cursor: 'pointer', borderRadius: '10px', color: '#fff', backgroundColor: '#5F50A9', fontWeight: 'bold', textAlign: 'center', marginBottom: '12px', fontSize: '12px', boxShadow: '0 3px 10px rgba(95, 80, 169, 0.2)' }}>
+                  + 내 반려동물 프로필 등록
                 </div>
 
                 {myPets.length > 0 && (
-                  <div style={{ marginBottom: '14px' }}>
-                    <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#64748b', marginBottom: '8px' }}>등록된 우리 펫</div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '140px', overflowY: 'auto' }}>
-                      {myPets.map((pet) => {
-                        const isSelected = selectedPetIds.includes(pet.id);
-                        return (
-                          <div 
-                            key={pet.id}
-                            onClick={(e) => handlePetToggle(pet.id, e)}
-                            style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 10px', borderRadius: '8px', cursor: 'pointer', backgroundColor: isSelected ? '#eff6ff' : '#f8fafc', border: isSelected ? '1.5px solid #2563eb' : '1px solid #e2e8f0' }}
-                          >
-                            <span style={{ fontSize: '18px' }}>🐶</span>
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <p style={{ margin: 0, fontWeight: 'bold', fontSize: '13px', color: '#1e293b' }}>{pet.name}</p>
-                              <p style={{ margin: 0, fontSize: '11px', color: '#64748b' }}>{pet.breed} · {pet.weight}kg</p>
-                            </div>
-                            <span style={{ fontSize: '15px', color: isSelected ? '#2563eb' : '#cbd5e1', fontWeight: 'bold' }}>{isSelected ? '✓' : '○'}</span>
+                  <div style={{ marginBottom: '12px' }}>
+                    <div style={{ fontSize: '11px', fontWeight: 'bold', color: '#64748b', marginBottom: '6px' }}>등록된 우리 아이</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '120px', overflowY: 'auto' }}>
+                      {myPets.map((pet) => (
+                        <div 
+                          key={pet.id} 
+                          onClick={(e) => handlePetToggle(pet.id, e)}
+                          style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 10px', borderRadius: '8px', cursor: 'pointer', backgroundColor: selectedPetIds.includes(pet.id) ? 'rgba(95, 80, 169, 0.1)' : '#f8fafc', border: selectedPetIds.includes(pet.id) ? '1px solid #5F50A9' : '1px solid #e2e8f0' }}
+                        >
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <p style={{ margin: 0, fontWeight: 'bold', fontSize: '12px', color: selectedPetIds.includes(pet.id) ? '#5F50A9' : '#333' }}>{pet.name}</p>
                           </div>
-                        );
-                      })}
+                          <span style={{ color: '#5F50A9', fontWeight: 'bold', fontSize: '12px' }}>{selectedPetIds.includes(pet.id) ? '✓' : ''}</span>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 )}
 
-                {/* 체중별 마릿수 조절 컨트롤러 (- 0 +) */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px' }}>
-                  {[['소형 (10kg 미만)', 'small'], ['중형 (10~25kg)', 'medium'], ['대형 (25kg 이상)', 'large']].map(([title, key]) => (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '12px', color: '#333' }}>
+                  <div style={{ fontSize: '11px', fontWeight: 'bold', color: '#64748b' }}>다른 반려동물 친구</div>
+                  {[["소형 (10kg 미만)", 'small'], ["중형 (10~25kg)", 'medium'], ["대형 (25kg 이상)", 'large']].map(([title, key]) => (
                     <div key={key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span>{title}</span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <button type="button" onClick={(e) => handleCountChange(key, -1, e)} style={{ width: '24px', height: '24px', border: '1px solid #cbd5e1', background: '#fff', borderRadius: '4px', cursor: 'pointer' }}>-</button>
-                        <span style={{ minWidth: '20px', textAlign: 'center', fontWeight: 'bold' }}>{petCounts[key]}</span>
-                        <button type="button" onClick={(e) => handleCountChange(key, 1, e)} style={{ width: '24px', height: '24px', border: '1px solid #cbd5e1', background: '#fff', borderRadius: '4px', cursor: 'pointer' }}>+</button>
+                        <button type="button" onClick={(e) => handleCountChange(key, -1, e)} style={{ width: '24px', height: '24px', border: '1px solid #cbd5e1', background: '#fff', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px' }}>-</button>
+                        <span style={{ minWidth: '18px', textAlign: 'center', fontWeight: 'bold' }}>{petCounts[key]}</span>
+                        <button type="button" onClick={(e) => handleCountChange(key, 1, e)} style={{ width: '24px', height: '24px', border: 'none', background: '#5F50A9', color: '#fff', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px' }}>+</button>
                       </div>
                     </div>
                   ))}
@@ -675,44 +1069,67 @@ function SearchPage() {
             )}
           </div>
 
-          <div>
-            <button 
-              type="button"
-              onClick={() => handleSearchButtonClick()}
-              style={{ padding: '0 24px', height: '45px', backgroundColor: '#374151', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px' }}
-            >
-              검색
-            </button>
-          </div>
+          {/* 검색 버튼 */}
+          <button 
+            type="button"
+            onClick={() => handleSearchButtonClick()} 
+            style={{ 
+              width: '48px', 
+              height: '48px', 
+              minWidth: '48px',
+              backgroundColor: '#5F50A9', 
+              color: 'white', 
+              border: 'none', 
+              borderRadius: '50%', 
+              cursor: 'pointer', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              marginLeft: '6px', 
+              boxShadow: '0 4px 14px rgba(95, 80, 169, 0.35)',
+              transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+              flexShrink: 0
+            }}
+            onMouseOver={(e) => { e.currentTarget.style.transform = 'scale(1.05)'; e.currentTarget.style.boxShadow = '0 6px 18px rgba(95, 80, 169, 0.45)'; }}
+            onMouseOut={(e) => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = '0 4px 14px rgba(95, 80, 169, 0.35)'; }}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+          </button>
         </div>
+      </div>
 
-        {/* 방문 판정 필터 버튼 바 */}
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#475569', marginRight: '4px' }}>💡 방문 판정:</span>
-          {MATCH_STATUS_BUTTONS.map((btn) => {
-            const isActive = selectedMatchStatus === btn.value;
-            return (
-              <button
-                key={btn.value || 'all'}
-                type="button"
-                onClick={() => handleMatchStatusButtonClick(btn.value)}
-                style={{
-                  padding: '8px 16px',
-                  borderRadius: '20px',
-                  border: isActive ? '1.5px solid #2563eb' : '1px solid #cbd5e1',
-                  backgroundColor: isActive ? '#eff6ff' : '#fff',
-                  color: isActive ? '#1d4ed8' : '#334155',
-                  fontWeight: isActive ? 'bold' : 'normal',
-                  fontSize: '13px',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s'
-                }}
-              >
-                {btn.label}
-              </button>
-            );
-          })}
-        </div>
+      {/* 방문 판정 필터 버튼 바 (하단에 넉넉한 여백 marginBottom: 36px 부여) */}
+      <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '36px', padding: '0 4px' }}>
+        <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#475569', marginRight: '6px' }}>💡 방문 판정:</span>
+        {MATCH_STATUS_BUTTONS.map((btn) => {
+          const isActive = selectedMatchStatus === btn.value;
+          return (
+            <button
+              key={btn.value || 'all'}
+              type="button"
+              onClick={() => handleMatchStatusButtonClick(btn.value)}
+              style={{
+                padding: '8px 18px',
+                borderRadius: '50px',
+                border: isActive ? 'none' : '1.5px solid #e2e8f0',
+                backgroundColor: isActive ? '#5F50A9' : '#fff',
+                color: isActive ? '#fff' : '#475569',
+                fontWeight: isActive ? 'bold' : 'normal',
+                fontSize: '13px',
+                cursor: 'pointer',
+                boxShadow: isActive ? '0 4px 14px rgba(95, 80, 169, 0.35)' : '0 2px 6px rgba(0,0,0,0.03)',
+                transition: 'transform 0.2s ease, box-shadow 0.2s ease'
+              }}
+              onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; }}
+              onMouseOut={(e) => { e.currentTarget.style.transform = 'none'; }}
+            >
+              {btn.label}
+            </button>
+          );
+        })}
       </div>
 
       {/* 스켈레톤 로딩 UI */}
@@ -732,22 +1149,22 @@ function SearchPage() {
               }
             `}</style>
             {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="skeleton-card" style={{ padding: '16px', backgroundColor: '#fff', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+              <div key={i} className="skeleton-card" style={{ padding: '18px', backgroundColor: '#fff', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                 <div>
-                  <div className="skeleton-block" style={{ width: '100%', height: '140px', borderRadius: '8px', marginBottom: '12px' }} />
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
+                  <div className="skeleton-block" style={{ width: '100%', height: '182px', borderRadius: '16px', marginBottom: '14px' }} />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', width: '60%' }}>
-                      <div className="skeleton-block" style={{ height: '20px', borderRadius: '4px', width: '100%' }} />
+                      <div className="skeleton-block" style={{ height: '22px', borderRadius: '4px', width: '100%' }} />
                       <div className="skeleton-block" style={{ height: '14px', borderRadius: '4px', width: '60%' }} />
                     </div>
-                    <div className="skeleton-block" style={{ height: '20px', borderRadius: '4px', width: '25%' }} />
+                    <div className="skeleton-block" style={{ height: '22px', borderRadius: '4px', width: '25%' }} />
                   </div>
-                  <div className="skeleton-block" style={{ height: '14px', borderRadius: '4px', width: '80%', marginTop: '12px' }} />
-                  <div className="skeleton-block" style={{ height: '14px', borderRadius: '4px', width: '50%', marginTop: '6px' }} />
+                  <div className="skeleton-block" style={{ height: '14px', borderRadius: '4px', width: '80%', marginTop: '14px' }} />
+                  <div className="skeleton-block" style={{ height: '14px', borderRadius: '4px', width: '50%', marginTop: '8px' }} />
                 </div>
-                <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
-                  <div className="skeleton-block" style={{ height: '36px', borderRadius: '8px', flex: 1 }} />
-                  <div className="skeleton-block" style={{ height: '36px', borderRadius: '8px', flex: 1 }} />
+                <div style={{ display: 'flex', gap: '8px', marginTop: '18px' }}>
+                  <div className="skeleton-block" style={{ height: '38px', borderRadius: '20px', flex: 1 }} />
+                  <div className="skeleton-block" style={{ height: '38px', borderRadius: '20px', flex: 1 }} />
                 </div>
               </div>
             ))}
@@ -779,11 +1196,30 @@ function SearchPage() {
                       const petIdsQuery = selectedPetIds?.length > 0 ? `&petIds=${selectedPetIds.join(',')}` : '';
                       navigate(`/detail/${spot.id}?source=${spot.source}${petIdsQuery}`);
                     }}
-                    style={{ border: isSelected ? '2px solid #4b5563' : '1px solid #d1d5db', borderRadius: '12px', backgroundColor: isSelected ? '#f3f4f6' : '#fff', padding: '16px', cursor: 'pointer', transition: 'all 0.2s', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}
+                    style={{ 
+                      borderRadius: '24px', 
+                      backgroundColor: '#fff', 
+                      padding: '16px', 
+                      cursor: 'pointer', 
+                      transition: 'transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease', 
+                      display: 'flex', 
+                      flexDirection: 'column', 
+                      justifyContent: 'space-between',
+                      border: isSelected ? '2.5px solid #C9B6D7' : 'none',
+                      boxShadow: isSelected ? '0 12px 35px rgba(201, 182, 215, 0.45)' : '0 10px 30px rgba(0, 0, 0, 0.06)'
+                    }}
+                    onMouseOver={(e) => { 
+                      e.currentTarget.style.transform = 'translateY(-4px)'; 
+                      e.currentTarget.style.boxShadow = isSelected ? '0 16px 40px rgba(201, 182, 215, 0.55)' : '0 14px 30px rgba(0, 0, 0, 0.12)'; 
+                    }}
+                    onMouseOut={(e) => { 
+                      e.currentTarget.style.transform = 'none'; 
+                      e.currentTarget.style.boxShadow = isSelected ? '0 12px 35px rgba(201, 182, 215, 0.45)' : '0 10px 30px rgba(0, 0, 0, 0.06)'; 
+                    }}
                     title="클릭하여 요약 보기, 더블 클릭하여 상세 페이지로 이동"
                   >
                     <div>
-                      <div style={{ position: 'relative', width: '100%', height: '140px', backgroundColor: '#f8fafc', borderRadius: '8px', marginBottom: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', border: '1px solid #e2e8f0' }}>
+                      <div style={{ position: 'relative', width: '100%', height: '208px', backgroundColor: spot.source === 'kcisa' ? '#C5E0FB' : '#fef3c7', borderRadius: '18px', marginBottom: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
                         <LazyImage 
                           spot={spot} 
                           fallback={<div style={{ color: '#94a3b8', fontSize: '13px', fontWeight: 'bold', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}><span style={{ fontSize: '24px' }}>🖼️</span><span>대표 이미지 준비중</span></div>}
@@ -792,7 +1228,9 @@ function SearchPage() {
                         <button
                           type="button"
                           onClick={(e) => { e.stopPropagation(); toggleFavorite(spot); }}
-                          style={{ position: 'absolute', top: '10px', right: '10px', backgroundColor: 'rgba(255, 255, 255, 0.9)', border: 'none', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', zIndex: 2 }}
+                          style={{ position: 'absolute', top: '12px', right: '12px', backgroundColor: 'rgba(255, 255, 255, 0.9)', border: 'none', borderRadius: '50%', width: '34px', height: '34px', cursor: 'pointer', zIndex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.12)', transition: 'transform 0.15s ease' }}
+                          onMouseOver={(e) => { e.currentTarget.style.transform = 'scale(1.15)'; }}
+                          onMouseOut={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
                         >
                           {liked ? '❤️' : '🤍'}
                         </button>
@@ -826,7 +1264,7 @@ function SearchPage() {
                         onClick={(e) => e.stopPropagation()}
                         style={{ 
                           display: 'inline-block', padding: '6px 10px', 
-                          backgroundColor: '#2563eb', color: '#fff', borderRadius: '6px', 
+                          backgroundColor: '#A2B9EE', color: '#1e3a8a', borderRadius: '20px', 
                           fontSize: '11px', fontWeight: 'bold', textDecoration: 'none', 
                           boxSizing: 'border-box' 
                         }}
@@ -840,7 +1278,7 @@ function SearchPage() {
                         onClick={(e) => e.stopPropagation()}
                         style={{ 
                           display: 'inline-block', padding: '6px 10px', 
-                          backgroundColor: '#10b981', color: '#fff', borderRadius: '6px', 
+                          backgroundColor: '#CBF5AF', color: '#166534', borderRadius: '20px', 
                           fontSize: '11px', fontWeight: 'bold', textDecoration: 'none', 
                           boxSizing: 'border-box' 
                         }}
@@ -866,28 +1304,35 @@ function SearchPage() {
             className="search-detail-drawer" 
             style={{ 
               position: 'fixed', top: 0, right: selectedSpotDetail ? 0 : '-620px', 
-              width: '560px', maxWidth: '90vw', height: '100vh', 
-              backgroundColor: '#fff', boxShadow: '-4px 0 20px rgba(0,0,0,0.15)', 
-              zIndex: 50, transition: 'right 0.3s cubic-bezier(0.4, 0, 0.2, 1)', 
-              boxSizing: 'border-box', paddingTop: '60px'
+              width: '540px', maxWidth: '92vw', height: '100vh', 
+              backgroundColor: '#ffffff', 
+              borderRadius: '28px 0 0 28px',
+              borderLeft: '1px solid rgba(226, 232, 240, 0.8)',
+              boxShadow: '-15px 0 45px rgba(95, 80, 169, 0.15)', 
+              zIndex: 100, 
+              transition: 'right 0.35s cubic-bezier(0.4, 0, 0.2, 1)', 
+              boxSizing: 'border-box', 
+              paddingTop: '60px',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column'
             }}
           >
-            <div style={{ height: '100%', overflowY: 'auto', padding: '24px 24px 30px 24px', boxSizing: 'border-box' }}>
-              {selectedSpotDetail && (
-                <DrawerContent 
-                  spot={selectedSpotDetail} 
-                  onClose={() => setSelectedSpotId(null)} 
-                  navigate={navigate} 
-                  user={user} 
-                  myPets={myPets} 
-                  selectedPetIds={selectedPetIds}
-                />
-              )}
-            </div>
+            {selectedSpotDetail && (
+              <DrawerContent 
+                spot={selectedSpotDetail} 
+                onClose={() => setSelectedSpotId(null)} 
+                navigate={navigate} 
+                user={user} 
+                myPets={myPets} 
+                selectedPetIds={selectedPetIds}
+              />
+            )}
           </div>
         </div>
       )}
     </div>
+    </>
   );
 }
 

@@ -69,6 +69,7 @@ export const AuthProvider = ({ children }) => {
 
   const withdraw = async (navigateCallback) => {
     try {
+      const currentUser = user;
       const { withdrawAccount } = await import('../services/api');
       await withdrawAccount();
       
@@ -78,6 +79,14 @@ export const AuthProvider = ({ children }) => {
       localStorage.removeItem('paw_pass_access_token');
       localStorage.removeItem('paw_pass_refresh_token');
       localStorage.removeItem('paw_pass_pets_guest');
+
+      if (currentUser?.email) {
+        localStorage.removeItem(`paw_pass_favorites_${currentUser.email}`);
+        localStorage.removeItem(`paw_pass_routes_${currentUser.email}`);
+      }
+      if (currentUser?.id) {
+        localStorage.removeItem(`paw_pass_routes_${currentUser.id}`);
+      }
 
       toast.success('회원 탈퇴가 완료되었습니다. 이용해 주셔서 감사합니다.');
       if (navigateCallback) navigateCallback();

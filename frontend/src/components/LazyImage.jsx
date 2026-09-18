@@ -17,9 +17,9 @@ export default function LazyImage({ spot, fallback = '🖼️ 이미지 준비�
   const [isFetching, setIsFetching] = useState(false);
   
   useEffect(() => {
-    // initial props changed?
     if (initialImageUrl && initialImageUrl !== imageUrl) {
       setImageUrl(initialImageUrl);
+      setHasError(false);
     }
     if (initialImageAttr && initialImageAttr !== imageAttr) {
       setImageAttr(initialImageAttr);
@@ -64,7 +64,10 @@ export default function LazyImage({ spot, fallback = '🖼️ 이미지 준비�
           if (imgRes.ok && isMounted) {
             const imgResult = await imgRes.json();
             const imgData = imgResult.data || imgResult;
-            if (imgData.image) setImageUrl(imgData.image);
+            if (imgData.image) {
+              setImageUrl(imgData.image);
+              setHasError(false);
+            }
             if (imgData.image_attribution) setImageAttr(imgData.image_attribution);
           }
         } else if (actualSource === 'tourapi' || !actualSource) {
@@ -73,7 +76,10 @@ export default function LazyImage({ spot, fallback = '🖼️ 이미지 준비�
             const dataResult = await res.json();
             const data = dataResult.data || dataResult;
             const foundImg = (Array.isArray(data.images) && data.images[0]) || data.firstimage || data.image || '';
-            if (foundImg) setImageUrl(foundImg);
+            if (foundImg) {
+              setImageUrl(foundImg);
+              setHasError(false);
+            }
           }
         }
       } catch (err) {

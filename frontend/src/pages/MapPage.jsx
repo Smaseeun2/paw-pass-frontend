@@ -58,6 +58,7 @@ function MapPage() {
 
   // 드래그 앤 드롭 중인 항목 인덱스 추적
   const [draggedItemIndex, setDraggedItemIndex] = useState(null);
+  const [dragOverIndex, setDragOverIndex] = useState(null);
 
   // 1. 카카오맵 SDK 안전 로드
   useEffect(() => {
@@ -129,7 +130,7 @@ function MapPage() {
 
       const markerContent = document.createElement('div');
       markerContent.style.cssText = `
-        background-color: #2563eb; color: white; width: 32px; height: 32px;
+        background-color: #5F50A9; color: white; width: 32px; height: 32px;
         border-radius: 50%; display: flex; align-items: center; justify-content: center;
         font-weight: bold; font-size: 13px; border: 2px solid white; box-shadow: 0 3px 8px rgba(0,0,0,0.3);
         cursor: pointer; transition: transform 0.2s;
@@ -156,7 +157,7 @@ function MapPage() {
         </div>
         ${spot.imageUrl ? `<img src="${spot.imageUrl}" style="width:100%; height:90px; object-fit:cover; border-radius:6px; margin-bottom:6px;" />` : ''}
         <p style="font-size: 11px; color: #64748b; margin: 0 0 8px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">📍 ${spot.address}</p>
-        <button type="button" class="go-detail" style="width: 100%; padding: 6px; background: #2563eb; color: white; border: none; border-radius: 6px; font-size: 11px; font-weight: bold; cursor: pointer;">상세보기 →</button>
+        <button type="button" class="go-detail" style="width: 100%; padding: 6px; background: #5F50A9; color: white; border: none; border-radius: 6px; font-size: 11px; font-weight: bold; cursor: pointer;">상세보기 →</button>
       `;
 
       const infoOverlay = new window.kakao.maps.CustomOverlay({
@@ -202,9 +203,9 @@ function MapPage() {
       const polyline = new window.kakao.maps.Polyline({
         path: pathCoordinates,
         strokeWeight: 6,
-        strokeColor: '#f59e0b', // 호박색(Amber)으로 변경하여 눈에 더 띄게
+        strokeColor: '#5F50A9', // 파란색으로 변경하여 눈에 더 띄게
         strokeOpacity: 0.9,
-        strokeStyle: 'shortdash'
+        strokeStyle: 'solid'
       });
       polyline.setMap(map);
       polylineRef.current = polyline;
@@ -223,16 +224,29 @@ function MapPage() {
   const handleDragStart = (e, index) => {
     setDraggedItemIndex(index);
     e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(index));
   };
 
-  const handleDragOver = (e) => {
+  const handleDragOver = (e, index) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
+    if (dragOverIndex !== index) {
+      setDragOverIndex(index);
+    }
+  };
+
+  const handleDragEnd = () => {
+    setDraggedItemIndex(null);
+    setDragOverIndex(null);
   };
 
   const handleDrop = (e, targetIndex) => {
     e.preventDefault();
-    if (draggedItemIndex === null || draggedItemIndex === targetIndex) return;
+    setDragOverIndex(null);
+    if (draggedItemIndex === null || draggedItemIndex === targetIndex) {
+      setDraggedItemIndex(null);
+      return;
+    }
 
     const updated = [...selectedSpots];
     const [movedItem] = updated.splice(draggedItemIndex, 1);
@@ -431,47 +445,157 @@ function MapPage() {
   };
 
   return (
-    <div style={{ padding: '20px 40px', paddingBottom: '60px', maxWidth: '1200px', margin: '0 auto', fontFamily: 'sans-serif' }}>
-      <h2 style={{ textAlign: 'center', marginBottom: '8px', fontSize: '28px', color: '#1e293b' }}>🗺️ 나의 여행 동선 및 최적 지도</h2>
-      <p style={{ textAlign: 'center', color: '#64748b', marginBottom: '25px' }}>
-        장소를 검색해 추가하고, 리스트를 꾹 누르고 드래그하여 순서를 변경해보세요. 핀을 누르면 <strong>하나의 말풍선 정보 카드</strong>가 나타납니다.
-      </p>
+    <>
+      <div style={{
+        position: 'fixed',
+        top: 0, left: 0, right: 0, bottom: 0,
+        background: 'linear-gradient(135deg, #C9B6D7 0%, #F6CADD 35%, #C5E0FB 70%, #AED2F9 100%)',
+        zIndex: 0,
+        opacity: 0.35,
+        pointerEvents: 'none'
+      }} />
+      <div className="pawpass-map-container" style={{ padding: '40px 20px 30px 20px', maxWidth: '1200px', margin: '0 auto', fontFamily: 'sans-serif', position: 'relative', zIndex: 1 }}>
+      <style>{`
+        .route-spot-card { 
+          transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.2s ease, border-color 0.2s ease, background-color 0.2s ease; 
+          border: 1.5px solid #F6CADD !important; 
+          border-radius: 20px !important; 
+          box-shadow: 0 4px 14px rgba(246, 202, 221, 0.25) !important; 
+          background-color: #fff !important; 
+          cursor: grab !important;
+        }
+        .route-spot-card:hover:not(.dragging) { 
+          transform: translateY(-3px); 
+          box-shadow: 0 12px 25px rgba(247, 157, 196, 0.4) !important; 
+          border-color: #F79DC4 !important;
+        }
+        .route-spot-card:active {
+          cursor: grabbing !important;
+        }
+        .route-spot-card.dragging {
+          opacity: 0.85;
+          transform: scale(1.04) rotate(1.5deg) translateY(-6px) !important;
+          box-shadow: 0 20px 35px rgba(247, 157, 196, 0.4), 0 8px 16px rgba(0, 0, 0, 0.08) !important;
+          border: 1.5px solid #F79DC4 !important;
+          background-color: #fffafc !important;
+          z-index: 50;
+          cursor: grabbing !important;
+        }
+        .route-spot-card.drag-over {
+          border-top: 3.5px solid #F79DC4 !important;
+          transform: translateY(2px);
+          background-color: #fffafc !important;
+        }
+        
+        .summary-card { 
+          border-radius: 24px !important; 
+          border: none !important; 
+          background-color: #fff !important; 
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05) !important; 
+        }
+        .map-brand-btn { border-radius: 50px !important; transition: transform 0.2s ease, box-shadow 0.2s ease; }
+        .map-brand-btn:hover { transform: translateY(-2px); filter: brightness(0.95); box-shadow: 0 8px 20px rgba(0,0,0,0.1) !important; }
+      `}</style>
+            {/* 상단 모던 히어로 카드 배너 */}
+      <div style={{ 
+        textAlign: 'center', 
+        padding: '36px 20px 32px 20px', 
+        background: 'linear-gradient(135deg, rgba(201, 182, 215, 0.45) 0%, rgba(246, 202, 221, 0.35) 35%, rgba(197, 224, 251, 0.45) 70%, rgba(174, 210, 249, 0.4) 100%)',
+        borderRadius: '32px',
+        boxShadow: '0 12px 35px rgba(201, 182, 215, 0.22)',
+        marginBottom: '28px',
+        position: 'relative',
+        backdropFilter: 'blur(12px)',
+        border: '1px solid rgba(255, 255, 255, 0.7)'
+      }}>
+        <span style={{ fontSize: '12px', fontWeight: '800', letterSpacing: '1.5px', color: '#5F50A9', textTransform: 'uppercase', display: 'inline-block', marginBottom: '10px', backgroundColor: 'rgba(255, 255, 255, 0.85)', padding: '5px 16px', borderRadius: '50px', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+          Trip Route Planner
+        </span>
+        <h1 style={{ fontSize: '32px', fontWeight: '800', color: '#1e293b', margin: '0 0 8px 0', letterSpacing: '-0.5px' }}>
+          🗺️ 나의 여행 동선 및 최적 지도
+        </h1>
+        <p style={{ fontSize: '15px', color: '#64748b', margin: '0' }}>
+          장소를 검색해 추가하고 드래그하여 최적의 이동 동선을 편리하게 완성해보세요
+        </p>
+      </div>
 
       {/* 장소 검색 바 */}
-      <div style={{ backgroundColor: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '12px', padding: '16px', marginBottom: '20px' }}>
-        <form onSubmit={handleDirectSearch} style={{ display: 'flex', gap: '10px' }}>
+      <div style={{ 
+        backgroundColor: '#ffffff', 
+        borderRadius: '50px', 
+        padding: '6px 8px 6px 24px', 
+        boxShadow: '0 10px 30px rgba(95, 80, 169, 0.08), 0 2px 10px rgba(0, 0, 0, 0.04)', 
+        border: '1px solid rgba(226, 232, 240, 0.95)',
+        marginBottom: '24px',
+        position: 'relative'
+      }}>
+        <form onSubmit={handleDirectSearch} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <input 
             type="text"
             value={searchKeyword}
             onChange={(e) => setSearchKeyword(e.target.value)}
-            placeholder="추가하고 싶은 관광지나 시설 이름 검색 (예: 강릉, 카페 등)"
-            style={{ flex: 1, padding: '10px 14px', backgroundColor: '#fff', border: '1px solid #cbd5e1', borderRadius: '8px', fontSize: '14px', outline: 'none' }}
+            placeholder="추가하고 싶은 관광지나 시설 이름을 검색해보세요 (예: 강릉, 카페, 펜션 등)"
+            style={{ 
+              flex: 1, 
+              padding: '12px 0', 
+              backgroundColor: 'transparent', 
+              border: 'none', 
+              fontSize: '15px', 
+              outline: 'none',
+              color: '#1e293b'
+            }}
           />
           <button 
-            type="submit"
-            disabled={isSearching}
-            style={{ padding: '0 20px', backgroundColor: '#2563eb', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px' }}
+            type="submit" 
+            disabled={isSearching} 
+            title="장소 검색"
+            style={{ 
+              width: '44px', 
+              height: '44px', 
+              borderRadius: '50%', 
+              backgroundColor: '#5F50A9', 
+              color: '#fff', 
+              border: 'none', 
+              cursor: isSearching ? 'not-allowed' : 'pointer', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              boxShadow: '0 4px 14px rgba(95, 80, 169, 0.35)',
+              transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+              flexShrink: 0
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.transform = 'scale(1.06)';
+              e.currentTarget.style.boxShadow = '0 6px 18px rgba(95, 80, 169, 0.45)';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.transform = 'none';
+              e.currentTarget.style.boxShadow = '0 4px 14px rgba(95, 80, 169, 0.35)';
+            }}
           >
-            {isSearching ? '검색 중...' : '🔍 장소 찾기'}
+            {isSearching ? (
+              <span style={{ fontSize: '13px' }}>⏳</span>
+            ) : (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+            )}
           </button>
         </form>
 
         {searchResults.length > 0 && (
-          <div style={{ marginTop: '12px', maxHeight: '180px', overflowY: 'auto', backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '8px' }}>
-            <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#64748b', marginBottom: '6px', paddingLeft: '4px' }}>검색 결과 (클릭하여 동선에 추가)</div>
+          <div style={{ marginTop: '12px', maxHeight: '200px', overflowY: 'auto', backgroundColor: '#fff', border: '1px solid #f1f5f9', borderRadius: '20px', padding: '12px 16px', boxShadow: '0 10px 25px rgba(0,0,0,0.08)' }}>
+            <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#64748b', marginBottom: '8px', paddingLeft: '4px' }}>검색 결과 (클릭하여 동선에 추가)</div>
             {searchResults.map(spot => (
               <div 
                 key={spot.id}
-                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', borderBottom: '1px solid #f1f5f9', cursor: 'pointer', fontSize: '13px' }}
+                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 8px', borderBottom: '1px solid #f8fafc', fontSize: '13px' }}
               >
                 <div>
-                  <strong>{spot.name}</strong> <span style={{ color: '#64748b', fontSize: '12px' }}>({spot.address})</span>
+                  <strong style={{ color: '#1e293b' }}>{spot.name}</strong> <span style={{ color: '#64748b', fontSize: '12px' }}>({spot.address})</span>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => handleAddSpotToRoute(spot)}
-                  style={{ padding: '4px 10px', backgroundColor: '#10b981', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
-                >
+                <button type="button" className="map-brand-btn" onClick={() => handleAddSpotToRoute(spot)} style={{ padding: "6px 14px", backgroundColor: "#5F50A9", color: "#fff", border: "none", fontSize: "12px", fontWeight: "bold", cursor: "pointer", borderRadius: "50px", boxShadow: "0 2px 6px rgba(95, 80, 169, 0.25)" }}>
                   + 동선에 추가
                 </button>
               </div>
@@ -483,19 +607,14 @@ function MapPage() {
       {/* 상단 액션 바 */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
         <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#334155' }}>
-          동선에 추가된 장소: <span style={{ color: '#2563eb' }}>{selectedSpots.length}개</span> (2~8개 가능)
+          동선에 추가된 장소: <span style={{ color: '#5F50A9' }}>{selectedSpots.length}개</span> (2~8개 가능)
         </span>
 
-        <button
-          type="button"
-          onClick={handleSuggestRoute}
-          disabled={isLoading || selectedSpots.length < 2}
-          style={{
-            padding: '10px 20px', 
-            backgroundColor: selectedSpots.length >= 2 ? '#2563eb' : '#cbd5e1',
-            color: 'white', border: 'none', borderRadius: '8px', 
+        <button type="button" className="map-brand-btn" onClick={handleSuggestRoute} disabled={isLoading || selectedSpots.length < 2} style={{
+            padding: '10px 22px', 
+            backgroundColor: selectedSpots.length >= 2 ? '#5F50A9' : '#e2e8f0', color: selectedSpots.length >= 2 ? '#fff' : '#94a3b8', border: 'none', 
             cursor: selectedSpots.length >= 2 ? 'pointer' : 'not-allowed',
-            fontWeight: 'bold', fontSize: '14px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+            fontWeight: 'bold', fontSize: '14px', boxShadow: selectedSpots.length >= 2 ? '0 4px 14px rgba(95, 80, 169, 0.35)' : 'none'
           }}
         >
           {isLoading ? '동선 계산 중...' : '✨ 최적 방문 동선 계산하기'}
@@ -503,7 +622,7 @@ function MapPage() {
       </div>
 
       {routeResult && (
-        <div style={{ backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '10px', padding: '15px 20px', marginBottom: '20px' }}>
+        <div className="summary-card" style={{ backgroundColor: "#fff", border: "none", padding: "20px 25px", marginBottom: "20px" }}>
           <h4 style={{ margin: '0 0 5px 0', color: '#1d4ed8', fontSize: '15px' }}>🎉 최적 동선 계산 완료!</h4>
           <p style={{ margin: 0, fontSize: '14px', color: '#334155' }}>
             총 이동 거리: <strong>{routeResult.total_distance_km ?? 0} km</strong>
@@ -512,19 +631,24 @@ function MapPage() {
       )}
 
       {/* 지도 영역 + 장소 리스트 레이아웃 */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '24px', alignItems: 'flex-start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '360px 1fr', gap: '24px', alignItems: 'flex-start' }}>
         
         {/* 카카오 지도 컨테이너 */}
         <div 
           ref={mapContainerRef} 
-          style={{ width: '100%', height: '520px', borderRadius: '14px', border: '1px solid #cbd5e1', backgroundColor: '#e2e8f0', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }} 
+          style={{ order: 2, width: '100%', height: '520px', borderRadius: '24px', border: 'none', backgroundColor: '#e2e8f0', boxShadow: '0 10px 30px rgba(0,0,0,0.06)' }} 
         />
 
         {/* 장소 목록 사이드바 */}
-        <div style={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '14px', padding: '18px', maxHeight: '520px', overflowY: 'auto', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
-          <h4 style={{ margin: '0 0 14px 0', fontSize: '16px', color: '#1e293b', borderBottom: '1px solid #f1f5f9', paddingBottom: '10px' }}>
-            📋 내 동선 순서 변경 (드래그)
-          </h4>
+        <div style={{ order: 1, backgroundColor: '#f8fafc', border: 'none', borderRadius: '24px', padding: '20px', maxHeight: '520px', overflowY: 'auto', boxShadow: '0 10px 30px rgba(0,0,0,0.04)' }}>
+          <div style={{ marginBottom: '14px', borderBottom: '1px solid #f1f5f9', paddingBottom: '10px' }}>
+            <h4 style={{ margin: '0 0 4px 0', fontSize: '16px', color: '#1e293b', fontWeight: 'bold' }}>
+              📋 여행 동선 순서 변경
+            </h4>
+            <p style={{ margin: 0, fontSize: '12px', color: '#94a3b8' }}>
+              💡 카드를 꾹 누르고 드래그하여 순서를 변경해보세요
+            </p>
+          </div>
           
           {selectedSpots.length > 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -540,52 +664,84 @@ function MapPage() {
                 return (
                   <React.Fragment key={spotId || index}>
                     {legDistance != null && (
-                      <div style={{ textAlign: 'center', color: '#3b82f6', fontSize: '12px', margin: '-2px 0', padding: '4px 0', fontWeight: 'bold' }}>
+                      <div style={{ textAlign: 'center', color: '#5F50A9', fontSize: '12px', margin: '-2px 0', padding: '4px 0', fontWeight: 'bold' }}>
                         ⬇ 약 {legDistance.toFixed(2)} km 이동
                       </div>
                     )}
                     <div 
+                      className={`route-spot-card ${draggedItemIndex === index ? 'dragging' : ''} ${dragOverIndex === index && draggedItemIndex !== index ? 'drag-over' : ''}`}
                       draggable
                       onDragStart={(e) => handleDragStart(e, index)}
-                      onDragOver={handleDragOver}
+                      onDragOver={(e) => handleDragOver(e, index)}
+                      onDragEnd={handleDragEnd}
                       onDrop={(e) => handleDrop(e, index)}
                       style={{ 
-                        padding: '12px', backgroundColor: '#f8fafc', borderRadius: '10px', 
-                        border: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', 
-                        alignItems: 'center', cursor: 'grab', userSelect: 'none',
-                        boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
+                        padding: '16px', display: 'flex', justifyContent: 'space-between', 
+                        alignItems: 'center', userSelect: 'none',
+                        position: 'relative'
                       }}
                       title="꾹 누르고 드래그하여 순서를 변경하세요"
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: '0' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: '0' }}>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', backgroundColor: '#fff', padding: '3px 2px', borderRadius: '10px', border: 'none', boxShadow: 'none' }}>
                           <button 
-                            onClick={() => handleMoveSpot(index, -1)} 
+                            onClick={(e) => { e.stopPropagation(); handleMoveSpot(index, -1); }} 
                             disabled={index === 0}
-                            style={{ background: 'none', border: 'none', cursor: index === 0 ? 'not-allowed' : 'pointer', color: index === 0 ? '#cbd5e1' : '#64748b', fontSize: '12px', padding: '0 4px' }}
+                            style={{ background: 'none', border: 'none', cursor: index === 0 ? 'not-allowed' : 'pointer', color: index === 0 ? '#e2e8f0' : '#e11d48', fontSize: '10px', padding: '0 4px', lineHeight: 1 }}
+                            title="위로 순서 이동"
                           >▲</button>
                           <button 
-                            onClick={() => handleMoveSpot(index, 1)} 
+                            onClick={(e) => { e.stopPropagation(); handleMoveSpot(index, 1); }} 
                             disabled={index === selectedSpots.length - 1}
-                            style={{ background: 'none', border: 'none', cursor: index === selectedSpots.length - 1 ? 'not-allowed' : 'pointer', color: index === selectedSpots.length - 1 ? '#cbd5e1' : '#64748b', fontSize: '12px', padding: '0 4px' }}
+                            style={{ background: 'none', border: 'none', cursor: index === selectedSpots.length - 1 ? 'not-allowed' : 'pointer', color: index === selectedSpots.length - 1 ? '#e2e8f0' : '#e11d48', fontSize: '10px', padding: '0 4px', lineHeight: 1 }}
+                            title="아래로 순서 이동"
                           >▼</button>
                         </div>
                         <div style={{ flex: 1, minWidth: '0' }}>
                           <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#1e293b', marginBottom: '2px' }}>
-                            <span style={{ color: '#2563eb', marginRight: '4px' }}>{index + 1}.</span> {spot.name || spot.title}
+                            <span style={{ color: '#5F50A9', marginRight: '4px' }}>{index + 1}.</span> {spot.name || spot.title}
                           </div>
                           <div style={{ fontSize: '11px', color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             📍 {spot.address || spot.addr}
                           </div>
                         </div>
                       </div>
-                      <button 
+                                            <button 
                         type="button"
                         onClick={() => handleRemoveSpot(spot.id || spot.contentId)}
-                        style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', padding: '4px', marginLeft: '6px' }}
+                        style={{ 
+                          backgroundColor: '#fff', 
+                          border: '1.5px solid #F6CADD', 
+                          cursor: 'pointer', 
+                          padding: '6px', 
+                          marginLeft: '6px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          borderRadius: '50%',
+                          color: '#ef4444',
+                          boxShadow: '0 2px 6px rgba(246, 202, 221, 0.3)',
+                          transition: 'transform 0.15s ease, background-color 0.15s ease, border-color 0.15s ease'
+                        }}
+                        onMouseOver={(e) => { 
+                          e.currentTarget.style.transform = 'scale(1.15)'; 
+                          e.currentTarget.style.backgroundColor = '#fff0f5'; 
+                          e.currentTarget.style.borderColor = '#F79DC4';
+                        }}
+                        onMouseOut={(e) => { 
+                          e.currentTarget.style.transform = 'scale(1)'; 
+                          e.currentTarget.style.backgroundColor = '#fff'; 
+                          e.currentTarget.style.borderColor = '#F6CADD';
+                        }}
                         title="동선에서 제거"
                       >
-                        삭제
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="3 6 5 6 21 6"></polyline>
+                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                          <line x1="10" y1="11" x2="10" y2="17"></line>
+                          <line x1="14" y1="11" x2="14" y2="17"></line>
+                        </svg>
                       </button>
                     </div>
                   </React.Fragment>
@@ -602,6 +758,7 @@ function MapPage() {
 
       </div>
     </div>
+    </>
   );
 }
 

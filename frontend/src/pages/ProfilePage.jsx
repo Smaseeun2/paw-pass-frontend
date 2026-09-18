@@ -511,11 +511,60 @@ function ProfilePage() {
   };
 
   return (
-    <div style={{ padding: '0 20px', paddingBottom: '60px', maxWidth: '850px', margin: '0 auto', position: 'relative' }}>
-      <h2 style={{ textAlign: 'center', marginBottom: '10px' }}>반려동물 프로필 작성</h2>
-      <p style={{ textAlign: 'center', color: 'gray', marginBottom: '24px' }}>
-        {user ? `${user.name}님의 반려동물 프로필 관리` : '체험 모드로 등록하거나 구글 로그인 후 안전하게 보관하세요.'}
-      </p>
+    
+        <>
+      <div style={{
+        position: 'fixed',
+        top: 0, left: 0, right: 0, bottom: 0,
+        background: 'linear-gradient(135deg, #C9B6D7 0%, #F6CADD 35%, #C5E0FB 70%, #AED2F9 100%)',
+        zIndex: 0,
+        opacity: 0.35,
+        pointerEvents: 'none'
+      }} />
+      <div className="pawpass-profile-container" style={{ padding: '40px 20px 30px 20px', maxWidth: '1200px', margin: '0 auto', fontFamily: 'sans-serif', position: 'relative', zIndex: 1 }}>
+      <style>{`
+        .pet-card { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+        .pet-card:hover { transform: translateY(-4px); box-shadow: 0 12px 35px rgba(0,0,0,0.1) !important; }
+        
+        .form-input {
+          border: none !important;
+          background-color: #f8fafc !important;
+          border-radius: 16px !important;
+          padding: 14px 16px !important;
+          transition: background-color 0.2s ease, box-shadow 0.2s ease;
+          box-shadow: inset 0 2px 4px rgba(0,0,0,0.02) !important;
+        }
+        .form-input:focus {
+          outline: none;
+          background-color: #fff !important;
+          box-shadow: 0 0 0 2px #C9B6D7 !important;
+        }
+        
+        .brand-btn { transition: transform 0.2s ease, filter 0.2s ease, box-shadow 0.2s ease; }
+        .brand-btn:hover { transform: translateY(-2px); filter: brightness(0.95); box-shadow: 0 8px 20px rgba(0,0,0,0.1) !important; }
+      `}</style>
+            {/* 상단 모던 히어로 카드 배너 */}
+      <div style={{ 
+        textAlign: 'center', 
+        padding: '36px 20px 32px 20px', 
+        background: 'linear-gradient(135deg, rgba(201, 182, 215, 0.45) 0%, rgba(246, 202, 221, 0.35) 35%, rgba(197, 224, 251, 0.45) 70%, rgba(174, 210, 249, 0.4) 100%)',
+        borderRadius: '32px',
+        boxShadow: '0 12px 35px rgba(201, 182, 215, 0.22)',
+        marginBottom: '28px',
+        position: 'relative',
+        backdropFilter: 'blur(12px)',
+        border: '1px solid rgba(255, 255, 255, 0.7)'
+      }}>
+        <span style={{ fontSize: '12px', fontWeight: '800', letterSpacing: '1.5px', color: '#5F50A9', textTransform: 'uppercase', display: 'inline-block', marginBottom: '10px', backgroundColor: 'rgba(255, 255, 255, 0.85)', padding: '5px 16px', borderRadius: '50px', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+          Pet Management
+        </span>
+        <h1 style={{ fontSize: '32px', fontWeight: '800', color: '#1e293b', margin: '0 0 8px 0', letterSpacing: '-0.5px' }}>
+          🐾 반려동물 프로필 관리
+        </h1>
+        <p style={{ fontSize: '15px', color: '#64748b', margin: '0' }}>
+          {user ? `${user.name}님의 소중한 반려동물 정보를 등록하고 맞춤 여행을 준비하세요` : '아이의 체중과 견종을 등록해 맞춤 동반 조건을 확인해보세요'}
+        </p>
+      </div>
 
       {!user ? (
         <div style={{ backgroundColor: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: '12px', padding: '14px 18px', marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
@@ -525,7 +574,7 @@ function ProfilePage() {
           </div>
         </div>
       ) : (
-        <div style={{ backgroundColor: '#fff', borderRadius: '12px', padding: '24px', boxShadow: '0 4px 12px rgba(0,0,0,0.08)', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '20px' }}>
+        <div style={{ backgroundColor: '#fff', borderRadius: '24px', padding: '30px', boxShadow: '0 15px 40px rgba(0,0,0,0.08)', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '20px' }}>
           <div style={{ position: 'relative' }}>
             {user.picture ? (
               <img src={user.picture} alt="프로필" style={{ width: '80px', height: '80px', borderRadius: '50%', objectFit: 'cover' }} />
@@ -557,18 +606,16 @@ function ProfilePage() {
               const isPrimary = Boolean(pet.isPrimary);
 
               return (
-                <div 
-                  key={pet.id} 
-                  style={{ 
-                    border: isCurrentEditing ? '2px solid #1976d2' : (isPrimary ? '1.5px solid #bbf7d0' : '1px solid #ddd'), 
+                <div key={pet.id} className="pet-card" style={{ 
+                    border: 'none', 
                     padding: '15px', 
-                    borderRadius: '10px', 
-                    backgroundColor: isCurrentEditing ? '#f8faff' : (isPrimary ? '#f0fdf4' : '#fff'), 
+                    borderRadius: '24px', 
+                    backgroundColor: isCurrentEditing ? '#f8faff' : (isPrimary ? '#FDF5C9' : '#fff'), 
                     display: 'flex', 
                     gap: '15px', 
                     alignItems: 'flex-start', 
                     position: 'relative', 
-                    boxShadow: '0 2px 5px rgba(0,0,0,0.05)' 
+                    boxShadow: '0 10px 30px rgba(0,0,0,0.06)' 
                   }}
                 >
                   <div style={{ width: '55px', height: '55px', borderRadius: '50%', backgroundColor: '#eee', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', overflow: 'hidden', flexShrink: 0 }}>
@@ -580,16 +627,25 @@ function ProfilePage() {
                   </div>
                   <div style={{ flex: 1 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                      <h4 style={{ margin: 0, color: '#1976d2' }}>{pet.name}</h4>
+                      <h4 style={{ margin: 0, color: '#243D66', fontSize: '16px', fontWeight: '800' }}>{pet.name}</h4>
                       {isPrimary ? (
-                        <span style={{ backgroundColor: '#dcfce7', color: '#15803d', padding: '2px 8px', borderRadius: '10px', fontSize: '11px', fontWeight: 'bold' }}>
+                        <span style={{ 
+                          backgroundColor: '#243D66', 
+                          color: '#ffffff', 
+                          padding: '3px 10px', 
+                          borderRadius: '20px', 
+                          fontSize: '11px', 
+                          fontWeight: 'bold',
+                          letterSpacing: '-0.2px',
+                          boxShadow: '0 2px 6px rgba(36, 61, 102, 0.25)' 
+                        }}>
                           ⭐ 대표
                         </span>
                       ) : (
                         <button 
                           type="button"
                           onClick={(e) => handleSetPrimary(pet.id, e)}
-                          style={{ padding: '3px 8px', backgroundColor: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '6px', cursor: 'pointer', fontSize: '11px', color: '#475569', fontWeight: 'bold' }}
+                          style={{ padding: '3px 8px', backgroundColor: '#fff', border: 'none', borderRadius: '20px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', cursor: 'pointer', fontSize: '11px', color: '#475569', fontWeight: 'bold' }}
                         >
                           대표로 설정
                         </button>
@@ -641,97 +697,319 @@ function ProfilePage() {
       <hr style={{ borderColor: '#eee', marginBottom: '30px' }} />
 
       {/* 등록 및 수정 폼 */}
-      <div id="pet-form-section" style={{ backgroundColor: '#fff', border: editingPetId ? '2px solid #1976d2' : '1px solid #ddd', padding: '30px', borderRadius: '12px', boxShadow: '0 4px 10px rgba(0,0,0,0.03)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px' }}>
-          <h3 style={{ margin: 0, color: editingPetId ? '#1976d2' : '#111' }}>
-            {editingPetId ? `🐾 ${form.name || '반려동물'} 프로필 수정하기` : '새 반려동물 등록하기'}
-          </h3>
+      <div id="pet-form-section" style={{ 
+        backgroundColor: '#ffffff', 
+        border: '1px solid rgba(226, 232, 240, 0.8)', 
+        padding: '36px 32px', 
+        borderRadius: '32px', 
+        boxShadow: '0 20px 45px rgba(95, 80, 169, 0.07)',
+        position: 'relative'
+      }}>
+        {/* 헤더 영역 */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '28px', flexWrap: 'wrap', gap: '12px' }}>
+          <div>
+            <span style={{ 
+              display: 'inline-block', 
+              backgroundColor: '#F3EEFA', 
+              color: '#5F50A9', 
+              padding: '4px 12px', 
+              borderRadius: '50px', 
+              fontSize: '11px', 
+              fontWeight: '800', 
+              letterSpacing: '0.8px',
+              marginBottom: '8px'
+            }}>
+              {editingPetId ? 'EDIT PROFILE' : 'NEW PROFILE'}
+            </span>
+            <h3 style={{ margin: 0, fontSize: '22px', fontWeight: '800', color: '#1e293b', letterSpacing: '-0.3px' }}>
+              {editingPetId ? `🐾 ${form.name || '반려동물'} 정보 수정` : '새 반려동물 프로필 등록'}
+            </h3>
+            <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#64748b' }}>
+              {editingPetId ? '반려동물의 최신 정보와 출입 조건을 업데이트하세요.' : '아이의 체형과 특성에 맞춘 여행지 출입 조건을 똑똑하게 분석해드려요.'}
+            </p>
+          </div>
           {editingPetId && (
             <button 
               type="button" 
               onClick={handleCancelEdit}
-              style={{ padding: '6px 12px', backgroundColor: '#e2e8f0', color: '#475569', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: 'bold' }}
+              style={{ 
+                padding: '8px 16px', 
+                backgroundColor: '#f1f5f9', 
+                color: '#475569', 
+                border: '1px solid #e2e8f0', 
+                borderRadius: '50px', 
+                cursor: 'pointer', 
+                fontSize: '13px', 
+                fontWeight: '700',
+                transition: 'all 0.2s'
+              }}
             >
-              수정 취소
+              ✕ 수정 취소
             </button>
           )}
         </div>
         
-        <form onSubmit={handleAddPet} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          <div style={{ display: 'flex', gap: '20px', alignItems: 'center', flexWrap: 'wrap', backgroundColor: '#f9f9f9', padding: '15px', borderRadius: '8px' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-              <div style={{ width: '70px', height: '70px', borderRadius: '50%', backgroundColor: '#ddd', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '28px', overflow: 'hidden', border: '2px solid #bbb' }}>
+        <form onSubmit={handleAddPet} style={{ display: 'flex', flexDirection: 'column', gap: '26px' }}>
+          
+          {/* 1. 프로필 아바타 / 사진 선택 카드 */}
+          <div style={{ 
+            backgroundColor: '#f8fafc', 
+            borderRadius: '24px', 
+            padding: '20px 24px', 
+            border: '1px solid #e2e8f0', 
+            display: 'flex', 
+            gap: '24px', 
+            alignItems: 'center', 
+            flexWrap: 'wrap' 
+          }}>
+            <div style={{ position: 'relative', width: '84px', height: '84px', flexShrink: 0 }}>
+              <div style={{ 
+                width: '100%', 
+                height: '100%', 
+                borderRadius: '50%', 
+                backgroundColor: '#ffffff', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center', 
+                fontSize: '34px', 
+                overflow: 'hidden', 
+                border: '3px solid #F3EEFA',
+                boxShadow: '0 4px 14px rgba(95, 80, 169, 0.12)'
+              }}>
                 {typeof form.image === 'string' && (form.image.startsWith('data:') || form.image.startsWith('http') || form.image.startsWith('blob:')) ? (
                   <img src={form.image} alt="preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 ) : (
-                  <span>{form.image}</span>
+                  <span>{form.image || '🐶'}</span>
                 )}
               </div>
-              <label style={{ fontSize: '12px', color: '#1976d2', cursor: 'pointer', fontWeight: 'bold' }}>
-                📸 직접 찍은 사진 선택
+              <label 
+                title="사진 변경"
+                style={{ 
+                  position: 'absolute', 
+                  bottom: 0, 
+                  right: 0, 
+                  backgroundColor: '#5F50A9', 
+                  color: 'white', 
+                  borderRadius: '50%', 
+                  width: '28px', 
+                  height: '28px', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center', 
+                  cursor: 'pointer', 
+                  boxShadow: '0 2px 6px rgba(95,80,169,0.3)',
+                  fontSize: '13px'
+                }}
+              >
+                📷
                 <input type="file" accept="image/*" onChange={handleImageUpload} style={{ display: 'none' }} />
               </label>
             </div>
 
-            <div style={{ flex: 1 }}>
-              <p style={{ margin: '0 0 8px 0', fontSize: '13px', fontWeight: 'bold', color: '#555' }}>또는 기본 아이콘 선택</p>
-              <div style={{ display: 'flex', gap: '10px' }}>
-                {defaultIcons.map((icon, idx) => (
-                  <button
-                    key={idx}
-                    type="button"
-                    onClick={() => {
-                      setForm((prev) => ({ ...prev, image: icon }));
-                      setImageFile(null);
-                    }}
-                    style={{
-                      width: '40px', height: '40px', borderRadius: '50%', 
-                      border: form.image === icon ? '2px solid #1976d2' : '1px solid #ccc',
-                      backgroundColor: form.image === icon ? '#e3f2fd' : '#fff',
-                      fontSize: '18px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
-                    }}
-                  >
-                    {icon}
-                  </button>
-                ))}
+            <div style={{ flex: 1, minWidth: '220px' }}>
+              <div style={{ marginBottom: '10px' }}>
+                <span style={{ fontSize: '13px', fontWeight: '700', color: '#334155' }}>
+                  캐릭터 아이콘 또는 사진 업로드
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                {defaultIcons.map((icon, idx) => {
+                  const isSelected = form.image === icon;
+                  return (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => {
+                        setForm((prev) => ({ ...prev, image: icon }));
+                        setImageFile(null);
+                      }}
+                      style={{
+                        width: '42px', 
+                        height: '42px', 
+                        borderRadius: '50%', 
+                        border: isSelected ? '2px solid #5F50A9' : '1.5px solid #e2e8f0',
+                        backgroundColor: isSelected ? '#F3EEFA' : '#ffffff',
+                        fontSize: '20px', 
+                        cursor: 'pointer', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center',
+                        transform: isSelected ? 'scale(1.08)' : 'scale(1)',
+                        boxShadow: isSelected ? '0 4px 10px rgba(95, 80, 169, 0.2)' : '0 2px 4px rgba(0,0,0,0.02)',
+                        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+                      }}
+                    >
+                      {icon}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>
 
-          <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontWeight: 'bold', fontSize: '14px' }}>
-            반려동물 이름 <span style={{ color: '#ef4444', fontSize: '12px' }}>*필수</span>
-            <input 
-              type="text" 
-              name="name" 
-              value={form.name} 
-              onChange={handleChange} 
-              placeholder="아이 이름을 입력해주세요." 
-              style={{ padding: '10px', borderRadius: '6px', border: '1px solid #ccc', fontSize: '14px' }}
-            />
-          </label>
+          {/* 2. 동물 종류 세그먼트 버튼 (반려견 vs 반려묘) */}
+          <div>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '8px' }}>
+              동물 종류 <span style={{ color: '#ef4444' }}>*</span>
+            </label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <button
+                type="button"
+                onClick={() => setForm(prev => ({ ...prev, species: 'DOG' }))}
+                style={{
+                  padding: '14px',
+                  borderRadius: '16px',
+                  border: form.species === 'DOG' ? '2px solid #5F50A9' : '1.5px solid #e2e8f0',
+                  backgroundColor: form.species === 'DOG' ? '#5F50A9' : '#f8fafc',
+                  color: form.species === 'DOG' ? '#ffffff' : '#475569',
+                  fontWeight: '800',
+                  fontSize: '15px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  boxShadow: form.species === 'DOG' ? '0 4px 12px rgba(95, 80, 169, 0.25)' : 'none',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                <span>🐶</span>
+                <span>반려견 (강아지)</span>
+              </button>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <label style={{ fontWeight: 'bold', fontSize: '14px' }}>
-                반려동물 생일 <span style={{ color: '#ef4444', fontSize: '12px' }}>*필수</span>
+              <button
+                type="button"
+                onClick={() => setForm(prev => ({ ...prev, species: 'CAT' }))}
+                style={{
+                  padding: '14px',
+                  borderRadius: '16px',
+                  border: form.species === 'CAT' ? '2px solid #5F50A9' : '1.5px solid #e2e8f0',
+                  backgroundColor: form.species === 'CAT' ? '#5F50A9' : '#f8fafc',
+                  color: form.species === 'CAT' ? '#ffffff' : '#475569',
+                  fontWeight: '800',
+                  fontSize: '15px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  boxShadow: form.species === 'CAT' ? '0 4px 12px rgba(95, 80, 169, 0.25)' : 'none',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                <span>🐱</span>
+                <span>반려묘 (고양이)</span>
+              </button>
+            </div>
+          </div>
+
+          {/* 3. 이름 & 품종 (2열 그리드) */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '8px' }}>
+                반려동물 이름 <span style={{ color: '#ef4444' }}>*</span>
               </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: '#4b5563', cursor: 'pointer' }}>
+              <input 
+                type="text" 
+                name="name" 
+                value={form.name} 
+                onChange={handleChange} 
+                placeholder="예: 초코, 콩이, 구름이" 
+                style={{ 
+                  width: '100%', 
+                  height: '48px', 
+                  padding: '0 16px', 
+                  borderRadius: '16px', 
+                  border: '1.5px solid #e2e8f0', 
+                  backgroundColor: '#f8fafc', 
+                  fontSize: '14px', 
+                  color: '#1e293b', 
+                  boxSizing: 'border-box',
+                  outline: 'none',
+                  transition: 'border-color 0.2s, background-color 0.2s'
+                }}
+                onFocus={(e) => { e.target.style.borderColor = '#5F50A9'; e.target.style.backgroundColor = '#ffffff'; }}
+                onBlur={(e) => { e.target.style.borderColor = '#e2e8f0'; e.target.style.backgroundColor = '#f8fafc'; }}
+              />
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '8px' }}>
+                품종 <span style={{ color: '#ef4444' }}>*</span>
+              </label>
+              <input 
+                type="text" 
+                name="breed" 
+                value={form.breed} 
+                onChange={handleChange} 
+                placeholder="예: 말티즈, 포메라니안, 코숏 (모를 경우 믹스)" 
+                style={{ 
+                  width: '100%', 
+                  height: '48px', 
+                  padding: '0 16px', 
+                  borderRadius: '16px', 
+                  border: '1.5px solid #e2e8f0', 
+                  backgroundColor: '#f8fafc', 
+                  fontSize: '14px', 
+                  color: '#1e293b', 
+                  boxSizing: 'border-box',
+                  outline: 'none',
+                  transition: 'border-color 0.2s, background-color 0.2s'
+                }}
+                onFocus={(e) => { e.target.style.borderColor = '#5F50A9'; e.target.style.backgroundColor = '#ffffff'; }}
+                onBlur={(e) => { e.target.style.borderColor = '#e2e8f0'; e.target.style.backgroundColor = '#f8fafc'; }}
+              />
+            </div>
+          </div>
+
+          {/* 4. 생년월일 & 생일을 몰라요 */}
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <label style={{ fontSize: '13px', fontWeight: '700', color: '#334155' }}>
+                생년월일 <span style={{ color: '#ef4444' }}>*</span>
+              </label>
+              <label style={{ 
+                display: 'inline-flex', 
+                alignItems: 'center', 
+                gap: '6px', 
+                padding: '4px 12px', 
+                borderRadius: '50px', 
+                backgroundColor: form.unknownBirth ? '#F3EEFA' : '#f1f5f9', 
+                color: form.unknownBirth ? '#5F50A9' : '#64748b', 
+                border: form.unknownBirth ? '1px solid #5F50A9' : '1px solid #e2e8f0',
+                fontSize: '12px', 
+                fontWeight: '700', 
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}>
                 <input 
                   type="checkbox" 
                   checked={form.unknownBirth} 
                   onChange={(e) => setForm((prev) => ({ ...prev, unknownBirth: e.target.checked }))} 
+                  style={{ accentColor: '#5F50A9', cursor: 'pointer' }}
                 />
-                생일을 몰라요
+                🎂 생일을 몰라요
               </label>
             </div>
 
-            <div style={{ display: 'flex', gap: '10px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr', gap: '10px' }}>
               <select 
                 name="birthYear" 
                 value={form.birthYear} 
                 onChange={handleChange} 
                 disabled={form.unknownBirth}
-                style={{ flex: 1, padding: '10px', borderRadius: '6px', border: '1px solid #ccc', fontSize: '14px', backgroundColor: form.unknownBirth ? '#f3f4f6' : '#fff' }}
+                style={{ 
+                  height: '48px', 
+                  borderRadius: '16px', 
+                  border: '1.5px solid #e2e8f0', 
+                  backgroundColor: form.unknownBirth ? '#f1f5f9' : '#f8fafc', 
+                  padding: '0 14px', 
+                  fontSize: '14px', 
+                  color: form.unknownBirth ? '#94a3b8' : '#1e293b',
+                  outline: 'none',
+                  cursor: form.unknownBirth ? 'not-allowed' : 'pointer'
+                }}
               >
                 {years.map((y) => (
                   <option key={y} value={y}>{y}년</option>
@@ -743,7 +1021,17 @@ function ProfilePage() {
                 value={form.birthMonth} 
                 onChange={handleChange} 
                 disabled={form.unknownBirth}
-                style={{ flex: 1, padding: '10px', borderRadius: '6px', border: '1px solid #ccc', fontSize: '14px', backgroundColor: form.unknownBirth ? '#f3f4f6' : '#fff' }}
+                style={{ 
+                  height: '48px', 
+                  borderRadius: '16px', 
+                  border: '1.5px solid #e2e8f0', 
+                  backgroundColor: form.unknownBirth ? '#f1f5f9' : '#f8fafc', 
+                  padding: '0 14px', 
+                  fontSize: '14px', 
+                  color: form.unknownBirth ? '#94a3b8' : '#1e293b',
+                  outline: 'none',
+                  cursor: form.unknownBirth ? 'not-allowed' : 'pointer'
+                }}
               >
                 {months.map((m) => (
                   <option key={m} value={m}>{m}월</option>
@@ -755,7 +1043,17 @@ function ProfilePage() {
                 value={form.birthDay} 
                 onChange={handleChange} 
                 disabled={form.unknownBirth}
-                style={{ flex: 1, padding: '10px', borderRadius: '6px', border: '1px solid #ccc', fontSize: '14px', backgroundColor: form.unknownBirth ? '#f3f4f6' : '#fff' }}
+                style={{ 
+                  height: '48px', 
+                  borderRadius: '16px', 
+                  border: '1.5px solid #e2e8f0', 
+                  backgroundColor: form.unknownBirth ? '#f1f5f9' : '#f8fafc', 
+                  padding: '0 14px', 
+                  fontSize: '14px', 
+                  color: form.unknownBirth ? '#94a3b8' : '#1e293b',
+                  outline: 'none',
+                  cursor: form.unknownBirth ? 'not-allowed' : 'pointer'
+                }}
               >
                 {days.map((d) => (
                   <option key={d} value={d}>{d}일</option>
@@ -764,135 +1062,188 @@ function ProfilePage() {
             </div>
           </div>
 
-          <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontWeight: 'bold', fontSize: '14px' }}>
-            동물 종류 <span style={{ color: '#ef4444', fontSize: '12px' }}>*필수</span>
-            <div style={{ display: 'flex', gap: '16px', padding: '10px', borderRadius: '6px', border: '1px solid #ccc', backgroundColor: '#fff' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '14px', cursor: 'pointer' }}>
-                <input 
-                  type="radio" 
-                  name="species" 
-                  value="DOG" 
-                  checked={form.species === 'DOG'} 
-                  onChange={handleChange} 
-                />
-                반려견 🐶
-              </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '14px', cursor: 'pointer' }}>
-                <input 
-                  type="radio" 
-                  name="species" 
-                  value="CAT" 
-                  checked={form.species === 'CAT'} 
-                  onChange={handleChange} 
-                />
-                반려묘 🐱
-              </label>
-            </div>
-          </label>
-
-          <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontWeight: 'bold', fontSize: '14px', marginTop: '16px' }}>
-            반려동물 품종 <span style={{ color: '#ef4444', fontSize: '12px' }}>*필수</span>
-            <input 
-              type="text" 
-              name="breed" 
-              value={form.breed} 
-              onChange={handleChange} 
-              placeholder="예: 말티즈, 푸들, 코숏 등 (모를 경우 '믹스' 입력)" 
-              style={{ padding: '10px', borderRadius: '6px', border: '1px solid #ccc', fontSize: '14px' }}
-            />
-          </label>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <label style={{ fontWeight: 'bold', fontSize: '14px' }}>
-              체중 (kg) 및 크기 분류 <span style={{ color: '#ef4444', fontSize: '12px' }}>*필수</span>
+          {/* 5. 체중 및 체형 크기 분류 */}
+          <div>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '8px' }}>
+              체중 (kg) 및 크기 분류 <span style={{ color: '#ef4444' }}>*</span>
             </label>
-            <div style={{ display: 'flex', gap: '15px', alignItems: 'center', flexWrap: 'wrap' }}>
-              <input 
-                type="number" 
-                step="0.1" 
-                name="weight" 
-                value={form.weight} 
-                onChange={handleWeightChange} 
-                placeholder="숫자 입력 (예: 4.5)" 
-                style={{ padding: '10px', borderRadius: '6px', border: '1px solid #ccc', fontSize: '14px', flex: 1, minWidth: '180px' }}
-              />
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <div style={{ position: 'relative', flex: 1, minWidth: '160px' }}>
+                <input 
+                  type="number" 
+                  step="0.1" 
+                  name="weight" 
+                  value={form.weight} 
+                  onChange={handleWeightChange} 
+                  placeholder="예: 4.5" 
+                  style={{ 
+                    width: '100%', 
+                    height: '48px', 
+                    padding: '0 45px 0 16px', 
+                    borderRadius: '16px', 
+                    border: '1.5px solid #e2e8f0', 
+                    backgroundColor: '#f8fafc', 
+                    fontSize: '14px', 
+                    color: '#1e293b', 
+                    boxSizing: 'border-box',
+                    outline: 'none'
+                  }}
+                  onFocus={(e) => { e.target.style.borderColor = '#5F50A9'; e.target.style.backgroundColor = '#ffffff'; }}
+                  onBlur={(e) => { e.target.style.borderColor = '#e2e8f0'; e.target.style.backgroundColor = '#f8fafc'; }}
+                />
+                <span style={{ position: 'absolute', right: '16px', top: '50%', transform: 'translateY(-50%)', fontSize: '13px', color: '#64748b', fontWeight: '700' }}>
+                  kg
+                </span>
+              </div>
               
-              <div style={{ display: 'flex', gap: '8px' }}>
-                {['소형', '중형', '대형'].map((sz) => (
-                  <button
-                    key={sz}
-                    type="button"
-                    onClick={() => handleSizeClick(sz)}
-                    style={{
-                      padding: '10px 15px',
-                      borderRadius: '6px',
-                      border: form.size === sz ? '2px solid #1976d2' : '1px solid #ccc',
-                      backgroundColor: form.size === sz ? '#e3f2fd' : '#fff',
-                      color: form.size === sz ? '#1976d2' : '#333',
-                      fontWeight: 'bold',
-                      cursor: 'pointer',
-                      fontSize: '13px'
-                    }}
-                  >
-                    {sz} {sz === '소형' ? '(10kg 미만)' : sz === '중형' ? '(10~25kg)' : '(25kg 이상)'}
-                  </button>
-                ))}
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                {[
+                  { label: '소형', desc: '10kg 미만' },
+                  { label: '중형', desc: '10~25kg' },
+                  { label: '대형', desc: '25kg 이상' }
+                ].map((item) => {
+                  const isActive = form.size === item.label;
+                  return (
+                    <button
+                      key={item.label}
+                      type="button"
+                      onClick={() => handleSizeClick(item.label)}
+                      style={{
+                        padding: '10px 16px',
+                        borderRadius: '14px',
+                        border: isActive ? '1.5px solid #5F50A9' : '1.5px solid #e2e8f0',
+                        backgroundColor: isActive ? '#5F50A9' : '#f8fafc',
+                        color: isActive ? '#ffffff' : '#475569',
+                        fontWeight: '700',
+                        cursor: 'pointer',
+                        fontSize: '13px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '2px',
+                        boxShadow: isActive ? '0 3px 10px rgba(95, 80, 169, 0.2)' : 'none',
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      <span>{item.label}</span>
+                      <span style={{ fontSize: '10px', opacity: isActive ? 0.9 : 0.6, fontWeight: 'normal' }}>
+                        {item.desc}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
-            <span style={{ fontSize: '12px', color: '#666' }}>* 체중을 직접 입력하면 크기가 자동 분류되며, 버튼을 눌러 직접 변경할 수도 있습니다.</span>
+            <p style={{ margin: '6px 0 0 0', fontSize: '12px', color: '#94a3b8' }}>
+              💡 체중을 입력하면 크기가 자동 판별되며, 직접 버튼을 눌러 지정할 수도 있습니다.
+            </p>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '5px' }}>
-            <label style={{ fontWeight: 'bold', fontSize: '14px' }}>
-              동반 시 구비 가능한 용품 선택 (선택)
+          {/* 6. 동반 시 구비 가능한 용품 (인터랙티브 태그 칩) */}
+          <div>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', color: '#334155', marginBottom: '8px' }}>
+              동반 시 구비 가능한 용품 선택 <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 'normal' }}>(선택)</span>
             </label>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px', backgroundColor: '#f8fafc', padding: '15px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+            <div style={{ 
+              display: 'flex', 
+              flexWrap: 'wrap', 
+              gap: '10px', 
+              backgroundColor: '#f8fafc', 
+              padding: '16px', 
+              borderRadius: '20px', 
+              border: '1px solid #e2e8f0' 
+            }}>
               {availableSupplies.map((item) => {
                 const checked = form.supplies.includes(item);
                 return (
-                  <label key={item} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#334155', cursor: 'pointer' }}>
-                    <input 
-                      type="checkbox" 
-                      checked={checked} 
-                      onChange={() => handleSupplyToggle(item)} 
-                    />
-                    {item}
-                  </label>
+                  <button
+                    key={item}
+                    type="button"
+                    onClick={() => handleSupplyToggle(item)}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '8px 16px',
+                      borderRadius: '50px',
+                      fontSize: '13px',
+                      fontWeight: checked ? '800' : '600',
+                      cursor: 'pointer',
+                      border: checked ? '1.5px solid #5F50A9' : '1.5px solid #e2e8f0',
+                      backgroundColor: checked ? '#5F50A9' : '#ffffff',
+                      color: checked ? '#ffffff' : '#475569',
+                      boxShadow: checked ? '0 3px 8px rgba(95, 80, 169, 0.25)' : '0 1px 3px rgba(0,0,0,0.03)',
+                      transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+                    }}
+                  >
+                    <span>{checked ? '✓' : '+'}</span>
+                    <span>{item}</span>
+                  </button>
                 );
               })}
             </div>
-            <span style={{ fontSize: '12px', color: '#666' }}>* 장소별 출입 조건(입마개, 케이지 필수 등)을 판별할 때 활용됩니다.</span>
+            <p style={{ margin: '6px 0 0 0', fontSize: '12px', color: '#94a3b8' }}>
+              💡 장소별 출입 조건(입마개, 케이지, 이동장 필수 등)을 판별할 때 활용됩니다.
+            </p>
           </div>
 
-          {/* 하단 버튼 영역 */}
-          <div style={{ display: 'flex', gap: '12px', marginTop: '15px', flexWrap: 'wrap' }}>
+          {/* 7. 액션 버튼 영역 */}
+          <div style={{ display: 'flex', gap: '12px', marginTop: '10px', flexWrap: 'wrap' }}>
             <button 
               type="submit" 
+              className="brand-btn" 
               style={{ 
-                flex: 1, minWidth: '200px', padding: '14px', 
-                backgroundColor: editingPetId ? '#16a34a' : (user ? '#1976d2' : '#4b5563'), 
-                color: 'white', border: 'none', borderRadius: '8px', 
-                fontSize: '15px', cursor: 'pointer', fontWeight: 'bold' 
+                flex: 1, 
+                minWidth: '200px', 
+                height: '52px',
+                padding: '0 24px', 
+                backgroundColor: '#5F50A9', 
+                color: '#ffffff', 
+                border: 'none', 
+                borderRadius: '50px', 
+                fontSize: '15px', 
+                cursor: 'pointer', 
+                fontWeight: '800',
+                letterSpacing: '-0.2px',
+                boxShadow: '0 8px 24px rgba(95, 80, 169, 0.3)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                transition: 'all 0.2s ease'
               }}
             >
-              {editingPetId 
-                ? '수정 완료하기 🐾' 
-                : (user ? '프로필 등록 완료하기' : '체험용 프로필 등록하기 (임시)')}
+              <span>🐾</span>
+              <span>{editingPetId ? '프로필 수정 완료하기' : (user ? '새 프로필 등록 완료하기' : '체험용 프로필 등록하기 (임시)')}</span>
             </button>
 
             {!user && !editingPetId && (
               <button 
-                type="button"
-                onClick={handleLoginAndSave}
+                type="button" 
+                className="brand-btn" 
+                onClick={handleLoginAndSave} 
                 style={{ 
-                  flex: 1, minWidth: '220px', padding: '14px', 
-                  backgroundColor: '#4285F4', color: 'white', 
-                  border: 'none', borderRadius: '8px', 
-                  fontSize: '15px', cursor: 'pointer', fontWeight: 'bold',
-                  boxShadow: '0 2px 6px rgba(66, 133, 244, 0.3)'
+                  flex: 1, 
+                  minWidth: '220px', 
+                  height: '52px',
+                  padding: '0 24px', 
+                  backgroundColor: '#4285F4', 
+                  color: 'white', 
+                  border: 'none', 
+                  borderRadius: '50px', 
+                  fontSize: '15px', 
+                  cursor: 'pointer', 
+                  fontWeight: '800',
+                  boxShadow: '0 6px 18px rgba(66, 133, 244, 0.3)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  transition: 'all 0.2s ease'
                 }}
               >
-                구글 로그인하고 프로필 저장하기
+                <span>🔑</span>
+                <span>구글 로그인하고 영구 저장하기</span>
               </button>
             )}
 
@@ -901,8 +1252,16 @@ function ProfilePage() {
                 type="button"
                 onClick={handleCancelEdit}
                 style={{ 
-                  padding: '14px 20px', backgroundColor: '#9ca3af', color: 'white', 
-                  border: 'none', borderRadius: '8px', fontSize: '15px', cursor: 'pointer', fontWeight: 'bold' 
+                  height: '52px',
+                  padding: '0 24px', 
+                  backgroundColor: '#f1f5f9', 
+                  color: '#475569', 
+                  border: '1.5px solid #e2e8f0', 
+                  borderRadius: '50px', 
+                  fontSize: '14px', 
+                  cursor: 'pointer', 
+                  fontWeight: '700',
+                  transition: 'all 0.2s ease'
                 }}
               >
                 수정 취소
@@ -970,7 +1329,7 @@ function ProfilePage() {
                 setShowModal(false);
                 navigate('/search');
               }}
-              style={{ width: '100%', padding: '12px', backgroundColor: '#2563eb', color: 'white', border: 'none', borderRadius: '10px', fontWeight: 'bold', fontSize: '15px', cursor: 'pointer', boxShadow: '0 4px 10px rgba(37,99,235,0.2)' }}
+              style={{ width: '100%', padding: '12px', backgroundColor: '#2563eb', color: 'white', border: 'none', borderRadius: '24px', fontWeight: 'bold', fontSize: '15px', cursor: 'pointer', boxShadow: '0 4px 10px rgba(37,99,235,0.2)' }}
             >
               같이 갈 수 있는 관광지 탐색 페이지로 이동 →
             </button>
@@ -978,6 +1337,7 @@ function ProfilePage() {
         </div>
       )}
     </div>
+    </>
   );
 }
 
