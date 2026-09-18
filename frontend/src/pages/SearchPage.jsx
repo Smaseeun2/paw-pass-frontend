@@ -417,12 +417,347 @@ function DrawerContent({ spot, onClose, navigate, user, myPets, selectedPetIds =
   );
 }
 
+function SearchMapView({ 
+  spots, 
+  selectedSpotId, 
+  onSpotSelect, 
+  navigate, 
+  selectedPetIds = [],
+  user 
+}) {
+  const mapContainerRef = useRef(null);
+  const mapInstanceRef = useRef(null);
+  const markersRef = useRef([]);
+  const [activeSpot, setActiveSpot] = useState(null);
+
+  // 선택된 spot이 변경되면 activeSpot 동기화
+  useEffect(() => {
+    if (selectedSpotId) {
+      const found = spots.find(s => String(s.id) === String(selectedSpotId));
+      if (found) setActiveSpot(found);
+    }
+  }, [selectedSpotId, spots]);
+
+  // 카카오맵 렌더링 및 마커 등록
+  useEffect(() => {
+    let isMounted = true;
+    loadKakaoMapSdk().then(() => {
+      if (!isMounted || !mapContainerRef.current) return;
+      const kakao = window.kakao;
+      if (!kakao || !kakao.maps) return;
+
+      const validSpots = spots.filter(s => {
+        const lat = Number(s.lat);
+        const lng = Number(s.lng);
+        return !isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0;
+      });
+
+      const initialLat = validSpots.length > 0 ? Number(validSpots[0].lat) : 37.566826;
+      const initialLng = validSpots.length > 0 ? Number(validSpots[0].lng) : 126.978656;
+
+      let map = mapInstanceRef.current;
+      if (!map) {
+        const options = {
+          center: new kakao.maps.LatLng(initialLat, initialLng),
+          level: 7
+        };
+        map = new kakao.maps.Map(mapContainerRef.current, options);
+        mapInstanceRef.current = map;
+      }
+
+      // 기존 마커 및 오버레이 제거
+      markersRef.current.forEach(m => m.setMap(null));
+      markersRef.current = [];
+
+      if (validSpots.length === 0) return;
+
+      const bounds = new kakao.maps.LatLngBounds();
+
+      validSpots.forEach((spot) => {
+        const lat = Number(spot.lat);
+        const lng = Number(spot.lng);
+        const position = new kakao.maps.LatLng(lat, lng);
+        bounds.extend(position);
+
+        const isPossible = spot.matchStatus === '가능';
+        const isConditional = spot.matchStatus === '조건부 가능' || spot.matchStatus === '조건부';
+        const isRestricted = spot.matchStatus === '불가' || spot.matchStatus === '방문 불가';
+        
+        const pinBg = isPossible ? '#16A34A' : isConditional ? '#D97706' : isRestricted ? '#DC2626' : '#5F50A9';
+        const isSelected = selectedSpotId && String(selectedSpotId) === String(spot.id);
+
+        const markerDiv = document.createElement('div');
+        markerDiv.style.cssText = `
+          background-color: ${pinBg};
+          color: #ffffff;
+          width: ${isSelected ? '38px' : '32px'};
+          height: ${isSelected ? '38px' : '32px'};
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-weight: 800;
+          font-size: 13px;
+          border: 2.5px solid #ffffff;
+          box-shadow: 0 4px 14px rgba(0,0,0,0.3);
+          cursor: pointer;
+          transition: transform 0.2s ease, width 0.2s ease, height 0.2s ease;
+          position: relative;
+        `;
+        markerDiv.innerHTML = `<span>🐾</span>`;
+        markerDiv.title = `${spot.name} (${spot.matchStatus || '동반 확인'})`;
+
+        markerDiv.onclick = (e) => {
+          e.stopPropagation();
+          onSpotSelect(spot.id);
+          setActiveSpot(spot);
+          map.panTo(position);
+        };
+
+        const customOverlay = new kakao.maps.CustomOverlay({
+          position,
+          content: markerDiv,
+          yAnchor: 0.5,
+          zIndex: isSelected ? 10 : 2
+        });
+
+        customOverlay.setMap(map);
+        markersRef.current.push(customOverlay);
+      });
+
+      // 영역 자동 맞춤
+      if (validSpots.length > 0) {
+        map.setBounds(bounds);
+      }
+    }).catch(err => console.error('지도 로드 오류:', err));
+
+    return () => { isMounted = false; };
+  }, [spots, selectedSpotId]);
+
+  const handleSpotCardClick = (spot) => {
+    onSpotSelect(spot.id);
+    setActiveSpot(spot);
+    const lat = Number(spot.lat);
+    const lng = Number(spot.lng);
+    if (!isNaN(lat) && !isNaN(lng) && mapInstanceRef.current && window.kakao) {
+      mapInstanceRef.current.panTo(new window.kakao.maps.LatLng(lat, lng));
+    }
+  };
+
+  return (
+    <div style={{
+      display: 'flex',
+      flexDirection: 'row',
+      gap: '16px',
+      height: '660px',
+      backgroundColor: '#ffffff',
+      borderRadius: '24px',
+      overflow: 'hidden',
+      boxShadow: '0 10px 30px rgba(0,0,0,0.06)',
+      border: '1px solid #e2e8f0',
+      position: 'relative'
+    }}>
+      {/* 1. 좌측 관광지 미니 리스트 패널 */}
+      <div style={{
+        width: '320px',
+        minWidth: '280px',
+        height: '100%',
+        overflowY: 'auto',
+        borderRight: '1px solid #f1f5f9',
+        backgroundColor: '#fafbfc',
+        display: 'flex',
+        flexDirection: 'column',
+        boxSizing: 'border-box'
+      }}>
+        <div style={{ padding: '16px 18px', backgroundColor: '#ffffff', borderBottom: '1px solid #f1f5f9', position: 'sticky', top: 0, zIndex: 5 }}>
+          <span style={{ fontSize: '13px', fontWeight: '800', color: '#1e293b' }}>
+            📍 지도 표시 장소 ({spots.length}개)
+          </span>
+          <p style={{ margin: '2px 0 0 0', fontSize: '11px', color: '#64748b' }}>
+            장소를 누르면 지도가 해당 위치로 이동합니다
+          </p>
+        </div>
+
+        <div style={{ padding: '10px', display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
+          {spots.length > 0 ? (
+            spots.map((spot, idx) => {
+              const isSelected = activeSpot?.id === spot.id || selectedSpotId === spot.id;
+              const isPossible = spot.matchStatus === '가능';
+              const isConditional = spot.matchStatus === '조건부 가능' || spot.matchStatus === '조건부';
+              const spotImg = spot.image || spot.imageUrl || spot.first_image || '';
+
+              return (
+                <div
+                  key={`${spot.id}-${idx}`}
+                  onClick={() => handleSpotCardClick(spot)}
+                  style={{
+                    backgroundColor: isSelected ? '#F3EEFA' : '#ffffff',
+                    border: isSelected ? '1.5px solid #5F50A9' : '1px solid #f1f5f9',
+                    borderRadius: '16px',
+                    padding: '10px 12px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    gap: '10px',
+                    alignItems: 'center',
+                    boxShadow: isSelected ? '0 4px 14px rgba(95, 80, 169, 0.15)' : '0 2px 6px rgba(0,0,0,0.02)',
+                    transition: 'all 0.15s ease'
+                  }}
+                  onMouseOver={(e) => { if (!isSelected) e.currentTarget.style.backgroundColor = '#f8fafc'; }}
+                  onMouseOut={(e) => { if (!isSelected) e.currentTarget.style.backgroundColor = '#ffffff'; }}
+                >
+                  <div style={{ width: '48px', height: '48px', borderRadius: '10px', backgroundColor: '#f1f5f9', overflow: 'hidden', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {spotImg ? (
+                      <img src={spotImg} alt={spot.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      <span style={{ fontSize: '18px' }}>🏞️</span>
+                    )}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
+                      <strong style={{ fontSize: '13px', color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {spot.name}
+                      </strong>
+                      <span style={{
+                        fontSize: '9.5px',
+                        padding: '1px 5px',
+                        borderRadius: '4px',
+                        fontWeight: 'bold',
+                        backgroundColor: isPossible ? '#dcfce7' : isConditional ? '#fef9c3' : '#f1f5f9',
+                        color: isPossible ? '#15803d' : isConditional ? '#a16207' : '#64748b',
+                        flexShrink: 0
+                      }}>
+                        {spot.matchStatus}
+                      </span>
+                    </div>
+                    <p style={{ margin: 0, fontSize: '11px', color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      📍 {spot.address}
+                    </p>
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            <div style={{ textAlign: 'center', padding: '40px 10px', color: '#94a3b8', fontSize: '12px' }}>
+              검색된 장소가 없습니다.
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 2. 우측 메인 인터랙티브 지도 */}
+      <div style={{ flex: 1, height: '100%', position: 'relative' }}>
+        <div ref={mapContainerRef} style={{ width: '100%', height: '100%' }} />
+
+        {/* 지도 위 플로팅 장소 프리뷰 팝오버 카드 */}
+        {activeSpot && (
+          <div style={{
+            position: 'absolute',
+            bottom: '20px',
+            right: '20px',
+            zIndex: 30,
+            width: '320px',
+            backgroundColor: '#ffffff',
+            borderRadius: '20px',
+            padding: '16px',
+            boxShadow: '0 16px 40px rgba(0, 0, 0, 0.18)',
+            border: '1px solid rgba(226, 232, 240, 0.95)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{
+                  fontSize: '11px',
+                  fontWeight: 'bold',
+                  padding: '2px 7px',
+                  borderRadius: '6px',
+                  backgroundColor: activeSpot.matchStatus === '가능' ? '#dcfce7' : activeSpot.matchStatus === '조건부 가능' || activeSpot.matchStatus === '조건부' ? '#fef9c3' : '#f1f5f9',
+                  color: activeSpot.matchStatus === '가능' ? '#15803d' : activeSpot.matchStatus === '조건부 가능' || activeSpot.matchStatus === '조건부' ? '#a16207' : '#64748b'
+                }}>
+                  {activeSpot.matchStatus}
+                </span>
+                <span style={{ fontSize: '10px', color: '#94a3b8' }}>{activeSpot.source === 'kcisa' ? '한국문화정보원' : '한국관광공사'}</span>
+              </div>
+
+              <button
+                onClick={() => setActiveSpot(null)}
+                style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '13px', padding: '2px' }}
+                title="닫기"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '12px' }}>
+              {(activeSpot.image || activeSpot.imageUrl || activeSpot.first_image) && (
+                <img
+                  src={activeSpot.image || activeSpot.imageUrl || activeSpot.first_image}
+                  alt={activeSpot.name}
+                  style={{ width: '64px', height: '64px', borderRadius: '12px', objectFit: 'cover' }}
+                />
+              )}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <h4 style={{ margin: '0 0 4px 0', fontSize: '15px', fontWeight: '800', color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {activeSpot.name}
+                </h4>
+                <p style={{ margin: 0, fontSize: '11.5px', color: '#64748b', lineHeight: '1.4', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                  📍 {activeSpot.address}
+                </p>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <button
+                type="button"
+                onClick={() => onSpotSelect(activeSpot.id)}
+                style={{
+                  flex: 1,
+                  padding: '8px 10px',
+                  borderRadius: '50px',
+                  backgroundColor: '#5F50A9',
+                  color: '#ffffff',
+                  border: 'none',
+                  fontSize: '12px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 8px rgba(95, 80, 169, 0.25)'
+                }}
+              >
+                📖 빠른 요약 드로어
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const petIdsQuery = selectedPetIds?.length > 0 ? `&petIds=${selectedPetIds.join(',')}` : '';
+                  navigate(`/detail/${activeSpot.id}?source=${activeSpot.source}${petIdsQuery}`);
+                }}
+                style={{
+                  flex: 1,
+                  padding: '8px 10px',
+                  borderRadius: '50px',
+                  backgroundColor: '#f1f5f9',
+                  color: '#334155',
+                  border: 'none',
+                  fontSize: '12px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer'
+                }}
+              >
+                상세보기 →
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function SearchPage() {
   const { spots, isInitialLoading, isFetchingMore, hasMore, fetchSpots, loadMore } = useTouristSpots();
   const { toggleFavorite, isFavorite } = useFavorites();
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
+  const [viewMode, setViewMode] = useState('card'); // 'card' | 'map'
 
   // location.state(홈에서 넘어온 값) 우선 → 없으면 URL 쿼리 파라미터 사용
   const queryState = location.state || {};
@@ -1101,39 +1436,137 @@ function SearchPage() {
         </div>
       </div>
 
-      {/* 방문 판정 필터 버튼 바 (하단에 넉넉한 여백 marginBottom: 36px 부여) */}
-      <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '36px', padding: '0 4px' }}>
-        <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#475569', marginRight: '6px' }}>💡 방문 판정:</span>
-        {MATCH_STATUS_BUTTONS.map((btn) => {
-          const isActive = selectedMatchStatus === btn.value;
-          return (
-            <button
-              key={btn.value || 'all'}
-              type="button"
-              onClick={() => handleMatchStatusButtonClick(btn.value)}
-              style={{
-                padding: '8px 18px',
-                borderRadius: '50px',
-                border: isActive ? 'none' : '1.5px solid #e2e8f0',
-                backgroundColor: isActive ? '#5F50A9' : '#fff',
-                color: isActive ? '#fff' : '#475569',
-                fontWeight: isActive ? 'bold' : 'normal',
-                fontSize: '13px',
-                cursor: 'pointer',
-                boxShadow: isActive ? '0 4px 14px rgba(95, 80, 169, 0.35)' : '0 2px 6px rgba(0,0,0,0.03)',
-                transition: 'transform 0.2s ease, box-shadow 0.2s ease'
-              }}
-              onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; }}
-              onMouseOut={(e) => { e.currentTarget.style.transform = 'none'; }}
-            >
-              {btn.label}
-            </button>
-          );
-        })}
+      {/* 방문 판정 필터 버튼 바 & 뷰 모드 전환 토글 (카드형 / 지도형) */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px', marginBottom: '28px', padding: '0 4px' }}>
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#475569', marginRight: '6px' }}>💡 방문 판정:</span>
+          {MATCH_STATUS_BUTTONS.map((btn) => {
+            const isActive = selectedMatchStatus === btn.value;
+            return (
+              <button
+                key={btn.value || 'all'}
+                type="button"
+                onClick={() => handleMatchStatusButtonClick(btn.value)}
+                style={{
+                  padding: '8px 18px',
+                  borderRadius: '50px',
+                  border: isActive ? 'none' : '1.5px solid #e2e8f0',
+                  backgroundColor: isActive ? '#5F50A9' : '#fff',
+                  color: isActive ? '#fff' : '#475569',
+                  fontWeight: isActive ? 'bold' : 'normal',
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                  boxShadow: isActive ? '0 4px 14px rgba(95, 80, 169, 0.35)' : '0 2px 6px rgba(0,0,0,0.03)',
+                  transition: 'transform 0.2s ease, box-shadow 0.2s ease'
+                }}
+                onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; }}
+                onMouseOut={(e) => { e.currentTarget.style.transform = 'none'; }}
+              >
+                {btn.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* 🔲 카드형 vs 🗺️ 지도형 뷰 모드 토글 */}
+        <div style={{ 
+          display: 'flex', 
+          backgroundColor: '#ffffff', 
+          padding: '4px', 
+          borderRadius: '50px', 
+          boxShadow: '0 2px 10px rgba(0,0,0,0.04)',
+          border: '1.5px solid #e2e8f0'
+        }}>
+          <button
+            type="button"
+            onClick={() => setViewMode('card')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 16px',
+              borderRadius: '50px',
+              border: 'none',
+              backgroundColor: viewMode === 'card' ? '#5F50A9' : 'transparent',
+              color: viewMode === 'card' ? '#ffffff' : '#64748b',
+              fontWeight: viewMode === 'card' ? 'bold' : '600',
+              fontSize: '13px',
+              cursor: 'pointer',
+              boxShadow: viewMode === 'card' ? '0 2px 8px rgba(95, 80, 169, 0.3)' : 'none',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            <span>🔲</span>
+            <span>카드형</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode('map')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 16px',
+              borderRadius: '50px',
+              border: 'none',
+              backgroundColor: viewMode === 'map' ? '#5F50A9' : 'transparent',
+              color: viewMode === 'map' ? '#ffffff' : '#64748b',
+              fontWeight: viewMode === 'map' ? 'bold' : '600',
+              fontSize: '13px',
+              cursor: 'pointer',
+              boxShadow: viewMode === 'map' ? '0 2px 8px rgba(95, 80, 169, 0.3)' : 'none',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            <span>🗺️</span>
+            <span>지도형</span>
+          </button>
+        </div>
       </div>
 
-      {/* 스켈레톤 로딩 UI */}
-      {isInitialLoading ? (
+      {/* 뷰 모드별 렌더링 (지도형 vs 카드형) */}
+      {viewMode === 'map' ? (
+        <div style={{ marginBottom: '24px' }}>
+          <SearchMapView
+            spots={spots}
+            selectedSpotId={selectedSpotId}
+            onSpotSelect={setSelectedSpotId}
+            navigate={navigate}
+            selectedPetIds={selectedPetIds}
+            user={user}
+          />
+
+          <div 
+            className="search-detail-drawer" 
+            style={{ 
+              position: 'fixed', top: 0, right: selectedSpotDetail ? 0 : '-620px', 
+              width: '540px', maxWidth: '92vw', height: '100vh', 
+              backgroundColor: '#ffffff', 
+              borderRadius: '28px 0 0 28px',
+              borderLeft: '1px solid rgba(226, 232, 240, 0.8)',
+              boxShadow: '-15px 0 45px rgba(95, 80, 169, 0.15)', 
+              zIndex: 100, 
+              transition: 'right 0.35s cubic-bezier(0.4, 0, 0.2, 1)', 
+              boxSizing: 'border-box', 
+              paddingTop: '60px',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column'
+            }}
+          >
+            {selectedSpotDetail && (
+              <DrawerContent 
+                spot={selectedSpotDetail} 
+                onClose={() => setSelectedSpotId(null)} 
+                navigate={navigate} 
+                user={user} 
+                myPets={myPets} 
+                selectedPetIds={selectedPetIds}
+              />
+            )}
+          </div>
+        </div>
+      ) : isInitialLoading ? (
         <div className="search-layout-wrapper" style={{ display: 'flex', gap: '24px', alignItems: 'flex-start' }}>
           <div className="search-list-panel" style={{ flex: 1, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '24px' }}>
             <style>{`

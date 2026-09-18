@@ -149,7 +149,7 @@ function SupportPage() {
             Help & Support
           </span>
           <h1 style={{ fontSize: '32px', fontWeight: '800', color: '#1e293b', margin: '0 0 8px 0', letterSpacing: '-0.5px' }}>
-            고객센터 & 도움말
+            공지사항 & 고객센터
           </h1>
           <p style={{ fontSize: '15px', color: '#64748b', margin: '0' }}>
             서비스 소식과 자주 묻는 질문을 한곳에서 편리하게 확인하세요

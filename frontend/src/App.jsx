@@ -17,6 +17,7 @@ import Footer from './components/Footer';
 import ToastContainer from './components/ToastContainer';
 import ProtectedRoute from './components/ProtectedRoute';
 import ScrollToTop from './components/ScrollToTop';
+import FloatingGuideWidget from './components/FloatingGuideWidget';
 
 function PawPassLogoIcon({ size = 38 }) {
   return (
@@ -363,6 +364,7 @@ function App() {
               </div>
               <Footer />
             </div>
+            <FloatingGuideWidget />
             <ToastContainer />
           </BrowserRouter>
         </FavoritesProvider>
