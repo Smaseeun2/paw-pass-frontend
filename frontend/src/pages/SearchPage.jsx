@@ -1377,41 +1377,47 @@ function SearchPage() {
   }, []);
 
   useEffect(() => {
+    let isMounted = true;
     const loadUserPets = async () => {
       const token = localStorage.getItem('paw_pass_access_token');
+      let loadedPets = [];
       if (user && token) {
         try {
           const res = await fetchPetsFromDB();
           const serverPets = Array.isArray(res) ? res : (res?.data || []);
-          setMyPets(serverPets);
-
-          // 현재 선택된 펫이 없을 때만 대표 펫 자동 지정
-          setSelectedPetIds(prev => {
-            if (prev.length > 0) return prev; // 이미 선택 있으면 유지
-            if (serverPets.length === 0) return prev;
-            const rep = serverPets.find(p => p.isPrimary || p.is_primary || p.isRepresentative || p.is_representative) || serverPets[0];
-            return rep ? [rep.id] : prev;
-          });
+          if (isMounted) setMyPets(serverPets);
+          loadedPets = serverPets;
         } catch {
-          setMyPets([]);
+          if (isMounted) setMyPets([]);
         }
       } else {
         try {
           const guestPets = JSON.parse(localStorage.getItem('paw_pass_pets_guest') || '[]');
-          setMyPets(guestPets);
-          
-          setSelectedPetIds(prev => {
-            if (prev.length > 0) return prev;
-            if (guestPets.length === 0) return prev;
-            const rep = guestPets.find(p => p.isPrimary || p.is_primary || p.isRepresentative || p.is_representative) || guestPets[0];
-            return rep ? [rep.id] : prev;
-          });
+          if (isMounted) setMyPets(guestPets);
+          loadedPets = guestPets;
         } catch {
-          setMyPets([]);
+          if (isMounted) setMyPets([]);
+        }
+      }
+
+      // 비동기 펫 로드 완료 후, 기존 선택된 펫이 없을 때 대표 펫 자동 지정 및 즉시 맞춤 판정 검색
+      if (loadedPets.length > 0 && selectedPetIdsRef.current.length === 0 && isMounted) {
+        const rep = loadedPets.find(p => p.isPrimary || p.is_primary || p.isRepresentative || p.is_representative) || loadedPets[0];
+        if (rep && rep.id) {
+          const repIds = [rep.id];
+          setSelectedPetIds(repIds);
+          fetchSpots({
+            regionCode: selectedRegionCode,
+            category: selectedCategory,
+            matchStatus: selectedMatchStatus,
+            petIds: repIds,
+            keyword: keyword.trim()
+          }, false);
         }
       }
     };
     loadUserPets();
+    return () => { isMounted = false; };
   }, [user]);
 
   const [randomPlaceholder, setRandomPlaceholder] = useState('예: 남이섬');
@@ -1473,7 +1479,7 @@ function SearchPage() {
     setSelectedMatchStatus(curMatchStatus);
     if (curPetIds && curPetIds.length > 0) setSelectedPetIds(curPetIds);
 
-    // 즉시 검색 실행
+    // 즉시 검색 실행 (진입 시 검색 버튼 누른 것과 동일하게 관광지 목록 로드)
     fetchSpots({
       regionCode: curMatchedRegion.code || curRawRegion,
       category: curMatchedCategory ? curMatchedCategory.value : curRawCategory,
@@ -1535,14 +1541,39 @@ function SearchPage() {
 
   const handleCountChange = (size, delta, e) => {
     e.stopPropagation();
-    setPetCounts(prev => ({ ...prev, [size]: Math.max(0, prev[size] + delta) }));
+    setPetCounts(prev => {
+      const updated = { ...prev, [size]: Math.max(0, prev[size] + delta) };
+      let guestSizeHint = '';
+      if (selectedPetIdsRef.current.length === 0) {
+        if (updated.large > 0) guestSizeHint = 'large';
+        else if (updated.medium > 0) guestSizeHint = 'medium';
+        else if (updated.small > 0) guestSizeHint = 'small';
+      }
+      fetchSpots({
+        regionCode: selectedRegionCode,
+        category: selectedCategory,
+        matchStatus: selectedMatchStatus,
+        petIds: selectedPetIdsRef.current,
+        guestSizeHint,
+        keyword: keyword.trim()
+      }, false);
+      return updated;
+    });
   };
 
   const handlePetToggle = (petId, e) => {
     e.stopPropagation();
-    setSelectedPetIds(prev => 
-      prev.includes(petId) ? prev.filter(id => id !== petId) : [...prev, petId]
-    );
+    setSelectedPetIds(prev => {
+      const next = prev.includes(petId) ? prev.filter(id => id !== petId) : [...prev, petId];
+      fetchSpots({
+        regionCode: selectedRegionCode,
+        category: selectedCategory,
+        matchStatus: selectedMatchStatus,
+        petIds: next,
+        keyword: keyword.trim()
+      }, false);
+      return next;
+    });
   };
 
   const getPetFilterLabel = () => {
