@@ -200,7 +200,11 @@ function DrawerContent({ spot, onClose, navigate, user, myPets, selectedPetIds =
           boxShadow: '0 10px 25px rgba(0,0,0,0.08)',
           flexShrink: 0
         }}>
-          <LazyImage spot={d.image ? d : spot} fallback={<div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: '14px', fontWeight: 'bold' }}>🖼️ 대표 이미지 준비중</div>} />
+          <LazyImage 
+            spot={d.image ? d : spot} 
+            categoryHint={selectedCategory}
+            fallback={<div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: '14px', fontWeight: 'bold' }}>🖼️ 대표 이미지 준비중</div>} 
+          />
           
           {/* 플로팅 글래스 출입 판정 뱃지 */}
           <div style={{ 
