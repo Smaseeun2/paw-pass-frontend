@@ -19,20 +19,19 @@ export const fetchUserRoutes = async () => {
   return Array.isArray(result) ? result : (result?.data || []);
 };
 
-/**
- * 로그인한 유저의 동선 목록 전체 교체 저장 (PUT /routes)
- * @param {Array<{ source?: string, content_id?: string|number, id?: string|number, title?: string, name?: string, lat: number, lng: number }>} places
- * @returns {Promise<any>}
- */
 export const updateUserRoutes = async (places) => {
   const payload = {
-    places: places.map(p => ({
-      source: p.source || (String(p.id || '').startsWith('kakao_') ? 'kakao' : 'tourapi'),
-      content_id: String(p.content_id || p.contentId || p.id || '').replace(/^kakao_/, ''),
-      title: p.title || p.name || '장소명 없음',
-      lat: Number(p.lat || p.latitude),
-      lng: Number(p.lng || p.longitude)
-    }))
+    places: (places || []).map(p => {
+      const rawContentId = String(p.content_id || p.contentId || p.id || '').replace(/^kakao_/, '');
+      const rawSource = p.source || (String(p.id || '').startsWith('kakao_') ? 'kakao' : 'tourapi');
+      return {
+        source: rawSource,
+        content_id: rawContentId,
+        title: p.title || p.name || '장소명 없음',
+        lat: Number(p.lat ?? p.latitude ?? p.map_y ?? p.mapy ?? p.y ?? 0),
+        lng: Number(p.lng ?? p.longitude ?? p.map_x ?? p.mapx ?? p.x ?? 0)
+      };
+    })
   };
 
   const res = await authFetch(`${BASE_URL}/routes`, {
@@ -46,7 +45,7 @@ export const updateUserRoutes = async (places) => {
   }
   
   const result = await res.json();
-  return result.data || result;
+  return Array.isArray(result) ? result : (result?.data || result);
 };
 
 /**

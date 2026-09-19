@@ -8,6 +8,7 @@ import { usePetMatching } from '../hooks/usePetMatching';
 import { loadKakaoMapSdk } from '../utils/kakaoMapLoader';
 import ConditionalBadge from '../components/ConditionalBadge';
 import { toast } from '../utils/toast';
+import { fetchUserRoutes, updateUserRoutes } from '../services/api';
 
 // 💡 헛걸음 방지 체크리스트 컴포넌트
 function SpotChecklist() {
@@ -199,11 +200,44 @@ function DetailPage() {
     if (!id || !storageKey) return false;
     try {
       const savedRoutes = JSON.parse(localStorage.getItem(storageKey) || '[]');
-      return savedRoutes.some(item => String(item.id || item.contentId) === String(id));
+      return savedRoutes.some(item => String(item.id || item.contentId || item.content_id) === String(id));
     } catch {
       return false;
     }
   });
+
+  // 💡 서버에서 로그인 유저의 최신 동선 목록 불러오기 (GET /routes)
+  useEffect(() => {
+    const token = localStorage.getItem('paw_pass_access_token');
+    if (!token || !id) return;
+
+    fetchUserRoutes()
+      .then(serverRoutes => {
+        if (Array.isArray(serverRoutes)) {
+          const spotId = String(id);
+          const isAdded = serverRoutes.some(item => String(item.content_id ?? item.id) === spotId);
+          setIsRouteAdded(isAdded);
+          if (storageKey) {
+            const mapped = serverRoutes.map(item => ({
+              id: String(item.content_id ?? item.id),
+              contentId: String(item.content_id ?? item.id),
+              content_id: String(item.content_id ?? item.id),
+              name: item.title || item.name || '장소명 없음',
+              title: item.title || item.name || '장소명 없음',
+              address: item.addr1 || item.address || item.addr || '',
+              lat: Number(item.lat),
+              lng: Number(item.lng),
+              imageUrl: item.image || item.first_image || item.imageUrl || '',
+              source: item.source || 'tourapi'
+            }));
+            localStorage.setItem(storageKey, JSON.stringify(mapped));
+          }
+        }
+      })
+      .catch(err => {
+        console.warn('동선 목록 서버 조회 실패:', err);
+      });
+  }, [id, storageKey]);
 
   useEffect(() => {
     if (!detail || !mapContainerRef.current) return;
@@ -257,41 +291,63 @@ function DetailPage() {
     };
   }, [detail, location.state]);
 
-  const handleToggleRoute = () => {
-    if (!storageKey) {
+  const handleToggleRoute = async () => {
+    const token = localStorage.getItem('paw_pass_access_token');
+    if (!token && !storageKey) {
       toast.warning('로그인 후 동선을 추가할 수 있습니다.');
       return;
     }
 
     try {
-      const savedRoutes = JSON.parse(localStorage.getItem(storageKey) || '[]');
-      const spotId = String(detail.id || detail.contentId);
-      
-      const targetLat = Number(detail.lat || detail.map_y || detail.mapy || detail.y) || 37.566826;
-      const targetLng = Number(detail.lng || detail.map_x || detail.mapx || detail.x) || 126.978656;
+      let savedRoutes = [];
+      try {
+        savedRoutes = JSON.parse(localStorage.getItem(storageKey) || '[]');
+      } catch {
+        savedRoutes = [];
+      }
+
+      const spotId = String(detail?.id || detail?.contentId || id);
+      const targetLat = Number(detail?.lat || detail?.map_y || detail?.mapy || detail?.y || location.state?.lat) || 37.566826;
+      const targetLng = Number(detail?.lng || detail?.map_x || detail?.mapx || detail?.x || location.state?.lng) || 126.978656;
 
       let updated;
       if (isRouteAdded) {
-        updated = savedRoutes.filter(item => String(item.id || item.contentId) !== spotId);
+        updated = savedRoutes.filter(item => String(item.id || item.contentId || item.content_id) !== spotId);
         setIsRouteAdded(false);
         toast.info('나의 동선에서 제거되었습니다.');
       } else {
+        if (savedRoutes.length >= 8) {
+          toast.warning('동선은 최대 8개까지 추가할 수 있습니다.');
+          return;
+        }
+
         updated = [...savedRoutes, {
           id: spotId,
           contentId: spotId,
-          name: detail.name,
-          address: detail.address,
+          content_id: spotId,
+          name: detail?.name || detail?.title || '장소명 없음',
+          title: detail?.name || detail?.title || '장소명 없음',
+          address: detail?.address || '',
           lat: targetLat,
           lng: targetLng,
-          imageUrl: detail.image || detail.imageUrl || '',
-          source: detail.source
+          imageUrl: detail?.image || detail?.imageUrl || (Array.isArray(detail?.images) ? detail?.images[0] : '') || '',
+          source: detail?.source || source || 'tourapi'
         }];
         setIsRouteAdded(true);
         toast.success('❤️ 나의 동선에 추가되었습니다!');
       }
-      localStorage.setItem(storageKey, JSON.stringify(updated));
+
+      if (storageKey) {
+        localStorage.setItem(storageKey, JSON.stringify(updated));
+      }
+
+      // 💡 백엔드 서버(PUT /routes)와 동기화
+      if (token) {
+        await updateUserRoutes(updated);
+      }
     } catch (err) {
       console.error('동선 저장 중 오류 발생:', err);
+      toast.error('동선 동기화 중 오류가 발생했습니다.');
     }
   };
 

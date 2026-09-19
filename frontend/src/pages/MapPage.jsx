@@ -210,12 +210,53 @@ function MapPage() {
         align-items: center;
         justify-content: ${isMobile ? 'center' : 'flex-start'};
         cursor: pointer;
-        transform: translate3d(0, 0, 0);
-        transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
         z-index: ${10 + index};
         position: relative;
         box-sizing: border-box;
+        overflow: visible;
       `;
+
+      // 🏷️ 핀 호버 시 상단에 표시될 장소명 툴팁 라벨 (핀 위치는 완전히 고정)
+      const nameTooltip = document.createElement('div');
+      nameTooltip.className = 'pawpass-map-pin-tooltip';
+      nameTooltip.style.cssText = `
+        position: absolute;
+        bottom: calc(100% + 8px);
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(15, 23, 42, 0.92);
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
+        color: #ffffff;
+        font-size: 12px;
+        font-weight: 800;
+        padding: 5px 12px;
+        border-radius: 8px;
+        white-space: nowrap;
+        pointer-events: none;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.15s cubic-bezier(0.4, 0, 0.2, 1), transform 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+        z-index: 1000;
+        letter-spacing: -0.2px;
+      `;
+      nameTooltip.innerText = spot.name || '장소명';
+
+      const tooltipArrow = document.createElement('div');
+      tooltipArrow.style.cssText = `
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 0;
+        height: 0;
+        border-left: 5px solid transparent;
+        border-right: 5px solid transparent;
+        border-top: 5px solid rgba(15, 23, 42, 0.92);
+      `;
+      nameTooltip.appendChild(tooltipArrow);
+      markerContainer.appendChild(nameTooltip);
 
       const markerBadge = document.createElement('div');
       markerBadge.className = 'pawpass-map-pin-badge';
@@ -259,11 +300,13 @@ function MapPage() {
       }
 
       markerContainer.onmouseenter = () => {
-        markerContainer.style.transform = 'scale(1.18) translateY(-4px)';
+        nameTooltip.style.opacity = '1';
+        nameTooltip.style.visibility = 'visible';
         markerContainer.style.zIndex = '999';
       };
       markerContainer.onmouseleave = () => {
-        markerContainer.style.transform = 'translate3d(0, 0, 0)';
+        nameTooltip.style.opacity = '0';
+        nameTooltip.style.visibility = 'hidden';
         markerContainer.style.zIndex = String(10 + index);
       };
 
