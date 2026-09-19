@@ -9,15 +9,7 @@ import { useSpotDetail } from '../hooks/useSpotDetail';
 import { toast } from '../utils/toast';
 import { loadKakaoMapSdk } from '../utils/kakaoMapLoader';
 
-const CATEGORY_OPTIONS = [
-  { label: '자연/풍경', value: 'NATURE' },
-  { label: '카페', value: 'CAFE' },
-  { label: '음식점/식당', value: 'FOOD' },
-  { label: '문화/예술', value: 'CULTURE' },
-  { label: '숙박시설', value: 'STAY' },
-  { label: '동물병원', value: 'HOSPITAL' }
-];
-
+import { CATEGORY_OPTIONS, findCategory } from '../constants/categories';
 import { REGION_OPTIONS, findRegion } from '../constants/regions';
 
 const MATCH_STATUS_BUTTONS = [
@@ -1384,13 +1376,13 @@ function SearchPage() {
 
   // 💡 지역 코드 및 지역명 표준화 파싱
   const matchedRegion = findRegion(initRawRegion);
-  const matchedCategory = CATEGORY_OPTIONS.find(c => c.value === String(initRawCategory) || c.label === String(initRawCategory));
+  const matchedCategory = findCategory(initRawCategory);
 
   const [selectedRegionCode, setSelectedRegionCode] = useState(matchedRegion.code || '');
   const [selectedRegionName, setSelectedRegionName] = useState(matchedRegion.code ? matchedRegion.label : '');
 
-  const [selectedCategory, setSelectedCategory] = useState(matchedCategory ? matchedCategory.value : initRawCategory);
-  const [selectedCategoryName, setSelectedCategoryName] = useState(matchedCategory ? matchedCategory.label : (initRawCategory ? String(initRawCategory) : ''));
+  const [selectedCategory, setSelectedCategory] = useState(matchedCategory.value || '');
+  const [selectedCategoryName, setSelectedCategoryName] = useState(matchedCategory.label || '');
 
   const [petCounts, setPetCounts] = useState(queryState.petCounts || { small: 0, medium: 0, large: 0 });
 
@@ -1599,7 +1591,7 @@ function SearchPage() {
     const curRawCategory = searchParams.get('category') !== null ? searchParams.get('category') : (currentState.category || currentState.type || '');
     
     const curMatchedRegion = findRegion(curRawRegion);
-    const curMatchedCategory = CATEGORY_OPTIONS.find(c => c.value === String(curRawCategory) || c.label === String(curRawCategory));
+    const curMatchedCategory = findCategory(curRawCategory);
 
     let curPetIds = null;
     if (searchParams.get('petIds') !== null) {
@@ -1623,8 +1615,8 @@ function SearchPage() {
     // State 동기화
     setSelectedRegionCode(curMatchedRegion.code || '');
     setSelectedRegionName(curMatchedRegion.code ? curMatchedRegion.label : '');
-    setSelectedCategory(curMatchedCategory ? curMatchedCategory.value : (curRawCategory || ''));
-    setSelectedCategoryName(curMatchedCategory ? curMatchedCategory.label : (curRawCategory ? String(curRawCategory) : ''));
+    setSelectedCategory(curMatchedCategory.value || '');
+    setSelectedCategoryName(curMatchedCategory.label || '');
     setKeyword(curKeyword);
     setSelectedMatchStatus(curMatchStatus);
     setSelectedPetIds(curPetIds);
@@ -1632,7 +1624,7 @@ function SearchPage() {
     // 즉시 검색 실행 (진입 시 검색 버튼 누른 것과 동일하게 관광지 목록 로드)
     fetchSpots({
       regionCode: curMatchedRegion.code || curRawRegion,
-      category: curMatchedCategory ? curMatchedCategory.value : curRawCategory,
+      category: curMatchedCategory.value || curRawCategory,
       matchStatus: curMatchStatus,
       petIds: curPetIds,
       guestSizeHint: curGuestSize,
@@ -1757,6 +1749,70 @@ function SearchPage() {
     if (extraParts.length > 0) parts.push(extraParts.join('+'));
 
     return parts.length > 0 ? parts.join(' + ') : '반려동물 선택';
+  };
+
+  const handleRegionSelect = (regionCode, regionLabel) => {
+    setSelectedRegionCode(regionCode);
+    setSelectedRegionName(regionCode ? regionLabel : '');
+    setActiveDropdown(null);
+
+    const latestPetIds = selectedPetIdsRef.current;
+    let guestSizeHint = '';
+    if (latestPetIds.length === 0) {
+      if (petCounts.large > 0) guestSizeHint = 'large';
+      else if (petCounts.medium > 0) guestSizeHint = 'medium';
+      else if (petCounts.small > 0) guestSizeHint = 'small';
+    }
+
+    fetchSpots({
+      regionCode: regionCode,
+      category: selectedCategory,
+      matchStatus: selectedMatchStatus,
+      petIds: latestPetIds,
+      guestSizeHint,
+      keyword: keyword.trim()
+    }, false);
+
+    const newParams = {};
+    if (keyword.trim()) newParams.keyword = keyword.trim();
+    if (regionCode) newParams.region = regionCode;
+    if (selectedCategory) newParams.category = selectedCategory;
+    if (selectedMatchStatus) newParams.matchStatus = selectedMatchStatus;
+    if (latestPetIds.length > 0) newParams.petIds = latestPetIds.join(',');
+    setSearchParams(newParams, { replace: true });
+    setSelectedSpotId(null);
+  };
+
+  const handleCategorySelect = (categoryVal, categoryLabel) => {
+    setSelectedCategory(categoryVal);
+    setSelectedCategoryName(categoryLabel);
+    setActiveDropdown(null);
+
+    const latestPetIds = selectedPetIdsRef.current;
+    let guestSizeHint = '';
+    if (latestPetIds.length === 0) {
+      if (petCounts.large > 0) guestSizeHint = 'large';
+      else if (petCounts.medium > 0) guestSizeHint = 'medium';
+      else if (petCounts.small > 0) guestSizeHint = 'small';
+    }
+
+    fetchSpots({
+      regionCode: selectedRegionCode,
+      category: categoryVal,
+      matchStatus: selectedMatchStatus,
+      petIds: latestPetIds,
+      guestSizeHint,
+      keyword: keyword.trim()
+    }, false);
+
+    const newParams = {};
+    if (keyword.trim()) newParams.keyword = keyword.trim();
+    if (selectedRegionCode) newParams.region = selectedRegionCode;
+    if (categoryVal) newParams.category = categoryVal;
+    if (selectedMatchStatus) newParams.matchStatus = selectedMatchStatus;
+    if (latestPetIds.length > 0) newParams.petIds = latestPetIds.join(',');
+    setSearchParams(newParams, { replace: true });
+    setSelectedSpotId(null);
   };
 
   const handleSearchButtonClick = (overrideMatchStatus) => {
@@ -1907,7 +1963,7 @@ function SearchPage() {
           boxShadow: '0 12px 35px rgba(201, 182, 215, 0.22)',
           marginBottom: '24px',
           position: 'relative',
-          zIndex: 50,
+          zIndex: activeDropdown ? 200 : 50,
           backdropFilter: 'blur(12px)',
           border: '1px solid rgba(255, 255, 255, 0.7)',
           boxSizing: 'border-box'
@@ -1950,7 +2006,7 @@ function SearchPage() {
             border: '1px solid rgba(226, 232, 240, 0.9)',
             boxSizing: 'border-box',
             position: 'relative',
-            zIndex: 60
+            zIndex: activeDropdown ? 300 : 60
           }}
         >
           <style>{`
@@ -1963,6 +2019,69 @@ function SearchPage() {
             }
             .search-segment-btn:hover {
               background-color: #f8fafc;
+            }
+            .search-dropdown-option {
+              padding: 7px 4px;
+              font-size: 12.5px;
+              border-radius: 8px;
+              cursor: pointer;
+              text-align: center;
+              transition: all 0.15s ease;
+              user-select: none;
+              background-color: transparent;
+              color: #334155;
+              font-weight: 600;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              box-sizing: border-box;
+              width: 100%;
+            }
+            .search-dropdown-option:hover {
+              background-color: #F3EEFA !important;
+              color: #5F50A9 !important;
+              font-weight: 700 !important;
+            }
+            .search-dropdown-option.selected {
+              background-color: #5F50A9 !important;
+              color: #ffffff !important;
+              font-weight: bold !important;
+            }
+            .search-dropdown-option.selected:hover {
+              background-color: #4f4291 !important;
+              color: #ffffff !important;
+            }
+            .search-dropdown-all-btn {
+              grid-column: 1 / -1;
+              padding: 7px 8px;
+              font-size: 12.5px;
+              border-radius: 8px;
+              cursor: pointer;
+              text-align: center;
+              transition: all 0.15s ease;
+              user-select: none;
+              background-color: #f8fafc;
+              color: #334155;
+              font-weight: 600;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              box-sizing: border-box;
+              width: 100%;
+            }
+            .search-dropdown-all-btn:hover {
+              background-color: #F3EEFA !important;
+              color: #5F50A9 !important;
+              font-weight: 700 !important;
+            }
+            .search-dropdown-all-btn.selected {
+              background-color: #5F50A9 !important;
+              color: #ffffff !important;
+              font-weight: bold !important;
+            }
+            .search-dropdown-all-btn.selected:hover {
+              background-color: #4f4291 !important;
+              color: #ffffff !important;
             }
           `}</style>
 
@@ -1994,7 +2113,7 @@ function SearchPage() {
           {/* 2. 지역 */}
           <div 
             className="search-segment-btn" 
-            style={{ flex: 1, position: 'relative' }} 
+            style={{ flex: 1, position: 'relative', zIndex: activeDropdown === 'region' ? 100 : 1 }} 
             onClick={() => setActiveDropdown(activeDropdown === 'region' ? null : 'region')}
           >
             <span style={{ fontSize: '11px', fontWeight: '800', color: '#64748b', letterSpacing: '0.4px', textTransform: 'uppercase', marginBottom: '2px', display: 'block' }}>
@@ -2010,7 +2129,7 @@ function SearchPage() {
             </div>
             
             {activeDropdown === 'region' && (
-              <div style={{ position: 'absolute', top: '56px', left: 0, width: '280px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '20px', boxShadow: '0 16px 36px rgba(0,0,0,0.12)', zIndex: 100, padding: '12px', boxSizing: 'border-box' }}>
+              <div style={{ position: 'absolute', top: '56px', left: 0, width: '280px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '20px', boxShadow: '0 16px 36px rgba(0,0,0,0.12)', zIndex: 1000, padding: '12px', boxSizing: 'border-box' }}>
                 {/* 📍 현재 내 위치 GPS 버튼 */}
                 <button
                   type="button"
@@ -2056,28 +2175,9 @@ function SearchPage() {
                         key={r.code || 'all'}
                         onClick={(e) => { 
                           e.stopPropagation(); 
-                          setSelectedRegionCode(r.code); 
-                          setSelectedRegionName(r.code ? r.label : ''); 
-                          setActiveDropdown(null); 
-                          fetchSpots({
-                            regionCode: r.code,
-                            category: selectedCategory,
-                            matchStatus: selectedMatchStatus,
-                            petIds: selectedPetIdsRef.current,
-                            keyword: keyword.trim()
-                          }, false);
+                          handleRegionSelect(r.code, r.label);
                         }}
-                        style={{ 
-                          padding: '7px 4px', 
-                          fontSize: '12.5px', 
-                          borderRadius: '8px', 
-                          cursor: 'pointer', 
-                          textAlign: 'center', 
-                          backgroundColor: isSelected ? '#5F50A9' : 'transparent', 
-                          color: isSelected ? '#fff' : '#334155', 
-                          fontWeight: isSelected ? 'bold' : '600',
-                          transition: 'all 0.15s ease'
-                        }}
+                        className={`search-dropdown-option ${isSelected ? 'selected' : ''}`}
                       >
                         {r.label}
                       </div>
@@ -2093,7 +2193,7 @@ function SearchPage() {
           {/* 3. 카테고리 */}
           <div 
             className="search-segment-btn" 
-            style={{ flex: 1, position: 'relative' }} 
+            style={{ flex: 1, position: 'relative', zIndex: activeDropdown === 'category' ? 100 : 1 }} 
             onClick={() => setActiveDropdown(activeDropdown === 'category' ? null : 'category')}
           >
             <span style={{ fontSize: '11px', fontWeight: '800', color: '#64748b', letterSpacing: '0.4px', textTransform: 'uppercase', marginBottom: '2px', display: 'block' }}>
@@ -2109,46 +2209,31 @@ function SearchPage() {
             </div>
             
             {activeDropdown === 'category' && (
-              <div style={{ position: 'absolute', top: '56px', left: 0, width: '220px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '16px', boxShadow: '0 12px 30px rgba(0,0,0,0.12)', zIndex: 100, padding: '8px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px' }}>
+              <div style={{ position: 'absolute', top: '56px', left: 0, width: '220px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '16px', boxShadow: '0 12px 30px rgba(0,0,0,0.12)', zIndex: 1000, padding: '8px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px' }}>
                 <div 
                   onClick={(e) => { 
                     e.stopPropagation(); 
-                    setSelectedCategory(''); 
-                    setSelectedCategoryName(''); 
-                    setActiveDropdown(null); 
-                    fetchSpots({
-                      regionCode: selectedRegionCode,
-                      category: '',
-                      matchStatus: selectedMatchStatus,
-                      petIds: selectedPetIdsRef.current,
-                      keyword: keyword.trim()
-                    }, false);
+                    handleCategorySelect('', '');
                   }}
-                  style={{ gridColumn: '1 / -1', padding: '7px 8px', fontSize: '12.5px', borderRadius: '8px', cursor: 'pointer', textAlign: 'center', backgroundColor: selectedCategory === '' ? '#5F50A9' : '#f8fafc', color: selectedCategory === '' ? '#fff' : '#334155', fontWeight: selectedCategory === '' ? 'bold' : '600', transition: 'all 0.15s ease' }}
+                  className={`search-dropdown-all-btn ${selectedCategory === '' ? 'selected' : ''}`}
                 >
                   전체 테마
                 </div>
-                {CATEGORY_OPTIONS.map(c => (
-                  <div 
-                    key={c.value}
-                    onClick={(e) => { 
-                      e.stopPropagation(); 
-                      setSelectedCategory(c.value); 
-                      setSelectedCategoryName(c.label); 
-                      setActiveDropdown(null); 
-                      fetchSpots({
-                        regionCode: selectedRegionCode,
-                        category: c.value,
-                        matchStatus: selectedMatchStatus,
-                        petIds: selectedPetIdsRef.current,
-                        keyword: keyword.trim()
-                      }, false);
-                    }}
-                    style={{ padding: '7px 6px', fontSize: '12.5px', borderRadius: '8px', cursor: 'pointer', textAlign: 'center', backgroundColor: selectedCategory === c.value ? '#5F50A9' : 'transparent', color: selectedCategory === c.value ? '#fff' : '#334155', fontWeight: selectedCategory === c.value ? 'bold' : '600', transition: 'all 0.15s ease' }}
-                  >
-                    {c.label}
-                  </div>
-                ))}
+                {CATEGORY_OPTIONS.map(c => {
+                  const isSelected = selectedCategory === c.value;
+                  return (
+                    <div 
+                      key={c.value}
+                      onClick={(e) => { 
+                        e.stopPropagation(); 
+                        handleCategorySelect(c.value, c.label);
+                      }}
+                      className={`search-dropdown-option ${isSelected ? 'selected' : ''}`}
+                    >
+                      {c.label}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -2158,7 +2243,7 @@ function SearchPage() {
           {/* 4. 반려동물 */}
           <div 
             className="search-segment-btn" 
-            style={{ flex: 1.2, position: 'relative' }} 
+            style={{ flex: 1.2, position: 'relative', zIndex: activeDropdown === 'pet' ? 100 : 1 }} 
             onClick={() => setActiveDropdown(activeDropdown === 'pet' ? null : 'pet')}
           >
             <span style={{ fontSize: '11px', fontWeight: '800', color: '#64748b', letterSpacing: '0.4px', textTransform: 'uppercase', marginBottom: '2px', display: 'block' }}>

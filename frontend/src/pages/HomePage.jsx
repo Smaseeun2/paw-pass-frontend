@@ -7,15 +7,7 @@ import LazyImage from '../components/LazyImage';
 import { loadKakaoMapSdk } from '../utils/kakaoMapLoader';
 import { toast } from '../utils/toast';
 import { REGION_OPTIONS, findRegion } from '../constants/regions';
-
-const CATEGORY_OPTIONS = [
-  { label: '자연/풍경', value: 'NATURE' },
-  { label: '카페', value: 'CAFE' },
-  { label: '음식점/식당', value: 'FOOD' },
-  { label: '문화/예술', value: 'CULTURE' },
-  { label: '숙박시설', value: 'STAY' },
-  { label: '동물병원', value: 'HOSPITAL' }
-];
+import { CATEGORY_OPTIONS, findCategory } from '../constants/categories';
 
 function HomePage() {
   const navigate = useNavigate();
@@ -372,7 +364,7 @@ function HomePage() {
       <div style={{ paddingBottom: '24px', position: 'relative', zIndex: 1 }}>
       
       {/* 1. 히어로 섹션 & 떠 있는 검색창 */}
-      <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto', position: 'relative' }}>
+      <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto', position: 'relative', zIndex: activeDropdown ? 200 : 1 }}>
         <div 
           className="hero-banner-container"
           style={{ 
@@ -455,7 +447,8 @@ function HomePage() {
               border: '1px solid rgba(226, 232, 240, 0.95)',
               color: '#333',
               boxSizing: 'border-box',
-              cursor: 'pointer'
+              cursor: 'pointer',
+              zIndex: activeDropdown ? 300 : 10
             }}
           >
             <style>{`
@@ -469,6 +462,69 @@ function HomePage() {
               .search-segment-btn:hover {
                 background-color: #f8fafc;
               }
+              .search-dropdown-option {
+                padding: 8px 4px;
+                font-size: 13px;
+                border-radius: 10px;
+                cursor: pointer;
+                text-align: center;
+                transition: all 0.15s ease;
+                user-select: none;
+                background-color: transparent;
+                color: #334155;
+                font-weight: 600;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                box-sizing: border-box;
+                width: 100%;
+              }
+              .search-dropdown-option:hover {
+                background-color: #F3EEFA !important;
+                color: #5F50A9 !important;
+                font-weight: 700 !important;
+              }
+              .search-dropdown-option.selected {
+                background-color: #5F50A9 !important;
+                color: #ffffff !important;
+                font-weight: bold !important;
+              }
+              .search-dropdown-option.selected:hover {
+                background-color: #4f4291 !important;
+                color: #ffffff !important;
+              }
+              .search-dropdown-all-btn {
+                grid-column: 1 / -1;
+                padding: 8px 10px;
+                font-size: 13px;
+                border-radius: 10px;
+                cursor: pointer;
+                text-align: center;
+                transition: all 0.15s ease;
+                user-select: none;
+                background-color: #f8fafc;
+                color: #334155;
+                font-weight: 600;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                box-sizing: border-box;
+                width: 100%;
+              }
+              .search-dropdown-all-btn:hover {
+                background-color: #F3EEFA !important;
+                color: #5F50A9 !important;
+                font-weight: 700 !important;
+              }
+              .search-dropdown-all-btn.selected {
+                background-color: #5F50A9 !important;
+                color: #ffffff !important;
+                font-weight: bold !important;
+              }
+              .search-dropdown-all-btn.selected:hover {
+                background-color: #4f4291 !important;
+                color: #ffffff !important;
+              }
             `}</style>
 
             {/* 1. 키워드 / 여행지 */}
@@ -481,7 +537,7 @@ function HomePage() {
                 여행지
               </span>
               <input 
-                type="text"
+                type="text" 
                 value={keyword}
                 onChange={(e) => setKeyword(e.target.value)}
                 onClick={(e) => { e.stopPropagation(); }}
@@ -506,7 +562,7 @@ function HomePage() {
             {/* 2. 지역 */}
             <div 
               className="search-segment-btn" 
-              style={{ flex: 1, position: 'relative' }} 
+              style={{ flex: 1, position: 'relative', zIndex: activeDropdown === 'region' ? 100 : 1 }} 
               onClick={(e) => { e.stopPropagation(); scrollToSearchBar(); setActiveDropdown(activeDropdown === 'region' ? null : 'region'); }}
             >
               <span style={{ fontSize: '12px', fontWeight: '800', color: '#64748b', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '3px', display: 'block' }}>
@@ -522,7 +578,7 @@ function HomePage() {
               </div>
               
               {activeDropdown === 'region' && (
-                <div style={{ position: 'absolute', top: '64px', left: 0, width: '280px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '18px', boxShadow: '0 16px 36px rgba(0,0,0,0.14)', zIndex: 10, padding: '10px', boxSizing: 'border-box' }}>
+                <div style={{ position: 'absolute', top: '64px', left: 0, width: '280px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '18px', boxShadow: '0 16px 36px rgba(0,0,0,0.14)', zIndex: 1000, padding: '10px', boxSizing: 'border-box' }}>
                   {/* 📍 현재 내 위치 GPS 버튼 */}
                   <button
                     type="button"
@@ -561,15 +617,18 @@ function HomePage() {
                   <div style={{ height: '1px', backgroundColor: '#f1f5f9', marginBottom: '8px' }} />
 
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }}>
-                    {REGION_OPTIONS.map(r => (
-                      <div 
-                        key={r.code || 'all'}
-                        onClick={(e) => { e.stopPropagation(); setSelectedRegionCode(r.code); setSelectedRegionName(r.code ? r.label : ''); setActiveDropdown(null); }}
-                        style={{ padding: '8px 4px', fontSize: '13px', borderRadius: '10px', cursor: 'pointer', textAlign: 'center', backgroundColor: selectedRegionCode === r.code ? '#5F50A9' : 'transparent', color: selectedRegionCode === r.code ? '#fff' : '#334155', fontWeight: selectedRegionCode === r.code ? 'bold' : '600', transition: 'all 0.15s' }}
-                      >
-                        {r.label}
-                      </div>
-                    ))}
+                    {REGION_OPTIONS.map(r => {
+                      const isSelected = (!selectedRegionCode && !r.code) || (selectedRegionCode === r.code);
+                      return (
+                        <div 
+                          key={r.code || 'all'}
+                          onClick={(e) => { e.stopPropagation(); setSelectedRegionCode(r.code); setSelectedRegionName(r.code ? r.label : ''); setActiveDropdown(null); }}
+                          className={`search-dropdown-option ${isSelected ? 'selected' : ''}`}
+                        >
+                          {r.label}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -580,7 +639,7 @@ function HomePage() {
             {/* 3. 테마 / 카테고리 */}
             <div 
               className="search-segment-btn" 
-              style={{ flex: 1, position: 'relative' }} 
+              style={{ flex: 1, position: 'relative', zIndex: activeDropdown === 'type' ? 100 : 1 }} 
               onClick={(e) => { e.stopPropagation(); scrollToSearchBar(); setActiveDropdown(activeDropdown === 'type' ? null : 'type'); }}
             >
               <span style={{ fontSize: '12px', fontWeight: '800', color: '#64748b', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '3px', display: 'block' }}>
@@ -596,20 +655,25 @@ function HomePage() {
               </div>
               
               {activeDropdown === 'type' && (
-                <div style={{ position: 'absolute', top: '64px', left: 0, width: '230px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '18px', boxShadow: '0 16px 36px rgba(0,0,0,0.14)', zIndex: 10, padding: '8px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px' }}>
+                <div style={{ position: 'absolute', top: '64px', left: 0, width: '230px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '18px', boxShadow: '0 16px 36px rgba(0,0,0,0.14)', zIndex: 1000, padding: '8px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px' }}>
                   <div
                     onClick={(e) => { e.stopPropagation(); setSelectedType(''); setSelectedTypeName(''); setActiveDropdown(null); }}
-                    style={{ gridColumn: '1 / -1', padding: '8px 10px', fontSize: '13px', borderRadius: '10px', cursor: 'pointer', textAlign: 'center', backgroundColor: selectedType === '' ? '#5F50A9' : '#f8fafc', color: selectedType === '' ? '#fff' : '#334155', fontWeight: selectedType === '' ? 'bold' : '600' }}
-                  >전체 테마</div>
-                  {CATEGORY_OPTIONS.map(c => (
-                    <div 
-                      key={c.value}
-                      onClick={(e) => { e.stopPropagation(); setSelectedType(c.value); setSelectedTypeName(c.label); setActiveDropdown(null); }}
-                      style={{ padding: '8px 6px', fontSize: '13px', borderRadius: '10px', cursor: 'pointer', textAlign: 'center', backgroundColor: selectedType === c.value ? '#5F50A9' : 'transparent', color: selectedType === c.value ? '#fff' : '#334155', fontWeight: selectedType === c.value ? 'bold' : '600' }}
-                    >
-                      {c.label}
-                    </div>
-                  ))}
+                    className={`search-dropdown-all-btn ${selectedType === '' ? 'selected' : ''}`}
+                  >
+                    전체 테마
+                  </div>
+                  {CATEGORY_OPTIONS.map(c => {
+                    const isSelected = selectedType === c.value;
+                    return (
+                      <div 
+                        key={c.value}
+                        onClick={(e) => { e.stopPropagation(); setSelectedType(c.value); setSelectedTypeName(c.label); setActiveDropdown(null); }}
+                        className={`search-dropdown-option ${isSelected ? 'selected' : ''}`}
+                      >
+                        {c.label}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -619,7 +683,7 @@ function HomePage() {
             {/* 4. 반려동물 */}
             <div 
               className="search-segment-btn" 
-              style={{ flex: 1.25, position: 'relative' }} 
+              style={{ flex: 1.25, position: 'relative', zIndex: activeDropdown === 'pet' ? 100 : 1 }} 
               onClick={(e) => { e.stopPropagation(); scrollToSearchBar(); setActiveDropdown(activeDropdown === 'pet' ? null : 'pet'); }}
             >
               <span style={{ fontSize: '12px', fontWeight: '800', color: '#64748b', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '3px', display: 'block' }}>
