@@ -1,7 +1,7 @@
 // src/pages/MapPage.jsx
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { fetchSuggestedRoute, fetchExploreSpots } from '../services/api';
+import { fetchUserRoutes, updateUserRoutes, fetchSuggestedRoute, fetchExploreSpots } from '../services/api';
 import { loadKakaoMapSdk } from '../utils/kakaoMapLoader';
 import { toast } from '../utils/toast';
 
@@ -27,7 +27,7 @@ function MapPage() {
   const userEmail = getCurrentUserEmail();
   const storageKey = userEmail ? `paw_pass_routes_${userEmail}` : 'paw_pass_routes_guest';
 
-  // 💡 전용 키로 로컬 스토리지에서 동선 데이터 로드
+  // 💡 전용 키로 로컬 스토리지에서 1차 동선 데이터 로드
   const [selectedSpots, setSelectedSpots] = useState(() => {
     if (!storageKey) return [];
 
@@ -46,6 +46,49 @@ function MapPage() {
       return [];
     }
   });
+
+  // 💡 서버에서 로그인 유저의 최신 동선 목록 불러오기 (GET /routes)
+  useEffect(() => {
+    const token = localStorage.getItem('paw_pass_access_token');
+    if (!token) return;
+
+    let isMounted = true;
+    fetchUserRoutes()
+      .then(serverRoutes => {
+        if (!isMounted || !Array.isArray(serverRoutes)) return;
+
+        const mapped = serverRoutes.map(item => {
+          const contentId = item.content_id ?? item.id;
+          const isKakao = item.source === 'kakao' || String(contentId).startsWith('kakao_');
+          const id = isKakao ? (String(contentId).startsWith('kakao_') ? String(contentId) : `kakao_${contentId}`) : String(contentId);
+          
+          return {
+            id,
+            contentId,
+            content_id: item.content_id ?? item.id,
+            source: item.source || (isKakao ? 'kakao' : 'tourapi'),
+            name: item.title || item.name || '장소명 없음',
+            title: item.title || item.name || '장소명 없음',
+            address: item.addr1 || item.address || item.addr || '',
+            lat: Number(item.lat),
+            lng: Number(item.lng),
+            imageUrl: item.image || item.first_image || item.imageUrl || ''
+          };
+        }).filter(s => !isNaN(s.lat) && !isNaN(s.lng) && s.lat !== 0 && s.lng !== 0).slice(0, 8);
+
+        setSelectedSpots(mapped);
+        if (storageKey) {
+          localStorage.setItem(storageKey, JSON.stringify(mapped));
+        }
+      })
+      .catch(err => {
+        console.warn('서버 동선 목록 로드 실패 (로컬 데이터 유지):', err);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [storageKey]);
 
   const [routeResult, setRouteResult] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -312,6 +355,37 @@ function MapPage() {
     }
   }, [mapLoaded, selectedSpots, routeResult, renderMapElements]);
 
+  // 💡 동선 목록을 로컬 & 백엔드 서버(PUT /routes)에 동시 저장하는 함수
+  const updateAndSyncSpots = async (newSpots) => {
+    setSelectedSpots(newSpots);
+    if (storageKey) {
+      localStorage.setItem(storageKey, JSON.stringify(newSpots));
+    }
+    setRouteResult(null);
+
+    if (newSpots.length > 0) {
+      renderMapElements(newSpots);
+    } else {
+      if (mapInstanceRef.current && window.kakao) {
+        markersRef.current.forEach(m => m.setMap(null));
+        markersRef.current = [];
+        if (polylineRef.current) {
+          polylineRef.current.setMap(null);
+          polylineRef.current = null;
+        }
+      }
+    }
+
+    const token = localStorage.getItem('paw_pass_access_token');
+    if (token) {
+      try {
+        await updateUserRoutes(newSpots);
+      } catch (err) {
+        console.error('서버 동선 저장(PUT /routes) 실패:', err);
+      }
+    }
+  };
+
   // 드래그 앤 드롭 순서 변경 핸들러
   const handleDragStart = (e, index) => {
     setDraggedItemIndex(index);
@@ -345,13 +419,7 @@ function MapPage() {
     updated.splice(targetIndex, 0, movedItem);
 
     setDraggedItemIndex(null);
-    setSelectedSpots(updated);
-    
-    if (storageKey) {
-      localStorage.setItem(storageKey, JSON.stringify(updated));
-    }
-    setRouteResult(null);
-    renderMapElements(updated);
+    updateAndSyncSpots(updated);
   };
 
   // 💡 4-3 터치 기기(모바일)를 위한 순서 변경 버튼 핸들러
@@ -364,12 +432,7 @@ function MapPage() {
     updated[index] = updated[index + direction];
     updated[index + direction] = temp;
 
-    setSelectedSpots(updated);
-    if (storageKey) {
-      localStorage.setItem(storageKey, JSON.stringify(updated));
-    }
-    setRouteResult(null);
-    renderMapElements(updated);
+    updateAndSyncSpots(updated);
   };
 
   // 직접 검색 핸들러 (API + 카카오맵 로컬 검색 병합)
@@ -453,19 +516,16 @@ function MapPage() {
       return;
     }
 
-    const spotId = String(spot.id);
-    const exists = selectedSpots.some(item => String(item.id || item.contentId) === spotId);
+    const spotId = String(spot.id ?? spot.contentId ?? spot.content_id);
+    const exists = selectedSpots.some(item => String(item.id ?? item.contentId ?? item.content_id) === spotId);
     if (exists) {
       toast.info('이미 동선에 포함된 장소입니다.');
       return;
     }
 
     const updated = [...selectedSpots, spot];
-    setSelectedSpots(updated);
-    localStorage.setItem(storageKey, JSON.stringify(updated));
-    setRouteResult(null);
-    renderMapElements(updated);
-    toast.success(`❤️ "${spot.name}"이(가) 동선에 추가되었습니다!`);
+    updateAndSyncSpots(updated);
+    toast.success(`❤️ "${spot.name || spot.title}"이(가) 동선에 추가되었습니다!`);
   };
 
   const handleSuggestRoute = async () => {
@@ -506,11 +566,7 @@ function MapPage() {
         const finalSpots = [...reorderedSpots, ...missingSpots];
 
         if (finalSpots.length > 0) {
-          setSelectedSpots(finalSpots);
-          if (storageKey) {
-            localStorage.setItem(storageKey, JSON.stringify(finalSpots));
-          }
-          renderMapElements(finalSpots);
+          updateAndSyncSpots(finalSpots);
           toast.success('✨ 최적 동선이 계산되어 장소 순서가 자동 정렬되었습니다!');
         }
       } else {
@@ -526,26 +582,9 @@ function MapPage() {
 
   const handleRemoveSpot = (spotId) => {
     try {
-      const updated = selectedSpots.filter(item => String(item.id || item.contentId) !== String(spotId));
-      setSelectedSpots(updated);
-      
-      if (storageKey) {
-        localStorage.setItem(storageKey, JSON.stringify(updated));
-      }
-      setRouteResult(null);
-
-      if (updated.length > 0) {
-        renderMapElements(updated);
-      } else {
-        if (mapInstanceRef.current && window.kakao) {
-          markersRef.current.forEach(m => m.setMap(null));
-          markersRef.current = [];
-          if (polylineRef.current) {
-            polylineRef.current.setMap(null);
-            polylineRef.current = null;
-          }
-        }
-      }
+      const targetId = String(spotId);
+      const updated = selectedSpots.filter(item => String(item.id ?? item.contentId ?? item.content_id) !== targetId);
+      updateAndSyncSpots(updated);
     } catch (err) {
       console.error('동선 삭제 실패:', err);
     }
