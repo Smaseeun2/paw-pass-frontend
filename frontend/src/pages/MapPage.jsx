@@ -1,9 +1,29 @@
 // src/pages/MapPage.jsx
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchUserRoutes, updateUserRoutes, fetchSuggestedRoute, fetchExploreSpots } from '../services/api';
 import { loadKakaoMapSdk } from '../utils/kakaoMapLoader';
 import { toast } from '../utils/toast';
+
+// Haversine 거리 계산 함수 (km 단위)
+const calculateDistanceKm = (lat1, lon1, lat2, lon2) => {
+  const p1Lat = Number(lat1);
+  const p1Lng = Number(lon1);
+  const p2Lat = Number(lat2);
+  const p2Lng = Number(lon2);
+  if (isNaN(p1Lat) || isNaN(p1Lng) || isNaN(p2Lat) || isNaN(p2Lng) || p1Lat === 0 || p1Lng === 0 || p2Lat === 0 || p2Lng === 0) {
+    return null;
+  }
+  const R = 6371; // 지구 반경 (km)
+  const dLat = (p2Lat - p1Lat) * (Math.PI / 180);
+  const dLon = (p2Lng - p1Lng) * (Math.PI / 180);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(p1Lat * (Math.PI / 180)) * Math.cos(p2Lat * (Math.PI / 180)) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+};
 
 // 💡 현재 로그인된 유저의 이메일(또는 식별자)을 가져오는 헬퍼 함수
 const getCurrentUserEmail = () => {
@@ -63,12 +83,16 @@ function MapPage() {
         } catch {}
 
         const mapped = serverRoutes.map(item => {
-          const contentId = String(item.content_id ?? item.id ?? '');
-          const isKakao = item.source === 'kakao' || contentId.startsWith('kakao_');
-          const id = isKakao ? (contentId.startsWith('kakao_') ? contentId : `kakao_${contentId}`) : contentId;
+          // 백엔드 명세: { id: route_places.id(내부 PK), source, content_id: 실제 TourAPI/KCISA ID, title, lat, lng }
+          const tourContentId = String(item.content_id || '').trim();
+          const rawId = String(item.id || '').trim();
+          const actualContentId = tourContentId || rawId;
+          const cleanContentId = actualContentId.replace(/^kakao_/, '');
+          const isKakao = item.source === 'kakao' || actualContentId.startsWith('kakao_');
+          const id = isKakao ? (actualContentId.startsWith('kakao_') ? actualContentId : `kakao_${actualContentId}`) : cleanContentId;
           
           const matchedLocal = localSaved.find(s => 
-            String(s.content_id || s.contentId || s.id) === String(contentId) ||
+            String(s.content_id || s.contentId || s.id) === String(cleanContentId) ||
             String(s.name || s.title) === String(item.title || item.name)
           );
           
@@ -77,8 +101,9 @@ function MapPage() {
           return {
             ...matchedLocal,
             id,
-            contentId: contentId.replace(/^kakao_/, ''),
-            content_id: contentId.replace(/^kakao_/, ''),
+            contentId: cleanContentId,
+            content_id: cleanContentId,
+            route_place_id: item.id,
             source: item.source || matchedLocal?.source || (isKakao ? 'kakao' : 'tourapi'),
             name: item.title || item.name || matchedLocal?.name || matchedLocal?.title || '장소명 없음',
             title: item.title || item.name || matchedLocal?.title || matchedLocal?.name || '장소명 없음',
@@ -145,6 +170,22 @@ function MapPage() {
   const [routeResult, setRouteResult] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [mapLoaded, setMapLoaded] = useState(false);
+
+  // 실시간 총 이동 거리 계산 (서버 최적 경로 응답 또는 Haversine 직선 합산)
+  const totalDistanceKm = useMemo(() => {
+    if (routeResult && (routeResult.total_distance_km != null || routeResult.total_distance != null)) {
+      return Number(routeResult.total_distance_km ?? routeResult.total_distance);
+    }
+    if (selectedSpots.length < 2) return 0;
+    let total = 0;
+    for (let i = 1; i < selectedSpots.length; i++) {
+      const p1 = selectedSpots[i - 1];
+      const p2 = selectedSpots[i];
+      const d = calculateDistanceKm(p1.lat, p1.lng, p2.lat, p2.lng);
+      if (d) total += d;
+    }
+    return total;
+  }, [selectedSpots, routeResult]);
 
   // 직접 검색 관련 State 및 Ref
   const [searchKeyword, setSearchKeyword] = useState('');
@@ -451,7 +492,8 @@ function MapPage() {
       infoCardContent.querySelector('.go-detail').addEventListener('click', (e) => {
         e.stopPropagation();
         const source = spot.source || 'tourapi';
-        navigate(`/detail/${spot.id || spot.contentId}?source=${source}`);
+        const targetId = spot.content_id || spot.contentId || spot.id;
+        navigate(`/detail/${targetId}?source=${source}`);
       });
 
       customOverlay.setMap(map);
@@ -486,12 +528,14 @@ function MapPage() {
   }, [mapLoaded, selectedSpots, routeResult, renderMapElements]);
 
   // 💡 동선 목록을 로컬 & 백엔드 서버(PUT /routes)에 동시 저장하는 함수
-  const updateAndSyncSpots = async (newSpots) => {
+  const updateAndSyncSpots = async (newSpots, preserveResult = false) => {
     setSelectedSpots(newSpots);
     if (storageKey) {
       localStorage.setItem(storageKey, JSON.stringify(newSpots));
     }
-    setRouteResult(null);
+    if (!preserveResult) {
+      setRouteResult(null);
+    }
 
     if (newSpots.length > 0) {
       renderMapElements(newSpots);
@@ -696,7 +740,7 @@ function MapPage() {
         const finalSpots = [...reorderedSpots, ...missingSpots];
 
         if (finalSpots.length > 0) {
-          updateAndSyncSpots(finalSpots);
+          updateAndSyncSpots(finalSpots, true);
           toast.success('✨ 최적 동선이 계산되어 장소 순서가 자동 정렬되었습니다!');
         }
       } else {
@@ -1033,12 +1077,36 @@ function MapPage() {
         </button>
       </div>
 
-      {routeResult && (
-        <div className="summary-card" style={{ backgroundColor: "#fff", border: "none", padding: "20px 25px", marginBottom: "20px" }}>
-          <h4 style={{ margin: '0 0 5px 0', color: '#1d4ed8', fontSize: '15px' }}>🎉 최적 동선 계산 완료!</h4>
-          <p style={{ margin: 0, fontSize: '14px', color: '#334155' }}>
-            총 이동 거리: <strong>{routeResult.total_distance_km ?? 0} km</strong>
-          </p>
+      {selectedSpots.length >= 2 && (
+        <div className="summary-card" style={{ 
+          backgroundColor: "#ffffff", 
+          borderRadius: "20px", 
+          border: routeResult ? "2px solid #86efac" : "1px solid rgba(95, 80, 169, 0.2)", 
+          padding: "18px 24px", 
+          marginBottom: "20px",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          boxShadow: routeResult ? "0 8px 24px rgba(34, 197, 94, 0.12)" : "0 8px 24px rgba(95, 80, 169, 0.08)"
+        }}>
+          <div>
+            <h4 style={{ margin: '0 0 4px 0', color: routeResult ? '#15803d' : '#5F50A9', fontSize: '15.5px', fontWeight: '800' }}>
+              {routeResult ? '🎉 최적 동선 계산 및 정렬 완료!' : '🚗 여행 동선 총 이동 거리'}
+            </h4>
+            <p style={{ margin: 0, fontSize: '14px', color: '#475569' }}>
+              총 이동 거리: <strong style={{ color: '#1e293b', fontSize: '18px', fontWeight: '800' }}>{totalDistanceKm.toFixed(1)} km</strong>
+              <span style={{ marginLeft: '10px', fontSize: '13px', color: '#64748b', fontWeight: '600' }}>({selectedSpots.length}개 장소 경유)</span>
+            </p>
+          </div>
+          {routeResult ? (
+            <span style={{ backgroundColor: '#dcfce7', color: '#15803d', padding: '6px 14px', borderRadius: '50px', fontSize: '12.5px', fontWeight: '800' }}>
+              최적 경로 적용됨 ✓
+            </span>
+          ) : (
+            <span style={{ backgroundColor: '#F3EEFA', color: '#5F50A9', padding: '6px 14px', borderRadius: '50px', fontSize: '12.5px', fontWeight: '800' }}>
+              직선 추정 거리
+            </span>
+          )}
         </div>
       )}
 
@@ -1067,22 +1135,42 @@ function MapPage() {
               {selectedSpots.map((spot, index) => {
                 const spotId = String(spot.id ?? spot.contentId ?? spot.content_id);
                 let legDistance = null;
-                if (index > 0 && routeResult && Array.isArray(routeResult.legs)) {
-                  const prevId = String(selectedSpots[index-1].id ?? selectedSpots[index-1].contentId ?? selectedSpots[index-1].content_id);
-                  const leg = routeResult.legs.find(l => 
-                    (String(l.from_id ?? l.from ?? '') === prevId && String(l.to_id ?? l.to ?? '') === spotId) ||
-                    (String(l.from_id ?? l.from ?? '') === spotId && String(l.to_id ?? l.to ?? '') === prevId)
-                  );
-                  if (leg && (leg.distance_km != null || leg.distance != null)) {
-                    legDistance = Number(leg.distance_km ?? leg.distance);
+                if (index > 0) {
+                  const prevSpot = selectedSpots[index - 1];
+                  const curSpot = spot;
+                  const prevId = String(prevSpot.id ?? prevSpot.contentId ?? prevSpot.content_id);
+                  if (routeResult && Array.isArray(routeResult.legs)) {
+                    const leg = routeResult.legs.find(l => 
+                      (String(l.from_id ?? l.from ?? '') === prevId && String(l.to_id ?? l.to ?? '') === spotId) ||
+                      (String(l.from_id ?? l.from ?? '') === spotId && String(l.to_id ?? l.to ?? '') === prevId)
+                    );
+                    if (leg && (leg.distance_km != null || leg.distance != null)) {
+                      legDistance = Number(leg.distance_km ?? leg.distance);
+                    }
+                  }
+                  if (legDistance == null && prevSpot.lat && prevSpot.lng && curSpot.lat && curSpot.lng) {
+                    legDistance = calculateDistanceKm(prevSpot.lat, prevSpot.lng, curSpot.lat, curSpot.lng);
                   }
                 }
 
                 return (
                   <React.Fragment key={spotId || index}>
                     {legDistance != null && (
-                      <div style={{ textAlign: 'center', color: '#5F50A9', fontSize: '12px', margin: '-2px 0', padding: '4px 0', fontWeight: 'bold' }}>
-                        ⬇ 약 {legDistance.toFixed(2)} km 이동
+                      <div style={{ 
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        color: '#5F50A9', 
+                        fontSize: '12px', 
+                        margin: '-2px 0', 
+                        padding: '5px 0', 
+                        fontWeight: '800',
+                        backgroundColor: '#F3EEFA',
+                        borderRadius: '10px'
+                      }}>
+                        <span>⬇️</span>
+                        <span>약 {legDistance < 1 ? `${Math.round(legDistance * 1000)} m` : `${legDistance.toFixed(1)} km`} 이동</span>
                       </div>
                     )}
                     <div 

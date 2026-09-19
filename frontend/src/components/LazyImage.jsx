@@ -70,18 +70,9 @@ export default function LazyImage({ spot = {}, fallback = '🖼️ 이미지 준
             }
             if (imgData.image_attribution) setImageAttr(imgData.image_attribution);
           }
-        } else if (actualSource === 'tourapi' || !actualSource) {
-          const res = await authFetch(`${BASE_URL}/tours/${spotId}`, { method: 'GET' });
-          if (res.ok && isMounted) {
-            const dataResult = await res.json();
-            const data = dataResult.data || dataResult;
-            const foundImg = (Array.isArray(data.images) && data.images[0]) || data.firstimage || data.image || '';
-            if (foundImg) {
-              setImageUrl(foundImg);
-              setHasError(false);
-            }
-          }
         }
+        // tourapi 관광지는 목록에 이미 이미지가 포함되어 있거나 없으면 플레이스홀더를 사용하므로
+        // 무거운 GET /tours/{spotId}를 호출하지 않습니다.
       } catch (err) {
         console.warn('LazyImage fetch error:', err);
       } finally {

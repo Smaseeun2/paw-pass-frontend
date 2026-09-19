@@ -20,7 +20,8 @@ const MATCH_STATUS_BUTTONS = [
 ];
 
 function DrawerContent({ spot, onClose, navigate, user, myPets, selectedPetIds = [], categoryHint = '' }) {
-  const { detail, isLoading, error } = useSpotDetail(spot.id, spot.source);
+  const spotContentId = spot.content_id || spot.contentId || spot.id;
+  const { detail, isLoading, error } = useSpotDetail(spotContentId, spot.source);
   const [showDrawerScrollTop, setShowDrawerScrollTop] = useState(false);
   const mapRef = useRef(null);
 
@@ -530,17 +531,20 @@ function SearchMapView({
   const markersRef = useRef(new Map());
   const userMarkerRef = useRef(null);
   const mapObserverTarget = useRef(null);
-  const [activeSpot, setActiveSpot] = useState(null);
+  const loadMoreRef = useRef(loadMore);
+  useEffect(() => {
+    loadMoreRef.current = loadMore;
+  }, [loadMore]);
 
   // 0. 좌측 리스트 무한 스크롤 연동
   useEffect(() => {
     const target = mapObserverTarget.current;
-    if (!target) return;
+    if (!target || !hasMore) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && !isFetchingMore && hasMore && loadMore) {
-          loadMore();
+        if (entries[0].isIntersecting && !isFetchingMore && hasMore) {
+          loadMoreRef.current?.();
         }
       },
       { threshold: 0.1 }
@@ -548,7 +552,7 @@ function SearchMapView({
 
     observer.observe(target);
     return () => observer.disconnect();
-  }, [loadMore, isFetchingMore, hasMore]);
+  }, [isFetchingMore, hasMore]);
 
   // 1. 관광지 선택 토글 핸들러
   const handleSpotSelection = useCallback((spot) => {
@@ -1620,14 +1624,19 @@ function SearchPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.key]);
 
+  const loadMoreRef = useRef(loadMore);
+  useEffect(() => {
+    loadMoreRef.current = loadMore;
+  }, [loadMore]);
+
   useEffect(() => {
     const target = observerTarget.current;
-    if (!target) return;
+    if (!target || !hasMore || isInitialLoading) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting && !isInitialLoading && !isFetchingMore && hasMore) {
-          loadMore();
+          loadMoreRef.current?.();
         }
       },
       { threshold: 0.1 }
@@ -1635,7 +1644,7 @@ function SearchPage() {
 
     observer.observe(target);
     return () => observer.disconnect();
-  }, [loadMore, isInitialLoading, isFetchingMore, hasMore]);
+  }, [isInitialLoading, isFetchingMore, hasMore]);
 
   // 💡 3-3 검색 디바운싱: 키워드 입력 후 500ms 대기 시 자동 검색 (한글 자모 완성 처리 방어)
   useEffect(() => {

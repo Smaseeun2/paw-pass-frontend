@@ -1,7 +1,6 @@
 // src/hooks/useTouristSpots.js
 import { useState, useCallback, useRef } from 'react';
-import { fetchExploreSpots, authFetch } from '../services/api';
-import { BASE_URL } from '../config/env';
+import { fetchExploreSpots } from '../services/api';
 
 export const useTouristSpots = () => {
   const [spots, setSpots] = useState([]);
@@ -9,16 +8,57 @@ export const useTouristSpots = () => {
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
 
+  const isFetchingRef = useRef(false);
+  const hasMoreRef = useRef(true);
   const currentConditionRef = useRef({});
+  const lastFetchKeyRef = useRef('');
+  const lastFetchTimeRef = useRef(0);
 
   const fetchSpots = useCallback(async (condition = {}, isAppend = false) => {
+    // 동시 호출 방지 (이미 요청 중이면 무시)
+    if (isFetchingRef.current) {
+      return;
+    }
+
+    const targetPage = isAppend ? (currentConditionRef.current.page || 1) + 1 : 1;
+    const queryCondition = isAppend ? currentConditionRef.current : condition;
+
+    const regionCode = queryCondition.regionCode || queryCondition.region_code || '';
+    const category = queryCondition.category || queryCondition.type || '';
+    const matchStatus = queryCondition.matchStatus || queryCondition.match_status || '';
+    const keyword = (queryCondition.keyword || '').trim();
+    const petIds = queryCondition.petIds;
+    const petId = queryCondition.petId;
+    const guestSizeHint = queryCondition.guestSizeHint || '';
+    const allPetIds = petIds && petIds.length > 0 ? petIds : (petId ? [petId] : []);
+
+    const fetchKey = JSON.stringify({
+      regionCode,
+      category,
+      matchStatus,
+      keyword,
+      petIds: allPetIds.join(','),
+      guestSizeHint,
+      page: targetPage,
+      isAppend
+    });
+
+    const now = Date.now();
+    // 동일한 파라미터로 500ms 이내 재호출되는 폭풍 요청 차단
+    if (!isAppend && lastFetchKeyRef.current === fetchKey && now - lastFetchTimeRef.current < 500) {
+      return;
+    }
+    lastFetchKeyRef.current = fetchKey;
+    lastFetchTimeRef.current = now;
+
+    isFetchingRef.current = true;
     if (isAppend) {
       setIsFetchingMore(true);
     } else {
       setIsInitialLoading(true);
+      setHasMore(true);
+      hasMoreRef.current = true;
     }
-
-    const targetPage = isAppend ? (currentConditionRef.current.page || 1) + 1 : 1;
 
     if (!isAppend) {
       currentConditionRef.current = { ...condition, page: 1 };
@@ -26,26 +66,10 @@ export const useTouristSpots = () => {
       currentConditionRef.current.page = targetPage;
     }
 
-    const queryCondition = isAppend ? currentConditionRef.current : condition;
-
-    const regionCode = queryCondition.regionCode || queryCondition.region_code || '';
-    const category = queryCondition.category || queryCondition.type || '';
-    const matchStatus = queryCondition.matchStatus || queryCondition.match_status || '';
-    const keyword = queryCondition.keyword || '';
-
-    // Updated: support multiple pet IDs
-    const petIds = queryCondition.petIds;
-    const petId = queryCondition.petId;
-    // 비로그인 사용자가 크기 필터를 선택한 경우 ('small' | 'medium' | 'large' | '')
-    const guestSizeHint = queryCondition.guestSizeHint || '';
-    // 다견 AND 조건: 여러 마리가 선택된 경우 대표 펫 기준으로 API를 호출하되, 프론트에서 AND 방식 판정
-    const primaryPetId = petIds && petIds.length > 0 ? petIds[0] : petId;
-    const allPetIds = petIds && petIds.length > 0 ? petIds : (petId ? [petId] : []);
-
     try {
       let rawSpots = [];
 
-      // 1차: /explore 통합 엔드포인트 시도
+      // /explore 통합 엔드포인트 호출
       try {
         const response = await fetchExploreSpots({
           regionCode,
@@ -57,37 +81,15 @@ export const useTouristSpots = () => {
         });
         rawSpots = Array.isArray(response) ? response : (response?.data || response?.content || []);
       } catch (exploreErr) {
-        console.error('❌ /explore 통합 API 조회 실패 (폴백 제거됨):', exploreErr.message);
+        console.error('❌ /explore API 조회 실패:', exploreErr.message);
         rawSpots = [];
       }
 
-      // 저장된 펫 목록 로드 (다견 AND 판정용)
-      let localPets = [];
-      try {
-        const token = typeof window !== 'undefined' ? window.localStorage.getItem('paw_pass_access_token') : null;
-        const savedPetsKey = token
-          ? Object.keys(window.localStorage).find(k => k.startsWith('paw_pass_pets_') && !k.endsWith('_guest'))
-          : 'paw_pass_pets_guest';
-        if (savedPetsKey) {
-          const raw = window.localStorage.getItem(savedPetsKey);
-          if (raw) localPets = JSON.parse(raw);
-        }
-      } catch (_) { /* 조용히 무시 */ }
-
-      /**
-       * 다견 AND 판정 알고리즘:
-       * - '가능': 크기 조건 충족 & 프로필에 등록한 반려용품이 방문 가능 조건을 모두 충족
-       * - '조건부': 프로필에 없는 추가 반려용품이 요구될 때 (예: 이동장 없는데 이동장 필수)
-       * - '확인 필요': 정보가 불충분하거나 API에서 판정값 없을 때
-       * - 다견일 경우: 각 펫에 대해 위 기준 적용 후 가장 제한적인 결과를 AND 방식으로 채택
-       */
-      const MATCH_RANK = { '가능': 1, '조건부': 2, '동반 확인 필요': 3, '불가': 4 };
-
-      const mappedSpotsPromises = rawSpots.map(async (spot) => {
-        const spotId = String(spot.id || spot.content_id);
+      const mappedSpots = rawSpots.map((spot) => {
+        const spotId = String(spot.id || spot.content_id || '');
         const contactTel = spot.tel || '정보 미제공';
 
-        let spotImage =
+        const spotImage =
           spot.image ||
           spot.imageUrl ||
           spot.firstimage ||
@@ -103,18 +105,11 @@ export const useTouristSpots = () => {
         let assignedMatchStatus = '동반 확인 필요';
 
         if (guestSizeHint && allPetIds.length === 0) {
-          // ── 비로그인 + 크기 선택 ──────────────────────────────────────────────
-          // 장소의 크기 제한 정보 파싱 (백엔드/TourAPI 필드 대응)
           const possibleSize = (spot.possibleBreeds || spot.possible_breeds || spot.relaAcmpyEntEnterPrn || '').toLowerCase();
-          const sizeLabels = { small: ['소형', '소', '5kg', '10kg', 'small'], medium: ['중형', '중', '25kg', 'medium'], large: ['대형', '대', 'large'] };
-          const guestLabels = sizeLabels[guestSizeHint] || [];
 
-          // 제한 정보가 없으면 → 정보 불충분 → 조건부
           if (!possibleSize || possibleSize.trim() === '') {
-            // 정보 없으면 크기 충족 가능하다고 가정하되, 반려용품 미확인이므로 조건부
             assignedMatchStatus = '조건부 가능';
           } else {
-            // 크기 불허 키워드 체크 (예: "소형견만 가능"에서 대형 선택)
             const deniedBySize =
               (guestSizeHint === 'large' && possibleSize.includes('소형')) ||
               (guestSizeHint === 'large' && possibleSize.includes('중형') && !possibleSize.includes('대형')) ||
@@ -123,23 +118,23 @@ export const useTouristSpots = () => {
             if (deniedBySize) {
               assignedMatchStatus = '방문 불가';
             } else {
-              // 크기 조건 충족이지만 반려용품 미확인 → 조건부 가능
               assignedMatchStatus = '조건부 가능';
             }
           }
         } else if (allPetIds.length === 0 || !rawMatch) {
-          // 펫 미선택이거나 정보 없으면 확인 필요
           assignedMatchStatus = '동반 확인 필요';
         } else {
-          // 백엔드가 petIds 여러 개를 받아 AND 처리된 결과를 주므로 그대로 사용
           assignedMatchStatus = rawMatch;
         }
 
         return {
           id: spotId,
           contentId: spotId,
+          content_id: spotId,
           name: spot.title || spot.name || '장소명 없음',
+          title: spot.title || spot.name || '장소명 없음',
           address: spot.addr1 || spot.addr || spot.address || '주소 정보 없음',
+          addr: spot.addr1 || spot.addr || spot.address || '주소 정보 없음',
           image: spotImage,
           imageUrl: spotImage,
           imageAttribution: spot.image_attribution || '',
@@ -159,24 +154,36 @@ export const useTouristSpots = () => {
         };
       });
 
-      const mappedSpots = await Promise.all(mappedSpotsPromises);
-
       if (isAppend) {
         setSpots(prev => {
           const map = new Map();
           prev.forEach(item => map.set(item.id, item));
+          const prevSize = map.size;
           mappedSpots.forEach(item => map.set(item.id, item));
+          const newSize = map.size;
+
+          // 새로운 항목이 하나도 추가되지 않았거나 반환된 결과가 없으면 페이징 종료
+          if (newSize === prevSize || mappedSpots.length === 0) {
+            setHasMore(false);
+            hasMoreRef.current = false;
+          }
           return Array.from(map.values());
         });
       } else {
         setSpots(mappedSpots);
       }
 
-      setHasMore(rawSpots.length > 0);
+      // 결과가 0개이거나 페이지 당 기본 사이즈(10개 미만)면 다음 페이지 없음으로 설정
+      const moreAvailable = rawSpots.length >= 10;
+      setHasMore(moreAvailable);
+      hasMoreRef.current = moreAvailable;
     } catch (err) {
       console.error('장소 목록 조회 실패:', err);
       if (!isAppend) setSpots([]);
+      setHasMore(false);
+      hasMoreRef.current = false;
     } finally {
+      isFetchingRef.current = false;
       if (isAppend) {
         setIsFetchingMore(false);
       } else {
@@ -186,10 +193,10 @@ export const useTouristSpots = () => {
   }, []);
 
   const loadMore = useCallback(() => {
-    if (!isInitialLoading && !isFetchingMore && hasMore) {
+    if (!isFetchingRef.current && hasMoreRef.current) {
       fetchSpots(currentConditionRef.current, true);
     }
-  }, [fetchSpots, isInitialLoading, isFetchingMore, hasMore]);
+  }, [fetchSpots]);
 
   return {
     spots,
