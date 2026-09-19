@@ -29,6 +29,10 @@ function ProfilePage() {
   const [editingPetId, setEditingPetId] = useState(null);
   const [imageFile, setImageFile] = useState(null);
 
+  // 🐾 반려동물 삭제 확인 모달 state
+  const [petToDelete, setPetToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   const [form, setForm] = useState({
     name: '',
     species: 'DOG',
@@ -482,8 +486,16 @@ function ProfilePage() {
     login();
   };
 
-  const handleDeletePet = async (id, e) => {
+  const handleDeleteClick = (pet, e) => {
     if (e) e.stopPropagation();
+    setPetToDelete(pet);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!petToDelete) return;
+    const { id, name } = petToDelete;
+    setIsDeleting(true);
+
     if (editingPetId === id) {
       handleCancelEdit();
     }
@@ -495,9 +507,13 @@ function ProfilePage() {
           const remaining = prev.filter((pet) => String(pet.id) !== String(id));
           return enforceSinglePrimary(remaining);
         });
+        toast.success(`"${name || '반려동물'}" 프로필이 삭제되었습니다.`);
       } catch (err) {
         console.error('서버 삭제 에러:', err);
         toast.error('삭제 요청에 실패했습니다.');
+      } finally {
+        setIsDeleting(false);
+        setPetToDelete(null);
       }
     } else {
       const targetKey = getActiveKey(user);
@@ -507,6 +523,9 @@ function ProfilePage() {
         localStorage.setItem(targetKey, JSON.stringify(cleaned));
         return cleaned;
       });
+      toast.success(`"${name || '반려동물'}" 프로필이 삭제되었습니다.`);
+      setIsDeleting(false);
+      setPetToDelete(null);
     }
   };
 
@@ -737,7 +756,7 @@ function ProfilePage() {
                     </button>
                     <button 
                       type="button"
-                      onClick={(e) => handleDeletePet(pet.id, e)}
+                      onClick={(e) => handleDeleteClick(pet, e)}
                       title="프로필 삭제"
                       style={{ background: 'none', border: 'none', color: '#ff5252', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px', padding: '2px 4px' }}
                     >
@@ -1396,6 +1415,110 @@ function ProfilePage() {
             >
               같이 갈 수 있는 관광지 탐색 페이지로 이동 →
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* 🐾 반려동물 삭제 확인 팝업 모달 */}
+      {petToDelete && (
+        <div 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            backgroundColor: 'rgba(15, 23, 42, 0.6)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 3000,
+            padding: '20px',
+            boxSizing: 'border-box'
+          }}
+          onClick={() => !isDeleting && setPetToDelete(null)}
+        >
+          <div 
+            style={{
+              backgroundColor: '#ffffff',
+              width: '100%',
+              maxWidth: '380px',
+              padding: '28px 24px 24px 24px',
+              borderRadius: '24px',
+              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.2)',
+              position: 'relative',
+              textAlign: 'center',
+              boxSizing: 'border-box'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ 
+              width: '56px', 
+              height: '56px', 
+              borderRadius: '50%', 
+              backgroundColor: '#fee2e2', 
+              color: '#ef4444', 
+              fontSize: '26px', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              margin: '0 auto 16px auto',
+              boxShadow: '0 4px 12px rgba(239, 68, 68, 0.18)'
+            }}>
+              🗑️
+            </div>
+
+            <h3 style={{ margin: '0 0 8px 0', color: '#1e293b', fontSize: '19px', fontWeight: '800', letterSpacing: '-0.3px' }}>
+              반려동물 프로필 삭제
+            </h3>
+
+            <p style={{ margin: '0 0 24px 0', fontSize: '14px', color: '#64748b', lineHeight: '1.55', wordBreak: 'keep-all' }}>
+              정말로 <strong style={{ color: '#1e293b' }}>"{petToDelete.name}"</strong>의 프로필을 삭제하시겠습니까?<br />
+              <span style={{ fontSize: '12.5px', color: '#ef4444' }}>삭제된 정보는 다시 복구할 수 없습니다.</span>
+            </p>
+
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button 
+                type="button"
+                disabled={isDeleting}
+                onClick={() => setPetToDelete(null)}
+                style={{ 
+                  flex: 1, 
+                  height: '46px', 
+                  backgroundColor: '#f1f5f9', 
+                  color: '#475569', 
+                  border: '1.5px solid #e2e8f0', 
+                  borderRadius: '14px', 
+                  fontSize: '14px', 
+                  fontWeight: '700', 
+                  cursor: isDeleting ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                취소
+              </button>
+              <button 
+                type="button"
+                disabled={isDeleting}
+                onClick={handleConfirmDelete}
+                style={{ 
+                  flex: 1, 
+                  height: '46px', 
+                  backgroundColor: '#ef4444', 
+                  color: '#ffffff', 
+                  border: 'none', 
+                  borderRadius: '14px', 
+                  fontSize: '14px', 
+                  fontWeight: '800', 
+                  cursor: isDeleting ? 'not-allowed' : 'pointer',
+                  boxShadow: '0 4px 14px rgba(239, 68, 68, 0.35)',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                {isDeleting ? '삭제 중...' : '삭제하기'}
+              </button>
+            </div>
           </div>
         </div>
       )}
