@@ -19,7 +19,7 @@ const MATCH_STATUS_BUTTONS = [
   { label: '🔴 방문 불가', value: '불가' }
 ];
 
-function DrawerContent({ spot, onClose, navigate, user, myPets, selectedPetIds = [] }) {
+function DrawerContent({ spot, onClose, navigate, user, myPets, selectedPetIds = [], categoryHint = '' }) {
   const { detail, isLoading, error } = useSpotDetail(spot.id, spot.source);
   const [showDrawerScrollTop, setShowDrawerScrollTop] = useState(false);
   const mapRef = useRef(null);
@@ -202,7 +202,7 @@ function DrawerContent({ spot, onClose, navigate, user, myPets, selectedPetIds =
         }}>
           <LazyImage 
             spot={d.image ? d : spot} 
-            categoryHint={selectedCategory}
+            categoryHint={categoryHint}
             fallback={<div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: '14px', fontWeight: 'bold' }}>🖼️ 대표 이미지 준비중</div>} 
           />
           
@@ -3031,6 +3031,7 @@ function SearchPage() {
             {selectedSpotDetail && (
               <DrawerContent 
                 spot={selectedSpotDetail} 
+                categoryHint={selectedCategory}
                 onClose={() => setSelectedSpotId(null)} 
                 navigate={navigate} 
                 user={user} 
