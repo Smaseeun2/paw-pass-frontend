@@ -95,15 +95,15 @@ export default function FloatingGuideWidget() {
       const drawerEl = document.getElementById('pawpass-drawer-scroll-container');
       if (drawerEl) {
         // 상세 패널이 열려있는 경우 상세 패널 스크롤 기준
-        setShowScrollTop(drawerEl.scrollTop > 180);
+        setShowScrollTop(drawerEl.scrollTop > 80);
       } else {
         // 상세 패널이 닫혀있는 경우 윈도우 스크롤 기준
-        setShowScrollTop(window.scrollY > 180);
+        setShowScrollTop(window.scrollY > 80);
       }
     };
 
     const handleDrawerScroll = (e) => {
-      setShowScrollTop(e.currentTarget.scrollTop > 180);
+      setShowScrollTop(e.currentTarget.scrollTop > 80);
     };
 
     const updateScrollTarget = () => {
@@ -115,9 +115,9 @@ export default function FloatingGuideWidget() {
         currentDrawerEl = drawerEl;
         if (currentDrawerEl) {
           currentDrawerEl.addEventListener('scroll', handleDrawerScroll, { passive: true });
-          setShowScrollTop(currentDrawerEl.scrollTop > 180);
+          setShowScrollTop(currentDrawerEl.scrollTop > 80);
         } else {
-          setShowScrollTop(window.scrollY > 180);
+          setShowScrollTop(window.scrollY > 80);
         }
       }
     };
@@ -211,6 +211,15 @@ export default function FloatingGuideWidget() {
           from { opacity: 0; transform: translateY(12px) scale(0.9); }
           to { opacity: 1; transform: translateY(0) scale(1); }
         }
+        .scroll-to-top-btn {
+          transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.18s ease, background-color 0.18s ease;
+        }
+        .scroll-to-top-btn:hover {
+          transform: translateY(-3px) scale(1.06);
+          background-color: #FBF9FD !important;
+          box-shadow: 0 10px 24px rgba(95, 80, 169, 0.32), 0 3px 8px rgba(0, 0, 0, 0.06) !important;
+          border-color: rgba(95, 80, 169, 0.5) !important;
+        }
         .floating-guide-container {
           position: fixed;
           bottom: 24px;
@@ -246,6 +255,7 @@ export default function FloatingGuideWidget() {
           .floating-guide-container {
             bottom: calc(68px + env(safe-area-inset-bottom, 8px)) !important;
             right: 14px !important;
+            gap: 8px !important;
           }
           .floating-guide-bubble {
             bottom: calc(128px + env(safe-area-inset-bottom, 8px)) !important;
@@ -255,6 +265,19 @@ export default function FloatingGuideWidget() {
           }
           .floating-guide-bubble.with-scroll-top {
             bottom: calc(184px + env(safe-area-inset-bottom, 8px)) !important;
+          }
+          .mini-guide-btn {
+            width: 44px !important;
+            height: 44px !important;
+          }
+          .mini-guide-paw {
+            font-size: 14px !important;
+          }
+          .mini-guide-text {
+            font-size: 8px !important;
+            font-weight: 800 !important;
+            letter-spacing: -0.3px !important;
+            margin-top: 1px !important;
           }
         }
 
@@ -386,21 +409,27 @@ export default function FloatingGuideWidget() {
                   width: '100%',
                   padding: '8px 10px',
                   borderRadius: '50px',
-                  border: 'none',
-                  background: 'linear-gradient(135deg, #F89BBF 0%, #E26895 100%)',
-                  color: '#ffffff',
+                  border: '1.5px solid #e2e8f0',
+                  background: '#ffffff',
+                  color: '#1e293b',
                   fontSize: '13px',
                   fontWeight: '800',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: '5px',
-                  boxShadow: '0 3px 10px rgba(226, 104, 149, 0.25)',
+                  gap: '6px',
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
                   marginBottom: '4px'
                 }}
               >
-                <span>🔑 Google 로그인하기</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
+                  <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
+                  <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"/>
+                  <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.99 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/>
+                  <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
+                </svg>
+                <span style={{ color: '#1e293b', fontWeight: '800' }}>Google 로그인하기</span>
               </button>
               <div style={{ textAlign: 'center', fontSize: '11.5px', color: '#94a3b8', marginBottom: '10px' }}>
                 ※ 즐겨찾기는 로그인 후 이용 가능합니다
@@ -535,8 +564,8 @@ export default function FloatingGuideWidget() {
             <span style={{ fontSize: '15px', fontWeight: 'bold' }}>✕</span>
           ) : (
             <>
-              <span style={{ fontSize: '17px', lineHeight: 1 }}>🐾</span>
-              <span style={{ fontSize: '10px', fontWeight: '900', letterSpacing: '-0.2px', marginTop: '1px' }}>
+              <span className="mini-guide-paw" style={{ fontSize: '17px', lineHeight: 1 }}>🐾</span>
+              <span className="mini-guide-text" style={{ fontSize: '10px', fontWeight: '900', letterSpacing: '-0.2px', marginTop: '1px' }}>
                 가이드
               </span>
             </>

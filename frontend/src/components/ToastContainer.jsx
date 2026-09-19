@@ -5,10 +5,30 @@ import { useState, useEffect } from 'react';
 import { TOAST_EVENT } from '../utils/toast';
 
 const TYPE_STYLES = {
-  success: { background: '#16a34a', icon: '✅' },
-  error:   { background: '#dc2626', icon: '❌' },
-  warning: { background: '#d97706', icon: '⚠️' },
-  info:    { background: '#2563eb', icon: 'ℹ️' },
+  success: { 
+    background: '#ECFDF5', 
+    border: '#A7F3D0', 
+    color: '#065F46', 
+    icon: '✨' 
+  },
+  error: { 
+    background: '#FEF2F2', 
+    border: '#FECACA', 
+    color: '#991B1B', 
+    icon: '🚨' 
+  },
+  warning: { 
+    background: '#FFFBEB', 
+    border: '#FDE68A', 
+    color: '#92400E', 
+    icon: '⚠️' 
+  },
+  info: { 
+    background: '#F0F9FF', 
+    border: '#BAE6FD', 
+    color: '#075985', 
+    icon: '💡' 
+  },
 };
 
 export default function ToastContainer() {
@@ -30,46 +50,80 @@ export default function ToastContainer() {
   if (toasts.length === 0) return null;
 
   return (
-    <div style={{
-      position: 'fixed',
-      bottom: '24px',
-      right: '24px',
-      zIndex: 9999,
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '10px',
-      maxWidth: '360px',
-    }}>
+    <div className="pawpass-toast-container">
+      <style>{`
+        .pawpass-toast-container {
+          position: fixed;
+          bottom: 28px;
+          left: 28px;
+          z-index: 99999;
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          max-width: 380px;
+          pointer-events: none;
+        }
+        .pawpass-toast-item {
+          pointer-events: auto;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 11px 18px;
+          border-radius: 16px;
+          font-size: 13.5px;
+          font-weight: 700;
+          line-height: 1.4;
+          letter-spacing: -0.2px;
+          box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04);
+          backdrop-filter: blur(8px);
+          animation: toastSlideInLeft 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+          word-break: keep-all;
+        }
+        @keyframes toastSlideInLeft {
+          from {
+            opacity: 0;
+            transform: translateX(-35px) scale(0.96);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(0) scale(1);
+          }
+        }
+        @media (max-width: 768px) {
+          .pawpass-toast-container {
+            bottom: calc(72px + env(safe-area-inset-bottom, 8px));
+            left: 14px;
+            right: auto;
+            max-width: calc(100vw - 28px);
+          }
+          .pawpass-toast-item {
+            padding: 10px 15px;
+            font-size: 12.5px;
+            border-radius: 14px;
+          }
+        }
+      `}</style>
       {toasts.map(toast => {
         const style = TYPE_STYLES[toast.type] || TYPE_STYLES.info;
         return (
           <div
             key={toast.id}
+            className="pawpass-toast-item"
             style={{
               backgroundColor: style.background,
-              color: '#fff',
-              padding: '12px 18px',
-              borderRadius: '10px',
-              fontSize: '14px',
-              fontWeight: '500',
-              boxShadow: '0 4px 14px rgba(0,0,0,0.25)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              animation: 'toastIn 0.25s ease',
+              border: `1.5px solid ${style.border}`,
+              color: style.color,
             }}
           >
-            <span>{style.icon}</span>
-            <span>{toast.message}</span>
+            <span style={{ fontSize: '15px', lineHeight: 1, flexShrink: 0 }}>
+              {style.icon}
+            </span>
+            <span style={{ flex: 1 }}>
+              {toast.message}
+            </span>
           </div>
         );
       })}
-      <style>{`
-        @keyframes toastIn {
-          from { opacity: 0; transform: translateX(30px); }
-          to   { opacity: 1; transform: translateX(0); }
-        }
-      `}</style>
     </div>
   );
 }

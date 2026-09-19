@@ -321,32 +321,39 @@ function AppNav() {
               onClick={() => login()}
               className="nav-login-btn"
               style={{ 
-                padding: '8px 18px', 
-                backgroundColor: '#C9B6D7', 
-                color: 'white', 
-                border: 'none', 
+                padding: '7px 16px', 
+                backgroundColor: '#ffffff', 
+                color: '#1e293b', 
+                border: '1.5px solid #e2e8f0', 
                 borderRadius: '50px', 
                 cursor: 'pointer', 
-                fontWeight: 'bold', 
+                fontWeight: '800', 
                 fontSize: '13px',
-                boxShadow: '0 4px 12px rgba(201, 182, 215, 0.5)',
+                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '6px',
-                transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                transition: 'all 0.2s ease',
                 flexShrink: 0
               }}
               onMouseOver={(e) => {
                 e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 6px 18px rgba(201, 182, 215, 0.7)';
+                e.currentTarget.style.boxShadow = '0 6px 16px rgba(0, 0, 0, 0.12)';
+                e.currentTarget.style.borderColor = '#cbd5e1';
               }}
               onMouseOut={(e) => {
                 e.currentTarget.style.transform = 'none';
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(201, 182, 215, 0.5)';
+                e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.06)';
+                e.currentTarget.style.borderColor = '#e2e8f0';
               }}
             >
-              <span>🐾</span>
-              <span>구글 로그인</span>
+              <svg width="15" height="15" viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
+                <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
+                <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24z"/>
+                <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.99 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/>
+                <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
+              </svg>
+              <span style={{ color: '#1e293b', fontWeight: '800' }}>구글 로그인</span>
             </button>
           )}
         </div>

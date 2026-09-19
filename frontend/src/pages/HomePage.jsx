@@ -307,10 +307,47 @@ function HomePage() {
 
   const scrollToSearchBar = useCallback(() => {
     if (dropdownRef.current) {
+      const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
       const rect = dropdownRef.current.getBoundingClientRect();
-      const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-      const targetY = Math.max(0, rect.top + scrollTop - 70);
-      window.scrollTo({ top: targetY, behavior: 'smooth' });
+      const currentScroll = window.pageYOffset || document.documentElement.scrollTop;
+
+      if (isMobile) {
+        // 📱 모바일: 기존 모바일 스크롤 유지
+        const targetY = Math.max(0, rect.top + currentScroll - 70);
+        window.scrollTo({ top: targetY, behavior: 'smooth' });
+      } else {
+        // 🖥️ 웹/데스크톱: 검색창이 화면 세로 정중앙에 정확히 오도록 계산
+        const elementTop = rect.top + currentScroll;
+        const elementHeight = rect.height;
+        const viewportHeight = window.innerHeight;
+        const targetY = Math.max(0, elementTop - (viewportHeight / 2) + (elementHeight / 2));
+
+        const startY = currentScroll;
+        const diff = targetY - startY;
+        if (Math.abs(diff) < 2) return;
+
+        // 부드럽고 여유로운 속도 (680ms 감속 애니메이션)
+        let startTime = null;
+        const duration = 680;
+
+        const easeInOutCubic = (t) => {
+          return t < 0.5 ? 4 * t * t * t : (t - 1) * (2 * t - 2) * (2 * t - 2) + 1;
+        };
+
+        const step = (currentTime) => {
+          if (!startTime) startTime = currentTime;
+          const progress = Math.min((currentTime - startTime) / duration, 1);
+          const ease = easeInOutCubic(progress);
+
+          window.scrollTo(0, startY + diff * ease);
+
+          if (progress < 1) {
+            window.requestAnimationFrame(step);
+          }
+        };
+
+        window.requestAnimationFrame(step);
+      }
     }
   }, []);
 
@@ -332,7 +369,7 @@ function HomePage() {
           className="hero-banner-container"
           style={{ 
             width: '100%', 
-            height: '460px', 
+            height: '380px', 
             borderRadius: '32px', 
             backgroundImage: 'linear-gradient(to bottom, rgba(30, 20, 60, 0.32) 0%, rgba(0, 0, 0, 0.1) 40%, rgba(15, 23, 42, 0.35) 100%), url(/hero-banner.jpg)', 
             backgroundSize: 'cover', 
@@ -340,29 +377,54 @@ function HomePage() {
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            justifyContent: 'flex-start',
-            paddingTop: '36px',
+            justifyContent: 'center',
+            textAlign: 'center',
+            paddingBottom: '68px',
             color: '#fff',
             position: 'relative',
             overflow: 'visible'
           }}
         >
           <span style={{ 
-            fontSize: '11px', 
-            fontWeight: '800', 
-            letterSpacing: '0.8px', 
-            marginBottom: '10px', 
+            fontSize: '12px', 
+            fontWeight: '700', 
+            letterSpacing: '1.1px', 
+            marginBottom: '12px', 
             color: '#fff', 
-            backgroundColor: 'rgba(95, 80, 169, 0.85)', 
-            padding: '3px 12px', 
+            backgroundColor: 'rgba(95, 80, 169, 0.88)', 
+            padding: '4px 15px', 
             borderRadius: '50px', 
             boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
-            backdropFilter: 'blur(6px)'
+            backdropFilter: 'blur(6px)',
+            textTransform: 'uppercase',
+            lineHeight: '1.4'
           }}>
             All you need is PawPass
           </span>
-          <h1 style={{ fontSize: '44px', fontWeight: '900', margin: '0 0 10px 0', textShadow: '0 3px 18px rgba(0, 0, 0, 0.7), 0 1px 4px rgba(0, 0, 0, 0.5)', letterSpacing: '-0.5px' }}>우리 아이와 함께 여행을 떠나볼까요?</h1>
-          <p style={{ fontSize: '17px', fontWeight: '700', textShadow: '0 2px 12px rgba(0, 0, 0, 0.7), 0 1px 4px rgba(0, 0, 0, 0.5)', margin: 0 }}>우리 아이와 딱 맞는 여행지를 찾아보세요</p>
+          <h1 style={{ 
+            fontSize: '42px', 
+            fontWeight: '900', 
+            lineHeight: '1.3', 
+            letterSpacing: '-0.7px', 
+            margin: '0 0 10px 0', 
+            textAlign: 'center', 
+            wordBreak: 'keep-all', 
+            textShadow: '0 3px 18px rgba(0, 0, 0, 0.7), 0 1px 4px rgba(0, 0, 0, 0.5)' 
+          }}>
+            우리 아이와 함께 여행을 떠나볼까요?
+          </h1>
+          <p style={{ 
+            fontSize: '17px', 
+            fontWeight: '600', 
+            lineHeight: '1.5', 
+            letterSpacing: '-0.25px', 
+            margin: 0, 
+            textAlign: 'center', 
+            color: 'rgba(255, 255, 255, 0.95)', 
+            textShadow: '0 2px 12px rgba(0, 0, 0, 0.7), 0 1px 4px rgba(0, 0, 0, 0.5)' 
+          }}>
+            우리 아이와 딱 맞는 여행지를 찾아보세요
+          </p>
         
           {/* 플로팅 검색창 (모던 웹 Pill 스타일 - 비례 확대) */}
           <div 

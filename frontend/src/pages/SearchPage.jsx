@@ -29,6 +29,7 @@ const MATCH_STATUS_BUTTONS = [
 
 function DrawerContent({ spot, onClose, navigate, user, myPets, selectedPetIds = [] }) {
   const { detail, isLoading, error } = useSpotDetail(spot.id, spot.source);
+  const [showDrawerScrollTop, setShowDrawerScrollTop] = useState(false);
   const mapRef = useRef(null);
 
   useEffect(() => {
@@ -110,22 +111,32 @@ function DrawerContent({ spot, onClose, navigate, user, myPets, selectedPetIds =
       {/* 1. 스크롤 가능한 본문 영역 */}
       <div 
         id="pawpass-drawer-scroll-container"
+        onScroll={(e) => setShowDrawerScrollTop(e.currentTarget.scrollTop > 80)}
         style={{ flex: 1, overflowY: 'auto', padding: '16px 24px 30px 24px', display: 'flex', flexDirection: 'column', gap: '18px' }}
       >
         
-        {/* 모바일 바텀시트 드래그 핸들 (모바일에서만 시각적 가이드) */}
+        {/* 모바일 바텀시트 드래그 핸들 (모바일에서만 시각적 가이드, 웹에서는 완전 숨김) */}
         <div 
+          className="drawer-drag-handle"
           onClick={onClose}
-          style={{ 
-            width: '40px', 
-            height: '4.5px', 
-            backgroundColor: '#cbd5e1', 
-            borderRadius: '10px', 
-            margin: '0 auto 6px auto', 
-            cursor: 'pointer',
-            flexShrink: 0
-          }} 
         />
+        <style>{`
+          .drawer-drag-handle {
+            display: none !important;
+          }
+          @media (max-width: 768px) {
+            .drawer-drag-handle {
+              display: block !important;
+              width: 40px !important;
+              height: 4.5px !important;
+              background-color: #cbd5e1 !important;
+              border-radius: 10px !important;
+              margin: 0 auto 6px auto !important;
+              cursor: pointer !important;
+              flex-shrink: 0 !important;
+            }
+          }
+        `}</style>
 
         {/* 상단 액션 바 (카테고리 뱃지 & 원형 닫기 버튼) */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -397,6 +408,57 @@ function DrawerContent({ spot, onClose, navigate, user, myPets, selectedPetIds =
           />
         </div>
       </div>
+
+      {/* 🚀 상세패널 전용 TOP 버튼 (패널 내부 스크롤 시 부드럽게 노출) */}
+      {showDrawerScrollTop && (
+        <button
+          type="button"
+          onClick={() => {
+            const container = document.getElementById('pawpass-drawer-scroll-container');
+            if (container) {
+              container.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+          }}
+          className="drawer-panel-top-btn"
+          title="상세 패널 맨 위로 이동"
+          aria-label="상세 패널 맨 위로 이동"
+          style={{
+            position: 'absolute',
+            right: '20px',
+            bottom: '88px',
+            width: '42px',
+            height: '42px',
+            borderRadius: '50%',
+            backgroundColor: '#ffffff',
+            border: '1.5px solid rgba(95, 80, 169, 0.25)',
+            color: '#5F50A9',
+            boxShadow: '0 6px 18px rgba(95, 80, 169, 0.22), 0 2px 6px rgba(0, 0, 0, 0.04)',
+            cursor: 'pointer',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 30,
+            outline: 'none',
+            transition: 'transform 0.18s ease, box-shadow 0.18s ease'
+          }}
+          onMouseOver={(e) => {
+            e.currentTarget.style.transform = 'translateY(-2px) scale(1.05)';
+            e.currentTarget.style.boxShadow = '0 8px 22px rgba(95, 80, 169, 0.32)';
+          }}
+          onMouseOut={(e) => {
+            e.currentTarget.style.transform = 'none';
+            e.currentTarget.style.boxShadow = '0 6px 18px rgba(95, 80, 169, 0.22)';
+          }}
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#5F50A9" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="18 15 12 9 6 15"></polyline>
+          </svg>
+          <span style={{ fontSize: '9px', fontWeight: '900', letterSpacing: '-0.3px', marginTop: '1px', color: '#5F50A9', lineHeight: 1 }}>
+            TOP
+          </span>
+        </button>
+      )}
 
       {/* 2. 패널 하단에 항상 고정된 플로팅 액션 바 (네비게이션 위에 항상 노출) */}
       <div 
@@ -2782,17 +2844,32 @@ function SearchPage() {
                 left: 0,
                 right: 0,
                 bottom: 0,
-                backgroundColor: 'rgba(15, 23, 42, 0.55)',
-                backdropFilter: 'blur(3px)',
-                WebkitBackdropFilter: 'blur(3px)',
+                backgroundColor: 'rgba(15, 23, 42, 0.05)',
+                backdropFilter: 'none',
+                WebkitBackdropFilter: 'none',
                 zIndex: 99,
-                animation: 'fadeInSearchBackdrop 0.2s ease'
+                animation: 'fadeInSearchBackdrop 0.15s ease'
               }}
             >
               <style>{`
                 @keyframes fadeInSearchBackdrop {
                   from { opacity: 0; }
                   to { opacity: 1; }
+                }
+                .drawer-drag-handle {
+                  display: none;
+                }
+                @media (max-width: 768px) {
+                  .drawer-drag-handle {
+                    display: block;
+                    width: 40px;
+                    height: 4.5px;
+                    background-color: #cbd5e1;
+                    border-radius: 10px;
+                    margin: 0 auto 6px auto;
+                    cursor: pointer;
+                    flex-shrink: 0;
+                  }
                 }
               `}</style>
             </div>
