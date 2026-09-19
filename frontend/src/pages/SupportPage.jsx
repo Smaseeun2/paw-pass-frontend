@@ -135,7 +135,7 @@ function SupportPage() {
         pointerEvents: 'none'
       }} />
 
-      <div className="pawpass-support-container" style={{ padding: '36px 20px 40px 20px', maxWidth: '1200px', margin: '0 auto', position: 'relative', zIndex: 1 }}>
+      <div className="pawpass-support-container" style={{ padding: '36px 20px 60px 20px', maxWidth: '1200px', margin: '0 auto', position: 'relative', zIndex: 1 }}>
         <style>{`
           .support-card { 
             transition: transform 0.2s ease, box-shadow 0.2s ease; 
@@ -179,10 +179,11 @@ function SupportPage() {
             background: 'linear-gradient(135deg, rgba(201, 182, 215, 0.45) 0%, rgba(246, 202, 221, 0.35) 35%, rgba(197, 224, 251, 0.45) 70%, rgba(174, 210, 249, 0.4) 100%)',
             borderRadius: '28px',
             boxShadow: '0 12px 35px rgba(201, 182, 215, 0.22)',
-            marginBottom: '26px',
+            marginBottom: '24px',
             position: 'relative',
             backdropFilter: 'blur(12px)',
-            border: '1px solid rgba(255, 255, 255, 0.7)'
+            border: '1px solid rgba(255, 255, 255, 0.7)',
+            boxSizing: 'border-box'
           }}
         >
           <span style={{ fontSize: '12px', fontWeight: '800', letterSpacing: '1.5px', color: '#5F50A9', textTransform: 'uppercase', display: 'inline-block', marginBottom: '10px', backgroundColor: 'rgba(255, 255, 255, 0.85)', padding: '5px 16px', borderRadius: '50px', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
@@ -190,13 +191,13 @@ function SupportPage() {
           </span>
           <h1 
             className="support-header-title"
-            style={{ fontSize: '32px', fontWeight: '800', color: '#1e293b', margin: '0 0 8px 0', letterSpacing: '-0.5px', wordBreak: 'keep-all' }}
+            style={{ fontSize: '32px', fontWeight: '800', color: '#1e293b', margin: '0 0 8px 0', letterSpacing: '-0.5px', wordBreak: 'keep-all', lineHeight: '1.3' }}
           >
             📢 고객센터 & 공지사항
           </h1>
           <p 
             className="support-header-desc"
-            style={{ fontSize: '15px', color: '#64748b', margin: '0', wordBreak: 'keep-all', lineHeight: '1.5' }}
+            style={{ fontSize: '15px', color: '#64748b', margin: '0', wordBreak: 'keep-all', lineHeight: '1.55' }}
           >
             서비스 소식과 자주 묻는 질문을<br />한곳에서 편리하게 확인해보세요
           </p>

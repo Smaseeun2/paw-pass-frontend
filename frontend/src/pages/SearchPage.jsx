@@ -1830,7 +1830,7 @@ function SearchPage() {
         opacity: 0.35,
         pointerEvents: 'none'
       }} />
-      <div className="pawpass-search-container" style={{ padding: '40px 20px 60px 20px', minHeight: 'calc(100vh - 120px)', maxWidth: '1200px', margin: '0 auto', position: 'relative', zIndex: 1 }}>
+      <div className="pawpass-search-container" style={{ padding: '36px 20px 60px 20px', minHeight: 'calc(100vh - 120px)', maxWidth: '1200px', margin: '0 auto', position: 'relative', zIndex: 1 }}>
       {/* 반응형 스타일 처리 (3-4 상세 패널 모바일 바텀시트 화) */}
       <style>{`
         @media (max-width: 768px) {
@@ -1875,11 +1875,12 @@ function SearchPage() {
           background: 'linear-gradient(135deg, rgba(201, 182, 215, 0.45) 0%, rgba(246, 202, 221, 0.35) 35%, rgba(197, 224, 251, 0.45) 70%, rgba(174, 210, 249, 0.4) 100%)',
           borderRadius: '28px',
           boxShadow: '0 12px 35px rgba(201, 182, 215, 0.22)',
-          marginBottom: '20px',
+          marginBottom: '24px',
           position: 'relative',
           zIndex: 50,
           backdropFilter: 'blur(12px)',
-          border: '1px solid rgba(255, 255, 255, 0.7)'
+          border: '1px solid rgba(255, 255, 255, 0.7)',
+          boxSizing: 'border-box'
         }}
       >
         <span style={{ fontSize: '12px', fontWeight: '800', letterSpacing: '1.5px', color: '#5F50A9', textTransform: 'uppercase', display: 'inline-block', marginBottom: '10px', backgroundColor: 'rgba(255, 255, 255, 0.85)', padding: '5px 16px', borderRadius: '50px', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
@@ -1887,13 +1888,13 @@ function SearchPage() {
         </span>
         <h1 
           className="search-header-title"
-          style={{ fontSize: '32px', fontWeight: '800', color: '#1e293b', margin: '0 0 8px 0', letterSpacing: '-0.5px' }}
+          style={{ fontSize: '32px', fontWeight: '800', color: '#1e293b', margin: '0 0 8px 0', letterSpacing: '-0.5px', wordBreak: 'keep-all', lineHeight: '1.3' }}
         >
           우리 아이 맞춤 관광지 탐색
         </h1>
         <p 
           className="search-header-desc"
-          style={{ fontSize: '15px', color: '#64748b', margin: '0 0 28px 0' }}
+          style={{ fontSize: '15px', color: '#64748b', margin: '0 0 28px 0', wordBreak: 'keep-all', lineHeight: '1.55' }}
         >
           아이와 딱 맞는 관광지를 찾아보세요
         </p>

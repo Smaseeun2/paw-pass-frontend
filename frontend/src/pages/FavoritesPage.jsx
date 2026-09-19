@@ -3,7 +3,7 @@ import { useFavoritesContext as useFavorites } from '../contexts/FavoritesContex
 import LazyImage from '../components/LazyImage';
 import { useSpotDetail } from '../hooks/useSpotDetail';
 
-// 개별 즐겨찾기 카드 (홈페이지 및 탐색 카드 디자인 통일)
+// 개별 즐겨찾기 카드 (탐색 페이지 카드와 100% 동일한 규격 및 디자인)
 function FavoriteCard({ spot, onRemove }) {
   const navigate = useNavigate();
   const spotId = spot.content_id || spot.contentId || spot.id;
@@ -16,6 +16,7 @@ function FavoriteCard({ spot, onRemove }) {
   const spotName = spot.name || spot.title || detail?.name || detail?.title || '장소명 없음';
   const spotAddress = spot.address || spot.addr || detail?.address || detail?.addr || '주소 정보 없음';
   const imageUrl = spot.imageUrl || spot.image || spot.firstimage || detail?.image || detail?.imageUrl || '';
+  const matchStatus = spot.matchStatus || detail?.matchStatus || detail?.match_status || '';
   
   // LazyImage에 넘겨줄 통합 객체
   const displaySpot = {
@@ -25,6 +26,14 @@ function FavoriteCard({ spot, onRemove }) {
     name: spotName,
     address: spotAddress
   };
+
+  const lat = Number(displaySpot.lat || displaySpot.map_y || displaySpot.mapy || displaySpot.latitude);
+  const lng = Number(displaySpot.lng || displaySpot.map_x || displaySpot.mapx || displaySpot.longitude);
+  const kakaoMapUrl = (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0)
+    ? `https://map.kakao.com/link/map/${encodeURIComponent(spotName)},${lat},${lng}`
+    : `https://map.kakao.com/link/search/${encodeURIComponent(spotAddress || spotName)}`;
+
+  const naverMapUrl = `https://map.naver.com/p/search/${encodeURIComponent(spotName)}`;
 
   return (
     <div 
@@ -38,105 +47,145 @@ function FavoriteCard({ spot, onRemove }) {
         cursor: 'pointer', 
         boxShadow: '0 10px 30px rgba(0, 0, 0, 0.06)', 
         padding: '16px', 
-        border: '1px solid rgba(241, 245, 249, 0.8)', 
-        transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-        display: 'flex',
-        flexDirection: 'column',
+        transition: 'transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease',
+        display: 'flex', 
+        flexDirection: 'column', 
+        justifyContent: 'space-between',
         position: 'relative',
         opacity: isLoading ? 0.75 : 1
       }}
       onMouseOver={(e) => { 
         e.currentTarget.style.transform = 'translateY(-4px)'; 
-        e.currentTarget.style.boxShadow = '0 14px 30px rgba(95, 80, 169, 0.12)'; 
+        e.currentTarget.style.boxShadow = '0 14px 30px rgba(0, 0, 0, 0.12)'; 
       }}
       onMouseOut={(e) => { 
         e.currentTarget.style.transform = 'none'; 
         e.currentTarget.style.boxShadow = '0 10px 30px rgba(0, 0, 0, 0.06)'; 
       }}
     >
-      <div style={{ 
-        position: 'relative', 
-        width: '100%', 
-        height: '180px', 
-        backgroundColor: spotSource === 'kcisa' ? '#C5E0FB' : '#fef3c7', 
-        display: 'flex', 
-        flexDirection: 'column', 
-        alignItems: 'center', 
-        justifyContent: 'center', 
-        borderRadius: '16px', 
-        marginBottom: '14px', 
-        overflow: 'hidden' 
-      }}>
-        <LazyImage 
-          spot={displaySpot} 
-          fallback={
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-              <span style={{ fontSize: '32px', marginBottom: '4px' }}>{spotSource === 'kcisa' ? '🏛️' : '🌲'}</span>
-              <span style={{ fontSize: '11px', fontWeight: '800', color: spotSource === 'kcisa' ? '#0369a1' : '#b45309' }}>
-                {spotSource === 'kcisa' ? '한국문화정보원' : '한국관광공사'}
-              </span>
-            </div>
-          } 
-        />
-        <button
-          type="button"
-          onClick={(e) => { 
-            e.stopPropagation(); 
-            onRemove(spotId); 
-          }}
-          style={{ 
-            position: 'absolute', 
-            top: '12px', 
-            right: '12px', 
-            backgroundColor: 'rgba(255, 255, 255, 0.92)', 
-            backdropFilter: 'blur(4px)',
-            WebkitBackdropFilter: 'blur(4px)',
-            border: 'none', 
-            borderRadius: '50%', 
-            width: '36px', 
-            height: '36px', 
-            minWidth: '36px',
-            minHeight: '36px',
-            maxWidth: '36px',
-            maxHeight: '36px',
-            padding: 0,
-            cursor: 'pointer', 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'center',
-            fontSize: '18px',
-            lineHeight: 1,
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.12)',
-            transition: 'transform 0.15s ease'
-          }}
-          onMouseOver={(e) => { e.currentTarget.style.transform = 'scale(1.15)'; }}
-          onMouseOut={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
-          title="즐겨찾기 해제"
-          aria-label="즐겨찾기 해제"
-        >
-          ❤️
-        </button>
-      </div>
-
-      <div style={{ padding: '0', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-        <div>
-          <h4 style={{ margin: '0 0 4px 0', fontSize: '16.5px', fontWeight: '800', color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', letterSpacing: '-0.3px' }}>
-            {isLoading && spotName === '장소명 없음' ? '장소 불러오는 중...' : spotName}
-          </h4>
-          <p style={{ margin: '0 0 12px 0', fontSize: '12.5px', color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            📍 {isLoading && spotAddress === '주소 정보 없음' ? '...' : spotAddress}
-          </p>
+      <div>
+        <div style={{ 
+          position: 'relative', 
+          width: '100%', 
+          height: '208px', 
+          backgroundColor: spotSource === 'kcisa' ? '#C5E0FB' : '#fef3c7', 
+          borderRadius: '18px', 
+          marginBottom: '16px', 
+          display: 'flex', 
+          flexDirection: 'column', 
+          alignItems: 'center', 
+          justifyContent: 'center', 
+          overflow: 'hidden' 
+        }}>
+          <LazyImage 
+            spot={displaySpot} 
+            fallback={
+              <div style={{ color: '#94a3b8', fontSize: '13px', fontWeight: 'bold', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                <span style={{ fontSize: '24px' }}>🖼️</span>
+                <span>대표 이미지 준비중</span>
+              </div>
+            } 
+          />
+          <button
+            type="button"
+            className="spot-card-favorite-btn"
+            onClick={(e) => { 
+              e.stopPropagation(); 
+              onRemove(spotId); 
+            }}
+            style={{ 
+              position: 'absolute', 
+              top: '12px', 
+              right: '12px', 
+              backgroundColor: 'rgba(255, 255, 255, 0.92)', 
+              backdropFilter: 'blur(4px)',
+              WebkitBackdropFilter: 'blur(4px)',
+              border: 'none', 
+              borderRadius: '50%', 
+              width: '36px', 
+              height: '36px', 
+              minWidth: '36px',
+              minHeight: '36px',
+              maxWidth: '36px',
+              maxHeight: '36px',
+              padding: 0,
+              cursor: 'pointer', 
+              zIndex: 10,
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              fontSize: '18px',
+              lineHeight: 1,
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.12)',
+              transition: 'transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1)'
+            }}
+            onMouseOver={(e) => { e.currentTarget.style.transform = 'scale(1.15)'; }}
+            onMouseOut={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
+            title="즐겨찾기 해제"
+            aria-label="즐겨찾기 해제"
+          >
+            ❤️
+          </button>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto', paddingTop: '6px' }}>
-          <span style={{ 
-            fontSize: '11px', padding: '4px 9px', borderRadius: '6px', fontWeight: '800',
-            backgroundColor: spotSource === 'kcisa' ? '#e0f2fe' : '#fef3c7',
-            color: spotSource === 'kcisa' ? '#0369a1' : '#b45309'
-          }}>
-            {spotSource === 'kcisa' ? '반려동물 시설' : '한국관광공사'}
-          </span>
-          <span style={{ color: '#5F50A9', fontSize: '13px', fontWeight: '800' }}>자세히 보기 →</span>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
+          <div style={{ flex: 1, minWidth: 0, paddingRight: '6px' }}>
+            <h4 style={{ margin: 0, fontSize: '17px', fontWeight: '800', color: '#1f2937', marginBottom: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', letterSpacing: '-0.3px' }}>
+              {isLoading && spotName === '장소명 없음' ? '장소 불러오는 중...' : spotName}
+            </h4>
+            <span style={{ fontSize: '12px', backgroundColor: '#f1f5f9', color: '#64748b', padding: '3px 8px', borderRadius: '6px', fontWeight: '700', display: 'inline-block' }}>
+              {spotSource === 'kcisa' ? '🏥 한국문화정보원' : '🏞️ 한국관광공사'}
+            </span>
+          </div>
+          {matchStatus && (
+            <span style={{ 
+              fontSize: '12.5px', padding: '4px 8px', borderRadius: '6px', fontWeight: '800', 
+              backgroundColor: matchStatus === '가능' ? '#dcfce7' : matchStatus === '조건부 가능' || matchStatus === '조건부' ? '#fef9c3' : '#f1f5f9', 
+              color: matchStatus === '가능' ? '#15803d' : matchStatus === '조건부 가능' || matchStatus === '조건부' ? '#a16207' : '#64748b',
+              flexShrink: 0
+            }}>
+              {matchStatus}
+            </span>
+          )}
+        </div>
+
+        <p style={{ margin: '0 0 12px 0', fontSize: '13.5px', color: '#6b7280', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          📍 {isLoading && spotAddress === '주소 정보 없음' ? '...' : spotAddress}
+        </p>
+      </div>
+
+      {/* 카드 하단 액션 (자세히 보기 + 지도 링크 버튼 그룹) */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px' }}>
+        <span style={{ color: '#5F50A9', fontSize: '13px', fontWeight: '800' }}>자세히 보기 →</span>
+        <div style={{ display: 'flex', gap: '6px' }}>
+          <a 
+            href={kakaoMapUrl} 
+            target="_blank" 
+            rel="noreferrer" 
+            onClick={(e) => e.stopPropagation()}
+            style={{ 
+              display: 'inline-block', padding: '6px 12px', 
+              backgroundColor: '#A2B9EE', color: '#1e3a8a', borderRadius: '20px', 
+              fontSize: '12.5px', fontWeight: '800', textDecoration: 'none', 
+              boxSizing: 'border-box' 
+            }}
+          >
+            카카오맵 ↗
+          </a>
+          <a 
+            href={naverMapUrl} 
+            target="_blank" 
+            rel="noreferrer" 
+            onClick={(e) => e.stopPropagation()}
+            style={{ 
+              display: 'inline-block', padding: '6px 12px', 
+              backgroundColor: '#bbf7d0', color: '#15803d', borderRadius: '20px', 
+              fontSize: '12.5px', fontWeight: '800', textDecoration: 'none', 
+              boxSizing: 'border-box' 
+            }}
+          >
+            네이버 지도 ↗
+          </a>
         </div>
       </div>
     </div>
@@ -157,7 +206,7 @@ function FavoritesPage() {
         opacity: 0.35,
         pointerEvents: 'none'
       }} />
-      <div className="pawpass-favorites-container" style={{ padding: '36px 20px 40px 20px', maxWidth: '1200px', margin: '0 auto', position: 'relative', zIndex: 1 }}>
+      <div className="pawpass-favorites-container" style={{ padding: '36px 20px 60px 20px', maxWidth: '1200px', margin: '0 auto', position: 'relative', zIndex: 1 }}>
         
         {/* 상단 모던 히어로 카드 배너 */}
         <div 
@@ -171,7 +220,8 @@ function FavoritesPage() {
             marginBottom: '24px',
             position: 'relative',
             backdropFilter: 'blur(12px)',
-            border: '1px solid rgba(255, 255, 255, 0.7)'
+            border: '1px solid rgba(255, 255, 255, 0.7)',
+            boxSizing: 'border-box'
           }}
         >
           <span style={{ fontSize: '12px', fontWeight: '800', letterSpacing: '1.5px', color: '#5F50A9', textTransform: 'uppercase', display: 'inline-block', marginBottom: '10px', backgroundColor: 'rgba(255, 255, 255, 0.85)', padding: '5px 16px', borderRadius: '50px', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
@@ -179,7 +229,7 @@ function FavoritesPage() {
           </span>
           <h1 
             className="favorites-header-title"
-            style={{ fontSize: '32px', fontWeight: '800', color: '#1e293b', margin: '0 0 8px 0', letterSpacing: '-0.5px', wordBreak: 'keep-all' }}
+            style={{ fontSize: '32px', fontWeight: '800', color: '#1e293b', margin: '0 0 8px 0', letterSpacing: '-0.5px', wordBreak: 'keep-all', lineHeight: '1.3' }}
           >
             ❤️ 나의 즐겨찾기 목록
           </h1>
@@ -196,7 +246,7 @@ function FavoritesPage() {
         </div>
 
         {favorites.length > 0 ? (
-          <div className="favorite-spots-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
+          <div className="favorite-spots-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '24px' }}>
             {favorites.map((spot, index) => {
               const spotId = spot.content_id || spot.contentId || spot.id;
               return (

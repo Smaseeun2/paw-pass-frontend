@@ -521,7 +521,7 @@ function ProfilePage() {
         opacity: 0.35,
         pointerEvents: 'none'
       }} />
-      <div className="pawpass-profile-container" style={{ padding: '20px 16px 30px 16px', maxWidth: '1200px', margin: '0 auto', position: 'relative', zIndex: 1 }}>
+      <div className="pawpass-profile-container" style={{ padding: '36px 20px 60px 20px', maxWidth: '1200px', margin: '0 auto', position: 'relative', zIndex: 1 }}>
       <style>{`
         .pet-card { transition: transform 0.2s ease, box-shadow 0.2s ease; }
         .pet-card:hover { transform: translateY(-4px); box-shadow: 0 12px 35px rgba(0,0,0,0.1) !important; }
@@ -543,7 +543,8 @@ function ProfilePage() {
         .brand-btn { transition: transform 0.2s ease, filter 0.2s ease, box-shadow 0.2s ease; }
         .brand-btn:hover { transform: translateY(-2px); filter: brightness(0.95); box-shadow: 0 8px 20px rgba(0,0,0,0.1) !important; }
       `}</style>
-            {/* 상단 모던 히어로 카드 배너 */}
+      
+      {/* 상단 모던 히어로 카드 배너 */}
       <div 
         className="profile-header-banner"
         style={{ 
@@ -555,7 +556,8 @@ function ProfilePage() {
           marginBottom: '24px',
           position: 'relative',
           backdropFilter: 'blur(12px)',
-          border: '1px solid rgba(255, 255, 255, 0.7)'
+          border: '1px solid rgba(255, 255, 255, 0.7)',
+          boxSizing: 'border-box'
         }}
       >
         <span style={{ fontSize: '12px', fontWeight: '800', letterSpacing: '1.5px', color: '#5F50A9', textTransform: 'uppercase', display: 'inline-block', marginBottom: '10px', backgroundColor: 'rgba(255, 255, 255, 0.85)', padding: '5px 16px', borderRadius: '50px', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
@@ -563,13 +565,13 @@ function ProfilePage() {
         </span>
         <h1 
           className="profile-header-title"
-          style={{ fontSize: '32px', fontWeight: '800', color: '#1e293b', margin: '0 0 8px 0', letterSpacing: '-0.5px', whiteSpace: 'nowrap' }}
+          style={{ fontSize: '32px', fontWeight: '800', color: '#1e293b', margin: '0 0 8px 0', letterSpacing: '-0.5px', wordBreak: 'keep-all', lineHeight: '1.3' }}
         >
           🐾 반려동물 프로필 관리
         </h1>
         <p 
           className="profile-header-desc"
-          style={{ fontSize: '15px', color: '#64748b', margin: '0', lineHeight: 1.5 }}
+          style={{ fontSize: '15px', color: '#64748b', margin: '0', wordBreak: 'keep-all', lineHeight: '1.55' }}
         >
           {user ? `${user.name}님의 반려동물 정보를 등록하고` : '반려동물 정보를 등록하고'}
           <br />

@@ -476,7 +476,7 @@ function MapPage() {
         opacity: 0.35,
         pointerEvents: 'none'
       }} />
-      <div className="pawpass-map-container" style={{ padding: '40px 20px 30px 20px', maxWidth: '1200px', margin: '0 auto', position: 'relative', zIndex: 1 }}>
+      <div className="pawpass-map-container" style={{ padding: '36px 20px 60px 20px', maxWidth: '1200px', margin: '0 auto', position: 'relative', zIndex: 1 }}>
       <style>{`
         .route-spot-card { 
           transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.2s ease, border-color 0.2s ease, background-color 0.2s ease; 
@@ -518,7 +518,8 @@ function MapPage() {
         .map-brand-btn { border-radius: 50px !important; transition: transform 0.2s ease, box-shadow 0.2s ease; }
         .map-brand-btn:hover { transform: translateY(-2px); filter: brightness(0.95); box-shadow: 0 8px 20px rgba(0,0,0,0.1) !important; }
       `}</style>
-            {/* 상단 모던 히어로 카드 배너 */}
+      
+      {/* 상단 모던 히어로 카드 배너 */}
       <div 
         className="map-header-banner"
         style={{ 
@@ -527,10 +528,11 @@ function MapPage() {
           background: 'linear-gradient(135deg, rgba(201, 182, 215, 0.45) 0%, rgba(246, 202, 221, 0.35) 35%, rgba(197, 224, 251, 0.45) 70%, rgba(174, 210, 249, 0.4) 100%)',
           borderRadius: '28px',
           boxShadow: '0 12px 35px rgba(201, 182, 215, 0.22)',
-          marginBottom: '20px',
+          marginBottom: '24px',
           position: 'relative',
           backdropFilter: 'blur(12px)',
-          border: '1px solid rgba(255, 255, 255, 0.7)'
+          border: '1px solid rgba(255, 255, 255, 0.7)',
+          boxSizing: 'border-box'
         }}
       >
         <span style={{ fontSize: '12px', fontWeight: '800', letterSpacing: '1.5px', color: '#5F50A9', textTransform: 'uppercase', display: 'inline-block', marginBottom: '10px', backgroundColor: 'rgba(255, 255, 255, 0.85)', padding: '5px 16px', borderRadius: '50px', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
@@ -538,13 +540,13 @@ function MapPage() {
         </span>
         <h1 
           className="map-header-title"
-          style={{ fontSize: '32px', fontWeight: '800', color: '#1e293b', margin: '0 0 8px 0', letterSpacing: '-0.5px', wordBreak: 'keep-all' }}
+          style={{ fontSize: '32px', fontWeight: '800', color: '#1e293b', margin: '0 0 8px 0', letterSpacing: '-0.5px', wordBreak: 'keep-all', lineHeight: '1.3' }}
         >
           🗺️ 나의 여행 동선 및 최적 지도
         </h1>
         <p 
           className="map-header-desc"
-          style={{ fontSize: '15px', color: '#64748b', margin: '0', wordBreak: 'keep-all', lineHeight: '1.5' }}
+          style={{ fontSize: '15px', color: '#64748b', margin: '0', wordBreak: 'keep-all', lineHeight: '1.55' }}
         >
           장소를 검색해 추가하고 드래그하여<br />최적의 이동 동선을 편리하게 완성해보세요
         </p>
