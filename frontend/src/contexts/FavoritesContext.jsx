@@ -20,7 +20,18 @@ export const FavoritesProvider = ({ children }) => {
     try {
       const serverData = await fetchFavorites();
       if (Array.isArray(serverData)) {
-        setFavorites(serverData);
+        const normalized = serverData.map(fav => ({
+          ...fav,
+          contentId: String(fav.content_id ?? fav.contentId ?? fav.id ?? ''),
+          content_id: String(fav.content_id ?? fav.contentId ?? fav.id ?? ''),
+          source: fav.source || 'tourapi',
+          name: fav.title || fav.name || '장소명 없음',
+          title: fav.title || fav.name || '장소명 없음',
+          address: fav.addr || fav.address || fav.addr1 || '주소 정보 없음',
+          addr: fav.addr || fav.address || fav.addr1 || '주소 정보 없음',
+          imageUrl: fav.image || fav.firstimage || fav.imageUrl || ''
+        }));
+        setFavorites(normalized);
       }
     } catch (err) {
       console.warn('서버 즐겨찾기 조회 실패, 로컬 스토리지로 대체합니다:', err);
@@ -55,19 +66,26 @@ export const FavoritesProvider = ({ children }) => {
       favoriteIdToDelete = favObj?.id || favObj?.favorite_id;
     }
 
+    const spotTitle = spot.title || spot.name || '장소명 없음';
+    const spotAddr = spot.addr || spot.address || spot.addr1 || '주소 정보 없음';
+    const spotImage = spot.firstimage || spot.image || spot.imageUrl || '';
+
     // Optimistic Update
+    const newFav = {
+      contentId,
+      content_id: contentId,
+      source,
+      name: spotTitle,
+      title: spotTitle,
+      address: spotAddr,
+      addr: spotAddr,
+      imageUrl: spotImage
+    };
+
     setFavorites(prev => {
       if (isCurrentlyFav) {
         return prev.filter(fav => String(fav.content_id || fav.contentId) !== contentId);
       } else {
-        const newFav = {
-          contentId,
-          content_id: contentId,
-          source,
-          name: spot.title || spot.name,
-          address: spot.addr1 || spot.address || spot.addr,
-          imageUrl: spot.firstimage || spot.image || spot.imageUrl || ''
-        };
         return [newFav, ...prev];
       }
     });
@@ -89,8 +107,15 @@ export const FavoritesProvider = ({ children }) => {
             source,
             content_id: contentId
          });
-         // 서버 응답(실제 ID 포함)으로 낙관적 항목 교체
-         setFavorites(prev => prev.map(fav => String(fav.content_id || fav.contentId) === contentId ? newAddedFav : fav));
+         // 서버 응답(실제 ID 포함)으로 낙관적 항목 교체하되 title, addr 정보 유지
+         setFavorites(prev => prev.map(fav => String(fav.content_id || fav.contentId) === contentId ? {
+           ...newFav,
+           ...newAddedFav,
+           name: newAddedFav?.title || newAddedFav?.name || newFav.name || newFav.title,
+           title: newAddedFav?.title || newAddedFav?.name || newFav.title || newFav.name,
+           address: newAddedFav?.addr || newAddedFav?.address || newFav.address,
+           addr: newAddedFav?.addr || newAddedFav?.address || newFav.addr
+         } : fav));
       }
     } catch (err) {
       console.error('즐겨찾기 에러:', err);

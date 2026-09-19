@@ -1,7 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useFavoritesContext as useFavorites } from '../contexts/FavoritesContext';
 import LazyImage from '../components/LazyImage';
-import { useSpotDetail } from '../hooks/useSpotDetail';
 
 // 개별 즐겨찾기 카드 (탐색 페이지 카드와 100% 동일한 규격 및 디자인)
 function FavoriteCard({ spot, onRemove }) {
@@ -9,31 +8,29 @@ function FavoriteCard({ spot, onRemove }) {
   const spotId = spot.content_id || spot.contentId || spot.id;
   const spotSource = spot.source || 'tourapi';
 
-  // 서버에서 불러온 즐겨찾기는 보통 id와 source만 있으므로 상세 정보를 가져와 채웁니다.
-  const { detail, isLoading } = useSpotDetail(spotId, spotSource);
-
-  // 낙관적 업데이트된 spot(이름, 이미지 포함) 혹은 fetch된 detail 데이터 사용
-  const spotName = spot.name || spot.title || detail?.name || detail?.title || '장소명 없음';
-  const spotAddress = spot.address || spot.addr || detail?.address || detail?.addr || '주소 정보 없음';
-  const imageUrl = spot.imageUrl || spot.image || spot.firstimage || detail?.image || detail?.imageUrl || '';
-  const matchStatus = spot.matchStatus || detail?.matchStatus || detail?.match_status || '';
+  // GET /favorites 응답에 포함된 title, addr을 직접 활용 (불필요한 /tours/{contentId} 재호출 제거)
+  const spotName = spot.title || spot.name || '장소명 없음';
+  const spotAddress = spot.addr || spot.address || spot.addr1 || '주소 정보 없음';
+  const imageUrl = spot.imageUrl || spot.image || spot.firstimage || '';
+  const matchStatus = spot.matchStatus || spot.match_status || '';
   
-  // LazyImage에 넘겨줄 통합 객체
+  // LazyImage 및 지도 연동에 넘겨줄 객체
   const displaySpot = {
     ...spot,
-    ...detail,
     image: imageUrl,
     name: spotName,
-    address: spotAddress
+    title: spotName,
+    address: spotAddress,
+    addr: spotAddress
   };
 
   const lat = Number(displaySpot.lat || displaySpot.map_y || displaySpot.mapy || displaySpot.latitude);
   const lng = Number(displaySpot.lng || displaySpot.map_x || displaySpot.mapx || displaySpot.longitude);
   const kakaoMapUrl = (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0)
     ? `https://map.kakao.com/link/map/${encodeURIComponent(spotName)},${lat},${lng}`
-    : `https://map.kakao.com/link/search/${encodeURIComponent(spotAddress || spotName)}`;
+    : `https://map.kakao.com/link/search/${encodeURIComponent(spotAddress !== '주소 정보 없음' ? spotAddress : spotName)}`;
 
-  const naverMapUrl = `https://map.naver.com/p/search/${encodeURIComponent(spotName)}`;
+  const naverMapUrl = `https://map.naver.com/p/search/${encodeURIComponent(spotName !== '장소명 없음' ? spotName : spotAddress)}`;
 
   return (
     <div 
@@ -51,8 +48,7 @@ function FavoriteCard({ spot, onRemove }) {
         display: 'flex', 
         flexDirection: 'column', 
         justifyContent: 'space-between',
-        position: 'relative',
-        opacity: isLoading ? 0.75 : 1
+        position: 'relative'
       }}
       onMouseOver={(e) => { 
         e.currentTarget.style.transform = 'translateY(-4px)'; 
@@ -131,7 +127,7 @@ function FavoriteCard({ spot, onRemove }) {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
           <div style={{ flex: 1, minWidth: 0, paddingRight: '6px' }}>
             <h4 style={{ margin: 0, fontSize: '17px', fontWeight: '800', color: '#1f2937', marginBottom: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', letterSpacing: '-0.3px' }}>
-              {isLoading && spotName === '장소명 없음' ? '장소 불러오는 중...' : spotName}
+              {spotName}
             </h4>
             <span style={{ fontSize: '12px', backgroundColor: '#f1f5f9', color: '#64748b', padding: '3px 8px', borderRadius: '6px', fontWeight: '700', display: 'inline-block' }}>
               {spotSource === 'kcisa' ? '🏥 한국문화정보원' : '🏞️ 한국관광공사'}
@@ -150,7 +146,7 @@ function FavoriteCard({ spot, onRemove }) {
         </div>
 
         <p style={{ margin: '0 0 12px 0', fontSize: '13.5px', color: '#6b7280', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          📍 {isLoading && spotAddress === '주소 정보 없음' ? '...' : spotAddress}
+          📍 {spotAddress}
         </p>
       </div>
 
