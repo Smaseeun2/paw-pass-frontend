@@ -150,26 +150,41 @@ function MapPage() {
       bounds.extend(position);
       pathCoordinates.push(position);
 
-      // 📍 1) 뾰족한 하단 팁이 있는 정밀 지도 핀 마커 (xAnchor: 0.5, yAnchor: 1.0)
+      const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
+
+      // 📍 1) 모바일: 완벽한 정원형(30px x 30px, xAnchor: 0.5, yAnchor: 0.5) / PC: 핀 형태 마커 (xAnchor: 0.5, yAnchor: 1.0)
       const markerContainer = document.createElement('div');
       markerContainer.className = 'pawpass-map-pin';
       markerContainer.style.cssText = `
+        width: 30px;
+        height: ${isMobile ? '30px' : '36px'};
+        min-width: 30px;
+        min-height: ${isMobile ? '30px' : '36px'};
+        max-width: 30px;
+        max-height: ${isMobile ? '30px' : '36px'};
         display: flex;
         flex-direction: column;
         align-items: center;
+        justify-content: ${isMobile ? 'center' : 'flex-start'};
         cursor: pointer;
         transform: translate3d(0, 0, 0);
         transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
         z-index: ${10 + index};
         position: relative;
+        box-sizing: border-box;
       `;
 
       const markerBadge = document.createElement('div');
+      markerBadge.className = 'pawpass-map-pin-badge';
       markerBadge.style.cssText = `
         background: linear-gradient(135deg, #5F50A9 0%, #7C6BC6 100%);
         color: #ffffff;
         width: 30px;
         height: 30px;
+        min-width: 30px;
+        min-height: 30px;
+        max-width: 30px;
+        max-height: 30px;
         border-radius: 50%;
         display: flex;
         align-items: center;
@@ -178,21 +193,27 @@ function MapPage() {
         font-size: 13.5px;
         border: 2.5px solid #ffffff;
         box-shadow: 0 4px 12px rgba(95, 80, 169, 0.4), 0 2px 5px rgba(0,0,0,0.15);
+        box-sizing: border-box;
+        aspect-ratio: 1 / 1;
+        flex-shrink: 0;
       `;
       markerBadge.innerText = index + 1;
 
-      const markerPointer = document.createElement('div');
-      markerPointer.style.cssText = `
-        width: 0;
-        height: 0;
-        border-left: 5px solid transparent;
-        border-right: 5px solid transparent;
-        border-top: 6px solid #5F50A9;
-        margin-top: -1.5px;
-      `;
-
       markerContainer.appendChild(markerBadge);
-      markerContainer.appendChild(markerPointer);
+
+      if (!isMobile) {
+        const markerPointer = document.createElement('div');
+        markerPointer.className = 'pawpass-map-pin-pointer';
+        markerPointer.style.cssText = `
+          width: 0;
+          height: 0;
+          border-left: 5px solid transparent;
+          border-right: 5px solid transparent;
+          border-top: 6px solid #5F50A9;
+          margin-top: -1.5px;
+        `;
+        markerContainer.appendChild(markerPointer);
+      }
 
       markerContainer.onmouseenter = () => {
         markerContainer.style.transform = 'scale(1.18) translateY(-4px)';
@@ -207,7 +228,7 @@ function MapPage() {
         position: position,
         content: markerContainer,
         xAnchor: 0.5,
-        yAnchor: 1.0
+        yAnchor: isMobile ? 0.5 : 1.0
       });
 
       const infoCardContent = document.createElement('div');
@@ -455,8 +476,9 @@ function MapPage() {
 
     setIsLoading(true);
     try {
+      // 💡 백엔드 명세: { points: [ { id, lat, lng }, ... ] } (2~8개)
       const points = selectedSpots.map(spot => ({
-        id: String(spot.id || spot.contentId),
+        id: String(spot.id ?? spot.contentId ?? spot.content_id),
         lat: Number(spot.lat),
         lng: Number(spot.lng)
       }));
@@ -465,24 +487,38 @@ function MapPage() {
       setRouteResult(result);
 
       if (result && Array.isArray(result.order)) {
-        // 💡 4-4: 백엔드 명세 반영 - order는 ID 배열임
-        const reorderedSpots = result.order
-          .map(spotId => selectedSpots.find(s => String(s.id || s.contentId) === String(spotId)))
+        // 💡 백엔드 응답 명세: { order: [...], total_distance_km, legs: [...] }
+        let reorderedSpots = result.order
+          .map(spotId => selectedSpots.find(s => String(s.id ?? s.contentId ?? s.content_id) === String(spotId)))
           .filter(Boolean);
-          
-        // 혹시 백엔드에서 일부 ID를 누락했다면 나머지를 뒤에 붙임
-        const missingSpots = selectedSpots.filter(s => !result.order.includes(String(s.id || s.contentId)));
+
+        // 만약 ID 대신 인덱스 번호 배열로 응답했을 경우에 대한 유연한 방어
+        if (reorderedSpots.length === 0 && result.order.length > 0 && typeof result.order[0] === 'number') {
+          reorderedSpots = result.order
+            .map(idx => selectedSpots[idx])
+            .filter(Boolean);
+        }
+
+        // 혹시 백엔드 응답에서 누락된 장소가 있다면 끝에 보존
+        const missingSpots = selectedSpots.filter(
+          s => !reorderedSpots.some(r => String(r.id ?? r.contentId ?? r.content_id) === String(s.id ?? s.contentId ?? s.content_id))
+        );
         const finalSpots = [...reorderedSpots, ...missingSpots];
 
-        setSelectedSpots(finalSpots);
-        if (storageKey) {
-          localStorage.setItem(storageKey, JSON.stringify(finalSpots));
+        if (finalSpots.length > 0) {
+          setSelectedSpots(finalSpots);
+          if (storageKey) {
+            localStorage.setItem(storageKey, JSON.stringify(finalSpots));
+          }
+          renderMapElements(finalSpots);
+          toast.success('✨ 최적 동선이 계산되어 장소 순서가 자동 정렬되었습니다!');
         }
-        renderMapElements(finalSpots);
+      } else {
+        toast.success('✨ 최적 동선 계산이 완료되었습니다!');
       }
     } catch (err) {
       console.error('동선 계산 실패:', err);
-      toast.error('최적 동선을 계산하는 중 오류가 발생했습니다.');
+      toast.error(err.message || '최적 동선을 계산하는 중 오류가 발생했습니다.');
     } finally {
       setIsLoading(false);
     }
@@ -860,12 +896,17 @@ function MapPage() {
           {selectedSpots.length > 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {selectedSpots.map((spot, index) => {
-                const spotId = String(spot.id || spot.contentId);
+                const spotId = String(spot.id ?? spot.contentId ?? spot.content_id);
                 let legDistance = null;
                 if (index > 0 && routeResult && Array.isArray(routeResult.legs)) {
-                  const prevId = String(selectedSpots[index-1].id || selectedSpots[index-1].contentId);
-                  const leg = routeResult.legs.find(l => String(l.from_id) === prevId && String(l.to_id) === spotId);
-                  if (leg) legDistance = leg.distance_km;
+                  const prevId = String(selectedSpots[index-1].id ?? selectedSpots[index-1].contentId ?? selectedSpots[index-1].content_id);
+                  const leg = routeResult.legs.find(l => 
+                    (String(l.from_id ?? l.from ?? '') === prevId && String(l.to_id ?? l.to ?? '') === spotId) ||
+                    (String(l.from_id ?? l.from ?? '') === spotId && String(l.to_id ?? l.to ?? '') === prevId)
+                  );
+                  if (leg && (leg.distance_km != null || leg.distance != null)) {
+                    legDistance = Number(leg.distance_km ?? leg.distance);
+                  }
                 }
 
                 return (

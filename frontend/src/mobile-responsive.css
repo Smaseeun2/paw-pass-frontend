@@ -985,4 +985,47 @@
   footer {
     padding-bottom: calc(78px + env(safe-area-inset-bottom, 16px)) !important;
   }
+
+  /* --- 11. 동선 페이지 (MapPage) 모바일 핀 마커 완전 원형 보장 (iOS Safari flex 늘어남 방지) --- */
+  .pawpass-map-pin {
+    width: 30px !important;
+    height: 30px !important;
+    min-width: 30px !important;
+    min-height: 30px !important;
+    max-width: 30px !important;
+    max-height: 30px !important;
+    flex-direction: row !important;
+    justify-content: center !important;
+    align-items: center !important;
+    overflow: visible !important;
+    box-sizing: border-box !important;
+  }
+
+  .pawpass-map-pin-pointer {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+  }
+
+  .pawpass-map-pin-badge {
+    width: 30px !important;
+    height: 30px !important;
+    min-width: 30px !important;
+    min-height: 30px !important;
+    max-width: 30px !important;
+    max-height: 30px !important;
+    border-radius: 50% !important;
+    border: 2.5px solid #ffffff !important;
+    font-size: 13.5px !important;
+    font-weight: 900 !important;
+    line-height: 1 !important;
+    box-sizing: border-box !important;
+    aspect-ratio: 1 / 1 !important;
+    flex-shrink: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    box-shadow: 0 4px 12px rgba(95, 80, 169, 0.4), 0 2px 5px rgba(0,0,0,0.15) !important;
+  }
 }
+
