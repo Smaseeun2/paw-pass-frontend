@@ -740,44 +740,36 @@ function SearchMapView({
               spot.lng = geoLng;
               const position = new kakao.maps.LatLng(geoLat, geoLng);
               createMarkerForSpot(spot, position);
+              if (!selectedSpotId) {
+                fitAllMarkersToBounds();
+              }
             }
           });
         }
       });
 
-      // 전체 뷰 영역 자동 맞춤 (선택된 스팟이 없을 때만 실행)
-      if (!selectedSpotId) {
-        setTimeout(() => {
-          if (!isMounted || !map) return;
-          const validCoords = Array.from(markersRef.current.values()).map(m => m.position);
-          if (validCoords.length > 0) {
-            const latValues = validCoords.map(p => p.getLat());
-            const lngValues = validCoords.map(p => p.getLng());
-            const minLat = Math.min(...latValues);
-            const maxLat = Math.max(...latValues);
-            const minLng = Math.min(...lngValues);
-            const maxLng = Math.max(...lngValues);
-            const latSpan = maxLat - minLat;
-            const lngSpan = maxLng - minLng;
+      // 💡 지도에 표시된 모든 핀들이 한눈에 쏙 들어오도록 맞춤형 줌아웃 & 경계 자동 조정
+      const fitAllMarkersToBounds = () => {
+        if (!isMounted || !map || !window.kakao) return;
+        const kakao = window.kakao;
+        const validCoords = Array.from(markersRef.current.values()).map(m => m.position);
+        if (validCoords.length === 0) {
+          map.setCenter(new kakao.maps.LatLng(35.9, 127.8));
+          map.setLevel(13);
+        } else if (validCoords.length === 1) {
+          map.setCenter(validCoords[0]);
+          map.setLevel(5);
+        } else {
+          const fitBounds = new kakao.maps.LatLngBounds();
+          validCoords.forEach(p => fitBounds.extend(p));
+          // 상하좌우 60px 여백을 주어 외곽 핀이 잘리지 않고 깔끔하게 보이도록 자동 맞춤
+          map.setBounds(fitBounds, 60, 60, 60, 60);
+        }
+      };
 
-            if (latSpan > 1.5 || lngSpan > 1.5) {
-              map.setCenter(new kakao.maps.LatLng(35.9, 127.8));
-              map.setLevel(13);
-            } else {
-              const fitBounds = new kakao.maps.LatLngBounds();
-              validCoords.forEach(p => fitBounds.extend(p));
-              map.setBounds(fitBounds);
-              setTimeout(() => {
-                if (map && map.getLevel() > 9) {
-                  map.setLevel(9);
-                }
-              }, 80);
-            }
-          } else {
-            map.setCenter(new kakao.maps.LatLng(35.9, 127.8));
-            map.setLevel(13);
-          }
-        }, 100);
+      // 전체 뷰 영역 자동 맞춤 (선택된 스팟이 없을 때 실행)
+      if (!selectedSpotId) {
+        setTimeout(fitAllMarkersToBounds, 120);
       }
 
     }).catch(err => console.error('지도 로드 오류:', err));
@@ -824,29 +816,19 @@ function SearchMapView({
       }
     } else {
       setActiveSpot(null);
-      // 선택 해제 시 전체 뷰로 복귀
+      // 선택 해제 시 전체 핀들이 다 보이도록 맞춤형 줌아웃 복귀
       if (map && kakao) {
         const validCoords = Array.from(markersRef.current.values()).map(m => m.position);
-        if (validCoords.length > 0) {
-          const latValues = validCoords.map(p => p.getLat());
-          const lngValues = validCoords.map(p => p.getLng());
-          const latSpan = Math.max(...latValues) - Math.min(...latValues);
-          const lngSpan = Math.max(...lngValues) - Math.min(...lngValues);
-
-          if (latSpan > 1.5 || lngSpan > 1.5) {
-            map.setCenter(new kakao.maps.LatLng(35.9, 127.8));
-            map.setLevel(13);
-          } else {
-            const fitBounds = new kakao.maps.LatLngBounds();
-            validCoords.forEach(p => fitBounds.extend(p));
-            map.setBounds(fitBounds);
-            setTimeout(() => {
-              if (map && map.getLevel() > 9) map.setLevel(9);
-            }, 80);
-          }
-        } else {
+        if (validCoords.length === 0) {
           map.setCenter(new kakao.maps.LatLng(35.9, 127.8));
           map.setLevel(13);
+        } else if (validCoords.length === 1) {
+          map.setCenter(validCoords[0]);
+          map.setLevel(5);
+        } else {
+          const fitBounds = new kakao.maps.LatLngBounds();
+          validCoords.forEach(p => fitBounds.extend(p));
+          map.setBounds(fitBounds, 60, 60, 60, 60);
         }
       }
     }
