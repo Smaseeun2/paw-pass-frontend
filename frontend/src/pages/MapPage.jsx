@@ -150,47 +150,93 @@ function MapPage() {
       bounds.extend(position);
       pathCoordinates.push(position);
 
-      const markerContent = document.createElement('div');
-      markerContent.style.cssText = `
-        background-color: #5F50A9; color: white; width: 32px; height: 32px;
-        border-radius: 50%; display: flex; align-items: center; justify-content: center;
-        font-weight: bold; font-size: 13px; border: 2px solid white; box-shadow: 0 3px 8px rgba(0,0,0,0.3);
-        cursor: pointer; transition: transform 0.2s;
+      // 📍 1) 뾰족한 하단 팁이 있는 정밀 지도 핀 마커 (xAnchor: 0.5, yAnchor: 1.0)
+      const markerContainer = document.createElement('div');
+      markerContainer.className = 'pawpass-map-pin';
+      markerContainer.style.cssText = `
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        cursor: pointer;
+        transform: translate3d(0, 0, 0);
+        transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+        z-index: ${10 + index};
+        position: relative;
       `;
-      markerContent.innerText = index + 1;
+
+      const markerBadge = document.createElement('div');
+      markerBadge.style.cssText = `
+        background: linear-gradient(135deg, #5F50A9 0%, #7C6BC6 100%);
+        color: #ffffff;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 900;
+        font-size: 13.5px;
+        border: 2.5px solid #ffffff;
+        box-shadow: 0 4px 12px rgba(95, 80, 169, 0.4), 0 2px 5px rgba(0,0,0,0.15);
+      `;
+      markerBadge.innerText = index + 1;
+
+      const markerPointer = document.createElement('div');
+      markerPointer.style.cssText = `
+        width: 0;
+        height: 0;
+        border-left: 5px solid transparent;
+        border-right: 5px solid transparent;
+        border-top: 6px solid #5F50A9;
+        margin-top: -1.5px;
+      `;
+
+      markerContainer.appendChild(markerBadge);
+      markerContainer.appendChild(markerPointer);
+
+      markerContainer.onmouseenter = () => {
+        markerContainer.style.transform = 'scale(1.18) translateY(-4px)';
+        markerContainer.style.zIndex = '999';
+      };
+      markerContainer.onmouseleave = () => {
+        markerContainer.style.transform = 'translate3d(0, 0, 0)';
+        markerContainer.style.zIndex = String(10 + index);
+      };
 
       const customOverlay = new window.kakao.maps.CustomOverlay({
         position: position,
-        content: markerContent,
-        yAnchor: 1.2
+        content: markerContainer,
+        xAnchor: 0.5,
+        yAnchor: 1.0
       });
 
       const infoCardContent = document.createElement('div');
       infoCardContent.className = 'map-info-card';
       infoCardContent.style.cssText = `
-        background: white; border-radius: 12px; padding: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.15);
-        width: 220px; position: relative; bottom: 45px; border: 1px solid #e2e8f0;
-        display: none; z-index: 100;
+        background: #ffffff; border-radius: 14px; padding: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.18);
+        width: 210px; position: relative; border: 1.5px solid #e2e8f0;
+        display: none; z-index: 100; box-sizing: border-box;
       `;
       infoCardContent.innerHTML = `
         <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px;">
-          <strong style="font-size: 14px; color: #1e293b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 170px;">${spot.name}</strong>
-          <button type="button" class="close-card" style="background:none; border:none; color:#94a3b8; cursor:pointer; font-size:14px; font-weight:bold;">✕</button>
+          <strong style="font-size: 13.5px; font-weight: 800; color: #1e293b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 160px;">${spot.name}</strong>
+          <button type="button" class="close-card" style="background:none; border:none; color:#94a3b8; cursor:pointer; font-size:14px; font-weight:bold; padding: 0 4px;">✕</button>
         </div>
-        ${spot.imageUrl ? `<img src="${spot.imageUrl}" style="width:100%; height:90px; object-fit:cover; border-radius:6px; margin-bottom:6px;" />` : ''}
+        ${spot.imageUrl ? `<img src="${spot.imageUrl}" style="width:100%; height:88px; object-fit:cover; border-radius:8px; margin-bottom:6px; display:block;" />` : ''}
         <p style="font-size: 11px; color: #64748b; margin: 0 0 8px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">📍 ${spot.address}</p>
-        <button type="button" class="go-detail" style="width: 100%; padding: 6px; background: #5F50A9; color: white; border: none; border-radius: 6px; font-size: 11px; font-weight: bold; cursor: pointer;">상세보기 →</button>
+        <button type="button" class="go-detail" style="width: 100%; padding: 7px 0; background: #5F50A9; color: white; border: none; border-radius: 8px; font-size: 11.5px; font-weight: 800; cursor: pointer;">상세보기 →</button>
       `;
 
       const infoOverlay = new window.kakao.maps.CustomOverlay({
         position: position,
         content: infoCardContent,
-        yAnchor: 1
+        xAnchor: 0.5,
+        yAnchor: 1.35
       });
 
       infoOverlay.setMap(map);
 
-      markerContent.addEventListener('click', (e) => {
+      markerContainer.addEventListener('click', (e) => {
         e.stopPropagation();
         const isCurrentlyOpen = infoCardContent.style.display === 'block';
 
@@ -216,24 +262,27 @@ function MapPage() {
 
       customOverlay.setMap(map);
       markersRef.current.push(customOverlay);
-      // 💡 4-6 메모리 누수 방지: infoOverlay도 markersRef에 넣어서 setMap(null) 시 클린업되도록 처리
       markersRef.current.push(infoOverlay);
     });
 
     if (pathCoordinates.length > 1) {
-      // 💡 4-5 동선 경로 선 커스텀 (도보/차량 애니메이션 느낌의 점선 스타일)
+      // 💡 동선 경로 선 (두께 및 화살표 방향 개선)
       const polyline = new window.kakao.maps.Polyline({
         path: pathCoordinates,
-        strokeWeight: 6,
-        strokeColor: '#5F50A9', // 파란색으로 변경하여 눈에 더 띄게
+        strokeWeight: 5,
+        strokeColor: '#5F50A9',
         strokeOpacity: 0.9,
-        strokeStyle: 'solid'
+        strokeStyle: 'solid',
+        endArrow: true
       });
       polyline.setMap(map);
       polylineRef.current = polyline;
     }
 
-    map.setBounds(bounds);
+    map.setBounds(bounds, 40, 40, 40, 40);
+    setTimeout(() => {
+      if (map) map.relayout();
+    }, 80);
   }, [navigate]);
 
   useEffect(() => {

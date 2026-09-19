@@ -644,6 +644,74 @@
   }
 
   /* --- 6. 상세 페이지 (DetailPage.jsx) --- */
+  .pawpass-detail-container,
+  .pawpass-detail-container * {
+    font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif !important;
+  }
+
+  .pawpass-detail-container {
+    padding: 14px 14px 60px 14px !important;
+  }
+
+  /* 상단 네비게이션: 모바일에서는 우측 액션 숨기고 뒤로가기만 배치 */
+  .detail-top-nav-bar .detail-top-action-group {
+    display: none !important;
+  }
+
+  .detail-top-nav-bar {
+    margin-bottom: 12px !important;
+  }
+
+  .detail-back-btn {
+    padding: 7px 14px !important;
+    font-size: 12.5px !important;
+  }
+
+  /* 한국문화정보원 배지와 같은 선상에 공유하기/즐겨찾기 버튼 배치 */
+  .detail-badge-action-row {
+    display: flex !important;
+    flex-direction: row !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    flex-wrap: nowrap !important;
+    width: 100% !important;
+    margin-bottom: 8px !important;
+    gap: 8px !important;
+  }
+
+  .detail-badges-left {
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    flex-shrink: 0 !important;
+  }
+
+  .detail-mobile-action-group {
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    flex-shrink: 0 !important;
+  }
+
+  .detail-mobile-action-group button {
+    padding: 6px 11px !important;
+    font-size: 11.5px !important;
+    font-weight: 800 !important;
+    white-space: nowrap !important;
+  }
+
+  .detail-title {
+    font-size: 22px !important;
+    line-height: 1.35 !important;
+    word-break: keep-all !important;
+    margin-bottom: 6px !important;
+  }
+
+  .detail-address {
+    font-size: 13px !important;
+    word-break: keep-all !important;
+  }
+
   .detail-grid-layout {
     grid-template-columns: 1fr !important;
     gap: 16px !important;

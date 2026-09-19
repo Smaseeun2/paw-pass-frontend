@@ -510,10 +510,10 @@ function DetailPage() {
         `}</style>
         
         {/* 상단 네비게이션 및 액션 바 */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+        <div className="detail-top-nav-bar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
           <button 
             type="button" 
-            className="detail-top-btn" 
+            className="detail-top-btn detail-back-btn" 
             onClick={() => navigate(-1)} 
             style={{ 
               display: 'inline-flex', 
@@ -533,7 +533,7 @@ function DetailPage() {
             ← 뒤로 가기
           </button>
           
-          <div style={{ display: 'flex', gap: '10px' }}>
+          <div className="detail-top-action-group" style={{ display: 'flex', gap: '10px' }}>
             <button 
               type="button" 
               className="detail-top-btn" 
@@ -557,8 +557,8 @@ function DetailPage() {
             </button>
 
             <button 
-              type="button"
-              className="detail-top-btn"
+              type="button" 
+              className="detail-top-btn" 
               onClick={() => toggleFavorite(detail)}
               style={{ 
                 display: 'inline-flex', 
@@ -581,25 +581,75 @@ function DetailPage() {
         </div>
 
         {/* 타이틀 및 메타 헤더 */}
-        <div style={{ marginBottom: '24px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px', flexWrap: 'wrap' }}>
-            <span style={{ 
-              fontSize: '12px', padding: '4px 10px', borderRadius: '50px', 
-              backgroundColor: detail.source === 'kcisa' ? '#e0f2fe' : '#fef3c7', 
-              color: detail.source === 'kcisa' ? '#0369a1' : '#b45309', fontWeight: '800' 
-            }}>
-              {detail.source === 'kcisa' ? '🏥 한국문화정보원' : '🏞️ 한국관광공사'}
-            </span>
-            {detail.rawCategory && (
-              <span style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '50px', backgroundColor: '#f1f5f9', color: '#475569', fontWeight: '700' }}>
-                {detail.rawCategory}
+        <div className="detail-meta-header" style={{ marginBottom: '24px' }}>
+          <div className="detail-badge-action-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
+            <div className="detail-badges-left" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <span className="detail-source-badge" style={{ 
+                fontSize: '12px', padding: '4px 10px', borderRadius: '50px', 
+                backgroundColor: detail.source === 'kcisa' ? '#e0f2fe' : '#fef3c7', 
+                color: detail.source === 'kcisa' ? '#0369a1' : '#b45309', fontWeight: '800' 
+              }}>
+                {detail.source === 'kcisa' ? '🏥 한국문화정보원' : '🏞️ 한국관광공사'}
               </span>
-            )}
+              {detail.rawCategory && (
+                <span className="detail-category-badge" style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '50px', backgroundColor: '#f1f5f9', color: '#475569', fontWeight: '700' }}>
+                  {detail.rawCategory}
+                </span>
+              )}
+            </div>
+
+            {/* 모바일에서 한국문화정보원 배지와 같은 선상에 놓이는 액션 버튼 그룹 */}
+            <div className="detail-mobile-action-group" style={{ display: 'none' }}>
+              <button 
+                type="button" 
+                className="detail-top-btn" 
+                onClick={handleShare}
+                style={{ 
+                  display: 'inline-flex', 
+                  alignItems: 'center', 
+                  gap: '4px', 
+                  padding: '6px 12px', 
+                  backgroundColor: '#fff', 
+                  color: '#334155', 
+                  border: '1px solid #e2e8f0', 
+                  borderRadius: '50px', 
+                  cursor: 'pointer', 
+                  fontWeight: '700', 
+                  fontSize: '12px',
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.03)'
+                }}
+              >
+                🔗 공유
+              </button>
+
+              <button 
+                type="button" 
+                className="detail-top-btn" 
+                onClick={() => toggleFavorite(detail)}
+                style={{ 
+                  display: 'inline-flex', 
+                  alignItems: 'center', 
+                  gap: '4px', 
+                  padding: '6px 13px', 
+                  backgroundColor: liked ? '#F79DC4' : '#fff', 
+                  color: liked ? '#fff' : '#d14d83', 
+                  border: liked ? 'none' : '1.5px solid #F79DC4', 
+                  borderRadius: '50px', 
+                  cursor: 'pointer',
+                  fontWeight: '800',
+                  fontSize: '12px',
+                  boxShadow: liked ? '0 3px 10px rgba(247, 157, 196, 0.4)' : '0 2px 6px rgba(0,0,0,0.03)'
+                }}
+              >
+                {liked ? '❤️ 찜완료' : '🤍 찜하기'}
+              </button>
+            </div>
           </div>
-          <h1 style={{ margin: '0 0 8px 0', fontSize: '32px', fontWeight: '800', color: '#1e293b', letterSpacing: '-0.5px' }}>
+
+          <h1 className="detail-title" style={{ margin: '0 0 8px 0', fontSize: '32px', fontWeight: '800', color: '#1e293b', letterSpacing: '-0.5px' }}>
             {detail.name}
           </h1>
-          <p style={{ margin: 0, fontSize: '15px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <p className="detail-address" style={{ margin: 0, fontSize: '15px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px' }}>
             <span>📍</span> {detail.address}
           </p>
         </div>
