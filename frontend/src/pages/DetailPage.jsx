@@ -486,7 +486,7 @@ function DetailPage() {
         pointerEvents: 'none'
       }} />
 
-      <div className="pawpass-detail-container" style={{ padding: '30px 20px 80px 20px', maxWidth: '1180px', margin: '0 auto', fontFamily: 'sans-serif', position: 'relative', zIndex: 1 }}>
+      <div className="pawpass-detail-container" style={{ padding: '30px 20px 80px 20px', maxWidth: '1180px', margin: '0 auto', position: 'relative', zIndex: 1 }}>
         <style>{`
           .detail-top-btn {
             transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;

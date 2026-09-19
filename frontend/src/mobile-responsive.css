@@ -1,0 +1,872 @@
+/* ==========================================================================
+   ✨ Pretendard Global Typography (모든 페이지 및 모든 요소 적용)
+   ========================================================================== */
+*, *::before, *::after, html, body, #root, button, input, select, textarea, p, h1, h2, h3, h4, h5, h6, span, a, div, section, header, footer, main, nav, article, aside, ul, ol, li, label, table, thead, tbody, tr, th, td {
+  font-family: "Pretendard Variable", "Pretendard", -apple-system, BlinkMacSystemFont, system-ui, Roboto, "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif !important;
+  letter-spacing: -0.2px;
+}
+
+/* 🐾 PawPass 브랜드 영문 로고 폰트 (Comfortaa, Nunito) 100% 보존 */
+.nav-brand-logo,
+.nav-brand-logo *,
+.footer-brand-logo,
+.footer-brand-logo *,
+[style*="Nunito"],
+[style*="Nunito"] * {
+  font-family: 'Nunito', 'Comfortaa', -apple-system, sans-serif !important;
+}
+
+/* --- 데스크톱 환경에서는 모바일 하단 탭바 숨김 & 상단 헤더 고정 --- */
+@media (min-width: 769px) {
+  .mobile-bottom-nav-bar {
+    display: none !important;
+  }
+  header, .pawpass-global-header {
+    position: fixed !important;
+    top: 12px !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    z-index: 1000 !important;
+  }
+  .pawpass-main-content {
+    padding-top: 80px !important;
+  }
+}
+
+/* ==========================================================================
+   📱 모바일 화면 (768px 이하, 기준: 390px x 844px)
+   ========================================================================== */
+@media (max-width: 768px) {
+  /* --- 1. 기본 레이아웃 & 뷰포트 (가로 스크롤 완전 차단) --- */
+  *, *::before, *::after {
+    box-sizing: border-box !important;
+  }
+
+  html, body {
+    overflow-x: hidden !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  #root {
+    overflow-x: hidden !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .pawpass-main-content {
+    padding-top: 56px !important;
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+  }
+
+  /* --- 2. 상단 네비게이션 (모바일 1줄 미니멀 헤더: 로고 + 로그인/유저) 항상 화면 상단 고정 --- */
+  header, .pawpass-global-header {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    padding: calc(6px + env(safe-area-inset-top, 4px)) 10px 4px 10px !important;
+    width: 100% !important;
+    z-index: 1000 !important;
+  }
+
+  .nav-island-container {
+    padding: 6px 12px !important;
+    border-radius: 50px !important;
+    display: flex !important;
+    flex-direction: row !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    width: 100% !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06) !important;
+  }
+
+  .nav-brand-logo {
+    gap: 6px !important;
+  }
+
+  .nav-brand-logo span {
+    font-size: 20px !important;
+  }
+
+  /* 상단 메뉴바는 모바일에서 숨김 (하단 탭바로 이동) */
+  .nav-links-menu {
+    display: none !important;
+  }
+
+  .nav-user-auth-box {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+  }
+
+  /* 긴 닉네임 말줄임 */
+  .nav-user-nickname {
+    max-width: 90px !important;
+    font-size: 13.5px !important;
+    font-weight: 800 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    display: inline-block !important;
+  }
+
+  .nav-user-auth-box div {
+    padding: 4px 9px 4px 6px !important;
+    gap: 6px !important;
+  }
+
+  .nav-user-auth-box button {
+    padding: 4px 9px !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+  }
+
+  .nav-login-btn {
+    padding: 7px 15px !important;
+    font-size: 13px !important;
+    font-weight: 800 !important;
+  }
+
+  /* --- 3. 모바일 하단 고정 탭바 (Mobile Bottom Navigation Bar - 항상 최상위 레이어) --- */
+  .mobile-bottom-nav-bar {
+    display: flex !important;
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    background: #ffffff !important;
+    border-top: 1px solid rgba(226, 232, 240, 0.95) !important;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.08) !important;
+    z-index: 10020 !important;
+    padding: 8px 4px calc(8px + env(safe-area-inset-bottom, 12px)) 4px !important;
+    justify-content: space-around !important;
+    align-items: center !important;
+    box-sizing: border-box !important;
+    transform: translateZ(0) !important;
+  }
+
+  /* 하단 바 아래 빈틈(노치/홈 인디케이터/오버스크롤 빈 공간) 100% 메움 */
+  .mobile-bottom-nav-bar::after {
+    content: '' !important;
+    position: absolute !important;
+    top: 100% !important;
+    left: 0 !important;
+    right: 0 !important;
+    height: 120px !important;
+    background-color: #ffffff !important;
+    pointer-events: none !important;
+  }
+
+  .mobile-bottom-tab-item {
+    flex: 1 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-decoration: none !important;
+    gap: 3px !important;
+    transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+    user-select: none !important;
+    -webkit-tap-highlight-color: transparent !important;
+    padding: 4px 0 !important;
+  }
+
+  .mobile-bottom-tab-item:active {
+    transform: scale(0.92) !important;
+  }
+
+  .mobile-tab-icon-wrapper {
+    width: 25px !important;
+    height: 25px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    transition: transform 0.2s ease !important;
+  }
+
+  .mobile-bottom-tab-item.active .mobile-tab-icon-wrapper {
+    transform: translateY(-2px) scale(1.1) !important;
+  }
+
+  .mobile-tab-label {
+    font-size: 11.5px !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.2px !important;
+    line-height: 1 !important;
+  }
+
+  .mobile-bottom-tab-item.active .mobile-tab-label {
+    font-weight: 900 !important;
+    color: #5F50A9 !important;
+  }
+
+  /* --- 4. 메인 홈 페이지 (HomePage.jsx) --- */
+  .pawpass-home-container {
+    padding: 0 10px !important;
+  }
+
+  div[style*="hero-banner.jpg"] {
+    height: auto !important;
+    min-height: 380px !important;
+    padding: 24px 14px 44px 14px !important;
+    border-radius: 22px !important;
+  }
+
+  div[style*="hero-banner.jpg"] h1 {
+    font-size: 21px !important;
+    line-height: 1.35 !important;
+    margin-bottom: 6px !important;
+    text-align: center !important;
+    word-break: keep-all !important;
+  }
+
+  div[style*="hero-banner.jpg"] p {
+    font-size: 13.5px !important;
+    text-align: center !important;
+    margin-bottom: 16px !important;
+    word-break: keep-all !important;
+  }
+
+  .modern-search-pill {
+    position: relative !important;
+    bottom: auto !important;
+    left: auto !important;
+    transform: none !important;
+    width: 100% !important;
+    margin-top: 12px !important;
+    border-radius: 20px !important;
+    flex-direction: column !important;
+    padding: 10px !important;
+    gap: 7px !important;
+    box-shadow: 0 10px 25px rgba(95, 80, 169, 0.15) !important;
+    cursor: default !important;
+  }
+
+  .modern-search-pill div[style*="width: 1px"],
+  .modern-search-pill div[style*="width:1px"] {
+    display: none !important;
+  }
+
+  .modern-search-pill .search-segment-btn {
+    width: 100% !important;
+    padding: 8px 12px !important;
+    background-color: #f8fafc !important;
+    border-radius: 12px !important;
+  }
+
+  .modern-search-pill .search-segment-btn span {
+    font-size: 11px !important;
+  }
+
+  .modern-search-pill .search-segment-btn input {
+    font-size: 13.5px !important;
+  }
+
+  .modern-search-pill button[style*="border-radius: 50%"],
+  .modern-search-pill button[style*="border-radius:50%"],
+  .home-search-submit-btn {
+    width: 100% !important;
+    height: 46px !important;
+    border-radius: 50px !important;
+    margin-left: 0 !important;
+    margin-top: 4px !important;
+    font-weight: 800 !important;
+    font-size: 14.5px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
+  }
+
+  div[style*="margin: 80px auto"],
+  div[style*="margin:80px auto"] {
+    margin: 30px auto 20px auto !important;
+    padding: 0 10px !important;
+  }
+
+  div[style*="gridTemplateColumns: 'repeat(6, 1fr)'"],
+  div[style*="grid-template-columns: repeat(6, 1fr)"] {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 8px !important;
+  }
+
+  div[style*="grid-template-columns: repeat(auto-fill, minmax(320px, 1fr))"],
+  div[style*="gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))'"] {
+    grid-template-columns: 1fr !important;
+    gap: 14px !important;
+  }
+
+  .home-recommend-header h2 div:first-child {
+    font-size: 19px !important;
+    line-height: 1.2 !important;
+  }
+
+  .home-recommend-header h2 div:last-child {
+    font-size: 17px !important;
+    line-height: 1.2 !important;
+  }
+
+  .home-more-spots-btn {
+    padding: 7px 14px !important;
+    font-size: 12px !important;
+  }
+
+  .home-recommend-header p {
+    font-size: 12.5px !important;
+  }
+
+  /* --- 5. 관광지 탐색 페이지 (SearchPage.jsx) --- */
+  .pawpass-search-container {
+    padding: 14px 10px 40px 10px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .pawpass-search-container div[style*="padding: 34px 20px"],
+  .pawpass-search-container div[style*="padding:34px 20px"] {
+    padding: 20px 12px 18px 12px !important;
+    border-radius: 18px !important;
+    margin-bottom: 14px !important;
+  }
+
+  .pawpass-search-container h1 {
+    font-size: 20px !important;
+    margin-bottom: 4px !important;
+  }
+
+  .pawpass-search-container div[ref="dropdownRef"],
+  .pawpass-search-container div[style*="maxWidth: '960px'"],
+  .pawpass-search-container div[style*="max-width: 960px"] {
+    border-radius: 18px !important;
+    flex-direction: column !important;
+    padding: 10px !important;
+    gap: 7px !important;
+    width: 100% !important;
+  }
+
+  .pawpass-search-container div[style*="width: 1px"],
+  .pawpass-search-container div[style*="width:1px"] {
+    display: none !important;
+  }
+
+  .pawpass-search-container .search-segment-btn {
+    width: 100% !important;
+    padding: 8px 10px !important;
+    background-color: #f8fafc !important;
+    border-radius: 12px !important;
+  }
+
+  .search-submit-pill-btn {
+    width: 100% !important;
+    height: 44px !important;
+    border-radius: 50px !important;
+    margin-top: 4px !important;
+    margin-left: 0 !important;
+    font-size: 14px !important;
+    font-weight: 800 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
+  }
+
+  .search-header-banner {
+    padding: 22px 14px 18px 14px !important;
+    border-radius: 20px !important;
+    margin-bottom: 14px !important;
+  }
+
+  .search-header-title {
+    font-size: 20px !important;
+    line-height: 1.35 !important;
+    word-break: keep-all !important;
+    letter-spacing: -0.4px !important;
+    margin-bottom: 4px !important;
+  }
+
+  .search-header-desc {
+    font-size: 12.5px !important;
+    line-height: 1.45 !important;
+    word-break: keep-all !important;
+    margin-bottom: 18px !important;
+  }
+
+  .drawer-close-circle-btn {
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    min-height: 36px !important;
+    max-width: 36px !important;
+    max-height: 36px !important;
+    border-radius: 50% !important;
+    padding: 0 !important;
+    flex-shrink: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin: 0 !important;
+  }
+
+  .search-filter-controls-row {
+    display: flex !important;
+    flex-direction: row !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    flex-wrap: nowrap !important;
+    gap: 6px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    margin-bottom: 12px !important;
+  }
+
+  .search-match-dropdown-trigger {
+    padding: 6px 10px !important;
+    font-size: 12px !important;
+    gap: 4px !important;
+    white-space: nowrap !important;
+  }
+
+  .search-match-dropdown-trigger span {
+    font-size: 12px !important;
+  }
+
+  .search-match-dropdown-menu {
+    min-width: 150px !important;
+    z-index: 200 !important;
+  }
+
+  .search-match-status-bar {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    padding-bottom: 6px !important;
+    scrollbar-width: none !important;
+  }
+
+  .search-match-status-bar::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .search-view-mode-toggle {
+    align-self: center !important;
+    flex-shrink: 0 !important;
+    padding: 3px !important;
+  }
+
+  .search-view-mode-toggle button {
+    padding: 5px 9px !important;
+    font-size: 11.5px !important;
+    gap: 4px !important;
+    white-space: nowrap !important;
+  }
+
+  .spot-card-favorite-btn {
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    min-height: 36px !important;
+    max-width: 36px !important;
+    max-height: 36px !important;
+    border-radius: 50% !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    position: absolute !important;
+    top: 12px !important;
+    right: 12px !important;
+    z-index: 10 !important;
+  }
+
+  /* --- 5-1. 탐색 상세 모바일 바텀시트 & 플로팅 검색 --- */
+  .search-detail-drawer {
+    position: fixed !important;
+    top: auto !important;
+    bottom: calc(64px + env(safe-area-inset-bottom, 8px)) !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    height: calc(84vh - 64px) !important;
+    max-height: calc(84vh - 64px) !important;
+    border-radius: 28px 28px 0 0 !important;
+    border-left: none !important;
+    border-top: 1px solid rgba(226, 232, 240, 0.9) !important;
+    box-shadow: 0 -12px 45px rgba(0, 0, 0, 0.28) !important;
+    padding-top: 8px !important;
+    z-index: 10010 !important;
+    transform: translateY(120%) !important;
+    transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1) !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  .search-detail-drawer.open {
+    transform: translateY(0) !important;
+  }
+
+  .drawer-bottom-action-bar {
+    padding: 10px 18px 12px 18px !important;
+    background-color: #ffffff !important;
+    border-top: 1px solid #f1f5f9 !important;
+    box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.06) !important;
+    position: relative !important;
+    z-index: 25 !important;
+    flex-shrink: 0 !important;
+  }
+
+  .drawer-bottom-action-bar button {
+    height: 48px !important;
+    font-size: 14.5px !important;
+    margin: 0 !important;
+    box-shadow: 0 6px 20px rgba(95, 80, 169, 0.35) !important;
+  }
+
+  .drawer-scroll-top-btn {
+    bottom: 74px !important;
+    right: 16px !important;
+    z-index: 30 !important;
+  }
+
+  .sticky-search-wrapper {
+    top: 56px !important;
+    width: calc(100% - 16px) !important;
+    max-width: calc(100% - 16px) !important;
+  }
+
+  .sticky-floating-search-bar {
+    width: 100% !important;
+    padding: 6px 8px 6px 14px !important;
+  }
+
+  .sticky-search-collapse-tab {
+    padding: 2px 18px !important;
+  }
+
+  .sticky-search-expand-wrapper {
+    top: 56px !important;
+  }
+
+  /* --- 5-2. 탐색 지도형 뷰 (SearchMapView) 모바일 순서: 지도가 위(order: 1), 장소 목록이 아래(order: 2) --- */
+  .search-map-view-container {
+    height: auto !important;
+    flex-direction: column !important;
+    border-radius: 20px !important;
+    overflow: hidden !important;
+  }
+
+  .search-map-wrapper {
+    width: 100% !important;
+    height: 300px !important;
+    min-height: 280px !important;
+    order: 1 !important;
+    border-radius: 20px 20px 0 0 !important;
+    overflow: hidden !important;
+  }
+
+  .search-map-places-list {
+    width: 100% !important;
+    min-width: 100% !important;
+    height: 260px !important;
+    max-height: 280px !important;
+    border-right: none !important;
+    border-top: 1px solid #f1f5f9 !important;
+    order: 2 !important;
+    border-radius: 0 0 20px 20px !important;
+  }
+
+  .search-map-preview-card {
+    width: calc(100% - 20px) !important;
+    left: 10px !important;
+    right: 10px !important;
+    bottom: 10px !important;
+    padding: 12px !important;
+    border-radius: 16px !important;
+    box-sizing: border-box !important;
+  }
+
+  /* --- 6. 상세 페이지 (DetailPage.jsx) --- */
+  .detail-grid-layout {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+
+  .detail-sticky-sidebar {
+    position: static !important;
+    width: 100% !important;
+  }
+
+  div[style*="gridTemplateColumns: 'repeat(2, 1fr)'"],
+  div[style*="grid-template-columns: repeat(2, 1fr)"] {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+
+  /* --- 7. 여행 동선 플래너 (MapPage.jsx) --- */
+  .pawpass-map-container {
+    padding: 14px 12px 60px 12px !important;
+  }
+
+  .map-header-banner {
+    padding: 22px 14px 18px 14px !important;
+    border-radius: 20px !important;
+    margin-bottom: 14px !important;
+  }
+
+  .map-header-title {
+    font-size: 20px !important;
+    line-height: 1.35 !important;
+    word-break: keep-all !important;
+    letter-spacing: -0.4px !important;
+    margin-bottom: 4px !important;
+  }
+
+  .map-header-desc {
+    font-size: 12.5px !important;
+    line-height: 1.45 !important;
+    word-break: keep-all !important;
+  }
+
+  .map-search-bar-container {
+    border-radius: 50px !important;
+    padding: 5px 6px 5px 16px !important;
+    margin-bottom: 14px !important;
+    background-color: #ffffff !important;
+    border: 1.5px solid rgba(226, 232, 240, 0.95) !important;
+    box-shadow: 0 10px 30px rgba(95, 80, 169, 0.08), 0 2px 10px rgba(0, 0, 0, 0.04) !important;
+  }
+
+  .map-search-input {
+    font-size: 13px !important;
+    padding: 8px 0 !important;
+  }
+
+  .map-search-input::placeholder {
+    font-size: 12px !important;
+  }
+
+  .map-search-submit-btn {
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    min-height: 36px !important;
+    max-width: 36px !important;
+    max-height: 36px !important;
+    border-radius: 50% !important;
+    padding: 0 !important;
+    flex-shrink: 0 !important;
+  }
+
+  .map-action-bar {
+    display: flex !important;
+    flex-direction: row !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    flex-wrap: nowrap !important;
+    gap: 8px !important;
+    margin-bottom: 12px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .map-action-bar span {
+    font-size: 12px !important;
+    white-space: nowrap !important;
+  }
+
+  .map-optimize-btn {
+    padding: 7px 12px !important;
+    font-size: 11.5px !important;
+    font-weight: 800 !important;
+    border-radius: 50px !important;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+    min-width: 120px !important;
+    text-align: center !important;
+  }
+
+  .pawpass-map-container div[style*="gridTemplateColumns: '360px 1fr'"],
+  .pawpass-map-container div[style*="grid-template-columns: 360px 1fr"] {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  .pawpass-map-container div[ref="mapContainerRef"],
+  .pawpass-map-container div[style*="order: 2"] {
+    order: 1 !important;
+    height: 240px !important;
+    border-radius: 20px !important;
+  }
+
+  .pawpass-map-container div[style*="order: 1"] {
+    order: 2 !important;
+    max-height: 360px !important;
+    padding: 14px !important;
+    border-radius: 20px !important;
+  }
+
+  .route-spot-card {
+    padding: 12px 10px !important;
+    border-radius: 16px !important;
+  }
+
+  /* --- 8. 즐겨찾기, 프로필, 고객센터 --- */
+  .pawpass-favorites-container {
+    padding: 14px 12px 60px 12px !important;
+  }
+
+  .favorites-header-banner {
+    padding: 22px 14px 18px 14px !important;
+    border-radius: 20px !important;
+    margin-bottom: 14px !important;
+  }
+
+  .favorites-header-title {
+    font-size: 20px !important;
+    line-height: 1.35 !important;
+    word-break: keep-all !important;
+    letter-spacing: -0.4px !important;
+    margin-bottom: 4px !important;
+  }
+
+  .favorites-header-desc {
+    font-size: 12.5px !important;
+    line-height: 1.45 !important;
+    word-break: keep-all !important;
+  }
+
+  .favorite-spots-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  .pawpass-profile-container {
+    padding: 14px 12px 60px 12px !important;
+  }
+
+  .profile-header-banner {
+    padding: 22px 14px 18px 14px !important;
+    border-radius: 20px !important;
+    margin-bottom: 14px !important;
+  }
+
+  .profile-header-title,
+  .pawpass-profile-container h1 {
+    font-size: 20px !important;
+    line-height: 1.35 !important;
+    word-break: keep-all !important;
+    letter-spacing: -0.4px !important;
+    margin-bottom: 4px !important;
+  }
+
+  .profile-header-desc {
+    font-size: 12.5px !important;
+    line-height: 1.45 !important;
+    word-break: keep-all !important;
+  }
+
+  .pawpass-profile-container #pet-form-section {
+    padding: 20px 14px !important;
+    border-radius: 20px !important;
+  }
+
+  .pawpass-profile-container #pet-form-section h3 {
+    font-size: 18px !important;
+    word-break: keep-all !important;
+    letter-spacing: -0.3px !important;
+    line-height: 1.35 !important;
+  }
+
+  .pawpass-profile-container #pet-form-section p {
+    font-size: 12.5px !important;
+    word-break: keep-all !important;
+    line-height: 1.45 !important;
+    letter-spacing: -0.2px !important;
+  }
+
+  .pawpass-support-container {
+    padding: 14px 12px 60px 12px !important;
+  }
+
+  .support-header-banner {
+    padding: 22px 14px 18px 14px !important;
+    border-radius: 20px !important;
+    margin-bottom: 14px !important;
+  }
+
+  .support-header-title {
+    font-size: 20px !important;
+    line-height: 1.35 !important;
+    word-break: keep-all !important;
+    letter-spacing: -0.4px !important;
+    margin-bottom: 4px !important;
+  }
+
+  .support-header-desc {
+    font-size: 12.5px !important;
+    line-height: 1.45 !important;
+    word-break: keep-all !important;
+  }
+
+  .support-card {
+    padding: 16px 14px !important;
+    border-radius: 18px !important;
+  }
+
+  .faq-accordion-item {
+    border-radius: 18px !important;
+  }
+
+  .support-search-wrapper input::placeholder {
+    font-size: 12.5px !important;
+  }
+
+  .home-region-scroll-fade {
+    display: flex !important;
+  }
+
+  .region-scroll-container {
+    padding-right: 48px !important;
+  }
+
+  div[style*="position: absolute"][style*="zIndex: 10"],
+  div[style*="position: 'absolute'"][style*="zIndex: 10"],
+  div[style*="position: absolute"][style*="zIndex: 100"],
+  div[style*="position: 'absolute'"][style*="zIndex: 100"] {
+    max-width: calc(100vw - 24px) !important;
+    box-sizing: border-box !important;
+  }
+
+  /* --- 9. 플로팅 버튼 그룹 및 말풍선 가이드 (하단 탭바 위에 여유있게 배치) --- */
+  .floating-guide-container {
+    bottom: calc(68px + env(safe-area-inset-bottom, 8px)) !important;
+    right: 14px !important;
+    z-index: 9998 !important;
+  }
+
+  .floating-guide-bubble {
+    bottom: calc(128px + env(safe-area-inset-bottom, 8px)) !important;
+    right: 14px !important;
+    z-index: 9999 !important;
+    max-width: calc(100vw - 28px) !important;
+  }
+
+  .floating-guide-bubble.with-scroll-top {
+    bottom: calc(184px + env(safe-area-inset-bottom, 8px)) !important;
+  }
+
+  /* --- 10. 하단 푸터 (Footer.jsx) 바텀 네비게이션 여백 확보 --- */
+  footer {
+    padding-bottom: calc(78px + env(safe-area-inset-bottom, 16px)) !important;
+  }
+}

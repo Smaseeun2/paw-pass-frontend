@@ -521,7 +521,7 @@ function ProfilePage() {
         opacity: 0.35,
         pointerEvents: 'none'
       }} />
-      <div className="pawpass-profile-container" style={{ padding: '40px 20px 30px 20px', maxWidth: '1200px', margin: '0 auto', fontFamily: 'sans-serif', position: 'relative', zIndex: 1 }}>
+      <div className="pawpass-profile-container" style={{ padding: '20px 16px 30px 16px', maxWidth: '1200px', margin: '0 auto', position: 'relative', zIndex: 1 }}>
       <style>{`
         .pet-card { transition: transform 0.2s ease, box-shadow 0.2s ease; }
         .pet-card:hover { transform: translateY(-4px); box-shadow: 0 12px 35px rgba(0,0,0,0.1) !important; }
@@ -544,25 +544,36 @@ function ProfilePage() {
         .brand-btn:hover { transform: translateY(-2px); filter: brightness(0.95); box-shadow: 0 8px 20px rgba(0,0,0,0.1) !important; }
       `}</style>
             {/* 상단 모던 히어로 카드 배너 */}
-      <div style={{ 
-        textAlign: 'center', 
-        padding: '36px 20px 32px 20px', 
-        background: 'linear-gradient(135deg, rgba(201, 182, 215, 0.45) 0%, rgba(246, 202, 221, 0.35) 35%, rgba(197, 224, 251, 0.45) 70%, rgba(174, 210, 249, 0.4) 100%)',
-        borderRadius: '32px',
-        boxShadow: '0 12px 35px rgba(201, 182, 215, 0.22)',
-        marginBottom: '28px',
-        position: 'relative',
-        backdropFilter: 'blur(12px)',
-        border: '1px solid rgba(255, 255, 255, 0.7)'
-      }}>
+      <div 
+        className="profile-header-banner"
+        style={{ 
+          textAlign: 'center', 
+          padding: '34px 20px 28px 20px', 
+          background: 'linear-gradient(135deg, rgba(201, 182, 215, 0.45) 0%, rgba(246, 202, 221, 0.35) 35%, rgba(197, 224, 251, 0.45) 70%, rgba(174, 210, 249, 0.4) 100%)',
+          borderRadius: '28px',
+          boxShadow: '0 12px 35px rgba(201, 182, 215, 0.22)',
+          marginBottom: '24px',
+          position: 'relative',
+          backdropFilter: 'blur(12px)',
+          border: '1px solid rgba(255, 255, 255, 0.7)'
+        }}
+      >
         <span style={{ fontSize: '12px', fontWeight: '800', letterSpacing: '1.5px', color: '#5F50A9', textTransform: 'uppercase', display: 'inline-block', marginBottom: '10px', backgroundColor: 'rgba(255, 255, 255, 0.85)', padding: '5px 16px', borderRadius: '50px', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
           Pet Management
         </span>
-        <h1 style={{ fontSize: '32px', fontWeight: '800', color: '#1e293b', margin: '0 0 8px 0', letterSpacing: '-0.5px' }}>
+        <h1 
+          className="profile-header-title"
+          style={{ fontSize: '32px', fontWeight: '800', color: '#1e293b', margin: '0 0 8px 0', letterSpacing: '-0.5px', whiteSpace: 'nowrap' }}
+        >
           🐾 반려동물 프로필 관리
         </h1>
-        <p style={{ fontSize: '15px', color: '#64748b', margin: '0' }}>
-          {user ? `${user.name}님의 소중한 반려동물 정보를 등록하고 맞춤 여행을 준비하세요` : '아이의 체중과 견종을 등록해 맞춤 동반 조건을 확인해보세요'}
+        <p 
+          className="profile-header-desc"
+          style={{ fontSize: '15px', color: '#64748b', margin: '0', lineHeight: 1.5 }}
+        >
+          {user ? `${user.name}님의 반려동물 정보를 등록하고` : '반려동물 정보를 등록하고'}
+          <br />
+          맞춤여행을 준비하세요
         </p>
       </div>
 
@@ -574,28 +585,72 @@ function ProfilePage() {
           </div>
         </div>
       ) : (
-        <div style={{ backgroundColor: '#fff', borderRadius: '24px', padding: '30px', boxShadow: '0 15px 40px rgba(0,0,0,0.08)', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '20px' }}>
-          <div style={{ position: 'relative' }}>
-            {user.picture ? (
-              <img src={user.picture} alt="프로필" style={{ width: '80px', height: '80px', borderRadius: '50%', objectFit: 'cover' }} />
-            ) : (
-              <div style={{ width: '80px', height: '80px', borderRadius: '50%', backgroundColor: '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '32px' }}>🐾</div>
-            )}
-            <label style={{ position: 'absolute', bottom: 0, right: 0, backgroundColor: '#3b82f6', color: 'white', borderRadius: '50%', width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.2)' }}>
-              📷
-              <input type="file" accept="image/jpeg, image/png, image/webp" style={{ display: 'none' }} onChange={handleUserProfileImageUpload} />
-            </label>
+        <div style={{ 
+          background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(243, 238, 250, 0.9) 100%)', 
+          borderRadius: '20px', 
+          padding: '14px 20px', 
+          border: '1px solid rgba(95, 80, 169, 0.18)',
+          boxShadow: '0 4px 18px rgba(95, 80, 169, 0.06)', 
+          marginBottom: '24px', 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '12px' 
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <div style={{ position: 'relative', flexShrink: 0 }}>
+              {user.picture ? (
+                <img src={user.picture} alt="프로필" style={{ width: '48px', height: '48px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #5F50A9' }} />
+              ) : (
+                <div style={{ width: '48px', height: '48px', borderRadius: '50%', backgroundColor: '#F3EEFA', border: '2px solid #5F50A9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px' }}>👤</div>
+              )}
+              <label style={{ position: 'absolute', bottom: -2, right: -2, backgroundColor: '#5F50A9', color: 'white', borderRadius: '50%', width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.2)', fontSize: '10px' }}>
+                📷
+                <input type="file" accept="image/jpeg, image/png, image/webp" style={{ display: 'none' }} onChange={handleUserProfileImageUpload} />
+              </label>
+            </div>
+            <div style={{ textAlign: 'left' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '11px', fontWeight: '800', color: '#5F50A9', backgroundColor: '#ffffff', padding: '2px 8px', borderRadius: '20px', border: '1px solid rgba(95, 80, 169, 0.2)' }}>
+                  보호자 계정
+                </span>
+                <span style={{ fontSize: '15px', fontWeight: '800', color: '#1e293b' }}>{user.name}님, 반가워요! 👋</span>
+              </div>
+              <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>{user.email}</p>
+            </div>
           </div>
-          <div>
-            <h2 style={{ margin: '0 0 8px 0', fontSize: '24px', color: '#1e293b' }}>{user.name}님, 반가워요!</h2>
-            <p style={{ margin: 0, color: '#64748b' }}>{user.email}</p>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ 
+              fontSize: '12px', 
+              fontWeight: '700', 
+              color: '#475569', 
+              backgroundColor: '#ffffff', 
+              padding: '6px 14px', 
+              borderRadius: '50px', 
+              border: '1px solid #e2e8f0',
+              boxShadow: '0 2px 6px rgba(0,0,0,0.02)'
+            }}>
+              🐾 등록 아이: <strong style={{ color: '#5F50A9' }}>{pets.length}마리</strong>
+            </span>
           </div>
         </div>
       )}
 
       {/* 등록된 카드 목록 */}
-      <div style={{ marginBottom: '40px' }}>
-        <h3>등록된 반려동물 목록 ({pets.length}마리)</h3>
+      <div style={{ marginBottom: '36px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ width: '4px', height: '18px', backgroundColor: '#5F50A9', borderRadius: '4px', display: 'inline-block' }}></span>
+            <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '800', color: '#1e293b' }}>
+              등록된 반려동물 목록
+            </h3>
+            <span style={{ fontSize: '12px', fontWeight: '700', backgroundColor: '#F3EEFA', color: '#5F50A9', padding: '2px 10px', borderRadius: '20px' }}>
+              {pets.length}마리
+            </span>
+          </div>
+        </div>
         {pets.length === 0 ? (
           <p style={{ color: '#888', marginTop: '15px' }}>등록된 아이가 없습니다. 아래 폼에서 첫 프로필을 등록해보세요!</p>
         ) : (
@@ -706,25 +761,25 @@ function ProfilePage() {
         position: 'relative'
       }}>
         {/* 헤더 영역 */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '28px', flexWrap: 'wrap', gap: '12px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '22px', flexWrap: 'wrap', gap: '12px' }}>
           <div>
             <span style={{ 
               display: 'inline-block', 
               backgroundColor: '#F3EEFA', 
               color: '#5F50A9', 
-              padding: '4px 12px', 
+              padding: '3px 12px', 
               borderRadius: '50px', 
               fontSize: '11px', 
               fontWeight: '800', 
               letterSpacing: '0.8px',
-              marginBottom: '8px'
+              marginBottom: '6px'
             }}>
               {editingPetId ? 'EDIT PROFILE' : 'NEW PROFILE'}
             </span>
-            <h3 style={{ margin: 0, fontSize: '22px', fontWeight: '800', color: '#1e293b', letterSpacing: '-0.3px' }}>
+            <h3 style={{ margin: '0 0 6px 0', fontSize: '20px', fontWeight: '800', color: '#1e293b', letterSpacing: '-0.4px', wordBreak: 'keep-all' }}>
               {editingPetId ? `🐾 ${form.name || '반려동물'} 정보 수정` : '새 반려동물 프로필 등록'}
             </h3>
-            <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#64748b' }}>
+            <p style={{ margin: 0, fontSize: '13.5px', color: '#64748b', wordBreak: 'keep-all', lineHeight: 1.5, letterSpacing: '-0.3px' }}>
               {editingPetId ? '반려동물의 최신 정보와 출입 조건을 업데이트하세요.' : '아이의 체형과 특성에 맞춘 여행지 출입 조건을 똑똑하게 분석해드려요.'}
             </p>
           </div>
@@ -751,18 +806,20 @@ function ProfilePage() {
         
         <form onSubmit={handleAddPet} style={{ display: 'flex', flexDirection: 'column', gap: '26px' }}>
           
-          {/* 1. 프로필 아바타 / 사진 선택 카드 */}
+          {/* 1. 프로필 아바타 / 사진 선택 카드 (가운데 정렬) */}
           <div style={{ 
             backgroundColor: '#f8fafc', 
             borderRadius: '24px', 
-            padding: '20px 24px', 
+            padding: '24px 20px', 
             border: '1px solid #e2e8f0', 
             display: 'flex', 
-            gap: '24px', 
+            flexDirection: 'column',
+            gap: '16px', 
             alignItems: 'center', 
-            flexWrap: 'wrap' 
+            justifyContent: 'center',
+            textAlign: 'center'
           }}>
-            <div style={{ position: 'relative', width: '84px', height: '84px', flexShrink: 0 }}>
+            <div style={{ position: 'relative', width: '84px', height: '84px' }}>
               <div style={{ 
                 width: '100%', 
                 height: '100%', 
@@ -806,14 +863,14 @@ function ProfilePage() {
               </label>
             </div>
 
-            <div style={{ flex: 1, minWidth: '220px' }}>
+            <div>
               <div style={{ marginBottom: '10px' }}>
                 <span style={{ fontSize: '13px', fontWeight: '700', color: '#334155' }}>
                   캐릭터 아이콘 또는 사진 업로드
                 </span>
               </div>
 
-              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap' }}>
                 {defaultIcons.map((icon, idx) => {
                   const isSelected = form.image === icon;
                   return (
@@ -858,48 +915,52 @@ function ProfilePage() {
                 type="button"
                 onClick={() => setForm(prev => ({ ...prev, species: 'DOG' }))}
                 style={{
-                  padding: '14px',
+                  padding: '12px 10px',
                   borderRadius: '16px',
                   border: form.species === 'DOG' ? '2px solid #5F50A9' : '1.5px solid #e2e8f0',
                   backgroundColor: form.species === 'DOG' ? '#5F50A9' : '#f8fafc',
                   color: form.species === 'DOG' ? '#ffffff' : '#475569',
-                  fontWeight: '800',
-                  fontSize: '15px',
                   cursor: 'pointer',
                   display: 'flex',
+                  flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: '8px',
+                  gap: '2px',
                   boxShadow: form.species === 'DOG' ? '0 4px 12px rgba(95, 80, 169, 0.25)' : 'none',
                   transition: 'all 0.2s ease'
                 }}
               >
-                <span>🐶</span>
-                <span>반려견 (강아지)</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <span style={{ fontSize: '18px' }}>🐶</span>
+                  <span style={{ fontSize: '15px', fontWeight: '800' }}>반려견</span>
+                </div>
+                <span style={{ fontSize: '12px', fontWeight: '600', opacity: form.species === 'DOG' ? 0.9 : 0.7 }}>(강아지)</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setForm(prev => ({ ...prev, species: 'CAT' }))}
                 style={{
-                  padding: '14px',
+                  padding: '12px 10px',
                   borderRadius: '16px',
                   border: form.species === 'CAT' ? '2px solid #5F50A9' : '1.5px solid #e2e8f0',
                   backgroundColor: form.species === 'CAT' ? '#5F50A9' : '#f8fafc',
                   color: form.species === 'CAT' ? '#ffffff' : '#475569',
-                  fontWeight: '800',
-                  fontSize: '15px',
                   cursor: 'pointer',
                   display: 'flex',
+                  flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: '8px',
+                  gap: '2px',
                   boxShadow: form.species === 'CAT' ? '0 4px 12px rgba(95, 80, 169, 0.25)' : 'none',
                   transition: 'all 0.2s ease'
                 }}
               >
-                <span>🐱</span>
-                <span>반려묘 (고양이)</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <span style={{ fontSize: '18px' }}>🐱</span>
+                  <span style={{ fontSize: '15px', fontWeight: '800' }}>반려묘</span>
+                </div>
+                <span style={{ fontSize: '12px', fontWeight: '600', opacity: form.species === 'CAT' ? 0.9 : 0.7 }}>(고양이)</span>
               </button>
             </div>
           </div>
@@ -943,7 +1004,7 @@ function ProfilePage() {
                 name="breed" 
                 value={form.breed} 
                 onChange={handleChange} 
-                placeholder="예: 말티즈, 포메라니안, 코숏 (모를 경우 믹스)" 
+                placeholder="예: 말티즈, 포메라니안 (모를 경우 믹스)" 
                 style={{ 
                   width: '100%', 
                   height: '48px', 

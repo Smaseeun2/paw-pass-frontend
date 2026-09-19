@@ -94,7 +94,6 @@ function Footer() {
         borderTop: '1px solid #e2e8f0', 
         padding: '28px 20px', 
         marginTop: 'auto',
-        fontFamily: 'sans-serif',
         width: '100%',
         boxSizing: 'border-box',
         position: 'relative',
@@ -142,7 +141,24 @@ function Footer() {
           <p style={{ fontSize: '13px', color: '#64748b', margin: 0 }}>반려동물과 함께하는 완벽한 여행 설계</p>
           
           <div style={{ display: 'flex', gap: '16px', fontSize: '13px', margin: '10px 0', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
-            <a href="mailto:pawpass.support@gmail.com" style={{ color: '#475569', textDecoration: 'none' }}>제휴 및 문의하기</a>
+            <Link 
+              to="/support" 
+              style={{ color: '#475569', textDecoration: 'none' }}
+              onMouseOver={(e) => { e.currentTarget.style.color = '#1e293b'; }}
+              onMouseOut={(e) => { e.currentTarget.style.color = '#475569'; }}
+            >
+              고객센터
+            </Link>
+
+            <span style={{ color: '#cbd5e1' }}>|</span>
+            <a 
+              href="mailto:pawpass.support@gmail.com" 
+              style={{ color: '#475569', textDecoration: 'none' }}
+              onMouseOver={(e) => { e.currentTarget.style.color = '#1e293b'; }}
+              onMouseOut={(e) => { e.currentTarget.style.color = '#475569'; }}
+            >
+              제휴 및 문의하기
+            </a>
             
             {user && (
               <>
@@ -159,6 +175,8 @@ function Footer() {
                     fontSize: '13px',
                     fontFamily: 'inherit'
                   }}
+                  onMouseOver={(e) => { e.currentTarget.style.color = '#1e293b'; }}
+                  onMouseOut={(e) => { e.currentTarget.style.color = '#475569'; }}
                 >
                   회원탈퇴
                 </button>
@@ -208,8 +226,7 @@ function Footer() {
               textAlign: 'center',
               boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
               position: 'relative',
-              animation: 'modalFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
-              fontFamily: 'sans-serif'
+              animation: 'modalFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1)'
             }}
             onClick={(e) => e.stopPropagation()}
           >

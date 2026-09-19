@@ -1,9 +1,12 @@
 // src/pages/HomePage.jsx
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFavoritesContext as useFavorites } from '../contexts/FavoritesContext';
 import { fetchPetsFromDB, fetchExploreSpots } from '../services/api';
 import LazyImage from '../components/LazyImage';
+import { loadKakaoMapSdk } from '../utils/kakaoMapLoader';
+import { toast } from '../utils/toast';
+import { REGION_OPTIONS, findRegion } from '../constants/regions';
 
 const CATEGORY_OPTIONS = [
   { label: '자연/풍경', value: 'NATURE' },
@@ -13,8 +16,6 @@ const CATEGORY_OPTIONS = [
   { label: '숙박시설', value: 'STAY' },
   { label: '동물병원', value: 'HOSPITAL' }
 ];
-
-import { REGION_OPTIONS } from '../constants/regions';
 
 function HomePage() {
   const navigate = useNavigate();
@@ -48,7 +49,93 @@ function HomePage() {
   });
 
   const [activeDropdown, setActiveDropdown] = useState(null);
+  const [userLocation, setUserLocation] = useState(null);
+  const [isLocating, setIsLocating] = useState(false);
+  const [showLocationModal, setShowLocationModal] = useState(false);
   const dropdownRef = useRef(null);
+
+  // 📍 GPS 기반 현재 내 위치 검색 & 탐색 페이지 이동 핸들러
+  const handleCurrentLocationSearch = useCallback(() => {
+    if (!navigator.geolocation) {
+      toast.error('현재 브라우저에서 위치 정보를 지원하지 않습니다.');
+      setShowLocationModal(false);
+      return;
+    }
+
+    setIsLocating(true);
+    toast.info('현재 위치를 확인 중입니다...');
+
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        setUserLocation({ lat, lng });
+
+        try {
+          await loadKakaoMapSdk();
+          const kakao = window.kakao;
+          if (kakao && kakao.maps && kakao.maps.services) {
+            const geocoder = new kakao.maps.services.Geocoder();
+            geocoder.coord2RegionCode(lng, lat, (result, status) => {
+              setIsLocating(false);
+              setShowLocationModal(false);
+              setActiveDropdown(null);
+
+              if (status === kakao.maps.services.Status.OK && result && result.length > 0) {
+                const regionInfo = result.find(r => r.region_type === 'H') || result[0];
+                const region1Name = regionInfo.region_1depth_name || '';
+                const matched = findRegion(region1Name);
+
+                setSelectedRegionCode(matched.code);
+                setSelectedRegionName(`📍 ${matched.label}`);
+
+                toast.success(`현재 위치(${regionInfo.address_name || matched.fullName}) 기준으로 관광지를 탐색합니다.`);
+
+                navigate('/search', {
+                  state: {
+                    regionCode: matched.code,
+                    region: matched.label,
+                    category: selectedType,
+                    selectedPetIds,
+                    keyword: keyword.trim()
+                  }
+                });
+              } else {
+                toast.info('내 위치를 확인했습니다.');
+                navigate('/search', {
+                  state: {
+                    category: selectedType,
+                    selectedPetIds,
+                    keyword: keyword.trim()
+                  }
+                });
+              }
+            });
+          } else {
+            setIsLocating(false);
+            setShowLocationModal(false);
+            setActiveDropdown(null);
+          }
+        } catch (err) {
+          console.error('위치 지오코딩 실패:', err);
+          setIsLocating(false);
+          setShowLocationModal(false);
+          setActiveDropdown(null);
+        }
+      },
+      (err) => {
+        setIsLocating(false);
+        setShowLocationModal(false);
+        console.warn('위치 권한 오류:', err);
+        if (err.code === 1) {
+          toast.error('위치 권한이 차단되었습니다. 브라우저 위치 권한을 허용해주세요.');
+        } else {
+          toast.error('위치 정보를 가져올 수 없습니다. 다시 시도해주세요.');
+        }
+      },
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
+    );
+  }, [selectedType, selectedPetIds, keyword, navigate]);
 
   // 1. 로그인 유저 반려동물 로드 및 대표 펫 자동 지정 (폴백 처리 포함)
   useEffect(() => {
@@ -218,40 +305,14 @@ function HomePage() {
     return parts.length > 0 ? parts.join(' + ') : '반려동물 선택';
   };
 
-  const scrollToSearchBar = () => {
+  const scrollToSearchBar = useCallback(() => {
     if (dropdownRef.current) {
       const rect = dropdownRef.current.getBoundingClientRect();
       const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-      const targetY = Math.max(0, rect.top + scrollTop - 80);
-      const startY = scrollTop;
-      const distance = targetY - startY;
-
-      if (Math.abs(distance) < 15) return;
-
-      const duration = 750; // 0.75초 동안 부드럽게 감속
-      let startTime = null;
-
-      // 부드러운 시작과 감속 (EaseInOutCubic)
-      const easeInOutCubic = (t) => {
-        return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-      };
-
-      const animationStep = (currentTime) => {
-        if (!startTime) startTime = currentTime;
-        const elapsed = currentTime - startTime;
-        const progress = Math.min(elapsed / duration, 1);
-        const eased = easeInOutCubic(progress);
-
-        window.scrollTo(0, startY + distance * eased);
-
-        if (progress < 1) {
-          window.requestAnimationFrame(animationStep);
-        }
-      };
-
-      window.requestAnimationFrame(animationStep);
+      const targetY = Math.max(0, rect.top + scrollTop - 70);
+      window.scrollTo({ top: targetY, behavior: 'smooth' });
     }
-  };
+  }, []);
 
   return (
     <>
@@ -263,41 +324,45 @@ function HomePage() {
         opacity: 0.35,
         pointerEvents: 'none'
       }} />
-      <div style={{ fontFamily: 'sans-serif', paddingBottom: '24px', position: 'relative', zIndex: 1 }}>
+      <div style={{ paddingBottom: '24px', position: 'relative', zIndex: 1 }}>
       
       {/* 1. 히어로 섹션 & 떠 있는 검색창 */}
       <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto', position: 'relative' }}>
-        <div style={{ 
-          width: '100%', 
-          height: '460px', 
-          borderRadius: '32px', 
-          backgroundImage: 'linear-gradient(to bottom, rgba(30, 20, 60, 0.28) 0%, rgba(0, 0, 0, 0.15) 50%, rgba(15, 23, 42, 0.45) 100%), url(/hero-banner.jpg)', 
-          backgroundSize: 'cover', 
-          backgroundPosition: 'center 45%',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: '#fff',
-          position: 'relative',
-          overflow: 'visible'
-        }}>
+        <div 
+          className="hero-banner-container"
+          style={{ 
+            width: '100%', 
+            height: '460px', 
+            borderRadius: '32px', 
+            backgroundImage: 'linear-gradient(to bottom, rgba(30, 20, 60, 0.32) 0%, rgba(0, 0, 0, 0.1) 40%, rgba(15, 23, 42, 0.35) 100%), url(/hero-banner.jpg)', 
+            backgroundSize: 'cover', 
+            backgroundPosition: 'center 30%',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'flex-start',
+            paddingTop: '36px',
+            color: '#fff',
+            position: 'relative',
+            overflow: 'visible'
+          }}
+        >
           <span style={{ 
-            fontSize: '13px', 
+            fontSize: '11px', 
             fontWeight: '800', 
-            letterSpacing: '1.2px', 
-            marginBottom: '12px', 
+            letterSpacing: '0.8px', 
+            marginBottom: '10px', 
             color: '#fff', 
-            backgroundColor: 'rgba(95, 80, 169, 0.75)', 
-            padding: '5px 16px', 
+            backgroundColor: 'rgba(95, 80, 169, 0.85)', 
+            padding: '3px 12px', 
             borderRadius: '50px', 
-            boxShadow: '0 2px 10px rgba(0,0,0,0.15)',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
             backdropFilter: 'blur(6px)'
           }}>
             All you need is PawPass
           </span>
-          <h1 style={{ fontSize: '46px', fontWeight: '900', margin: '0 0 14px 0', textShadow: '0 3px 18px rgba(0, 0, 0, 0.7), 0 1px 4px rgba(0, 0, 0, 0.5)', letterSpacing: '-0.5px' }}>우리 아이와 함께 여행을 떠나볼까요?</h1>
-          <p style={{ fontSize: '18px', fontWeight: '700', textShadow: '0 2px 12px rgba(0, 0, 0, 0.7), 0 1px 4px rgba(0, 0, 0, 0.5)', margin: 0 }}>우리 아이와 딱 맞는 여행지를 찾아보세요</p>
+          <h1 style={{ fontSize: '44px', fontWeight: '900', margin: '0 0 10px 0', textShadow: '0 3px 18px rgba(0, 0, 0, 0.7), 0 1px 4px rgba(0, 0, 0, 0.5)', letterSpacing: '-0.5px' }}>우리 아이와 함께 여행을 떠나볼까요?</h1>
+          <p style={{ fontSize: '17px', fontWeight: '700', textShadow: '0 2px 12px rgba(0, 0, 0, 0.7), 0 1px 4px rgba(0, 0, 0, 0.5)', margin: 0 }}>우리 아이와 딱 맞는 여행지를 찾아보세요</p>
         
           {/* 플로팅 검색창 (모던 웹 Pill 스타일 - 비례 확대) */}
           <div 
@@ -306,7 +371,7 @@ function HomePage() {
             onClick={scrollToSearchBar}
             style={{ 
               position: 'absolute',
-              bottom: '-48px',
+              bottom: '-52px',
               left: '50%',
               transform: 'translateX(-50%)',
               backgroundColor: '#ffffff',
@@ -349,8 +414,7 @@ function HomePage() {
                 type="text"
                 value={keyword}
                 onChange={(e) => setKeyword(e.target.value)}
-                onFocus={scrollToSearchBar}
-                onClick={(e) => { e.stopPropagation(); scrollToSearchBar(); }}
+                onClick={(e) => { e.stopPropagation(); }}
                 onKeyDown={(e) => { if (e.key === 'Enter') handleSearch(); }}
                 placeholder={randomPlaceholder}
                 style={{ 
@@ -388,16 +452,55 @@ function HomePage() {
               </div>
               
               {activeDropdown === 'region' && (
-                <div style={{ position: 'absolute', top: '64px', left: 0, width: '280px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '18px', boxShadow: '0 16px 36px rgba(0,0,0,0.14)', zIndex: 10, padding: '8px', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }}>
-                  {REGION_OPTIONS.map(r => (
-                    <div 
-                      key={r.code || 'all'}
-                      onClick={(e) => { e.stopPropagation(); setSelectedRegionCode(r.code); setSelectedRegionName(r.code ? r.label : ''); setActiveDropdown(null); }}
-                      style={{ padding: '8px 4px', fontSize: '13px', borderRadius: '10px', cursor: 'pointer', textAlign: 'center', backgroundColor: selectedRegionCode === r.code ? '#5F50A9' : 'transparent', color: selectedRegionCode === r.code ? '#fff' : '#334155', fontWeight: selectedRegionCode === r.code ? 'bold' : '600', transition: 'all 0.15s' }}
-                    >
-                      {r.label}
-                    </div>
-                  ))}
+                <div style={{ position: 'absolute', top: '64px', left: 0, width: '280px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '18px', boxShadow: '0 16px 36px rgba(0,0,0,0.14)', zIndex: 10, padding: '10px', boxSizing: 'border-box' }}>
+                  {/* 📍 현재 내 위치 GPS 버튼 */}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveDropdown(null);
+                      setShowLocationModal(true);
+                    }}
+                    disabled={isLocating}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      marginBottom: '8px',
+                      backgroundColor: '#F3EEFA',
+                      color: '#5F50A9',
+                      border: '1.5px solid rgba(95, 80, 169, 0.25)',
+                      borderRadius: '12px',
+                      fontSize: '13px',
+                      fontWeight: '800',
+                      cursor: isLocating ? 'wait' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      boxShadow: '0 2px 6px rgba(95, 80, 169, 0.08)',
+                      transition: 'all 0.2s ease',
+                      opacity: isLocating ? 0.7 : 1
+                    }}
+                    onMouseOver={(e) => { if (!isLocating) { e.currentTarget.style.backgroundColor = '#EAE1F7'; } }}
+                    onMouseOut={(e) => { if (!isLocating) { e.currentTarget.style.backgroundColor = '#F3EEFA'; } }}
+                  >
+                    <span style={{ fontSize: '15px' }}>📍</span>
+                    <span>{isLocating ? '현재 위치 확인 중...' : '현재 내 위치로 검색'}</span>
+                  </button>
+
+                  <div style={{ height: '1px', backgroundColor: '#f1f5f9', marginBottom: '8px' }} />
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }}>
+                    {REGION_OPTIONS.map(r => (
+                      <div 
+                        key={r.code || 'all'}
+                        onClick={(e) => { e.stopPropagation(); setSelectedRegionCode(r.code); setSelectedRegionName(r.code ? r.label : ''); setActiveDropdown(null); }}
+                        style={{ padding: '8px 4px', fontSize: '13px', borderRadius: '10px', cursor: 'pointer', textAlign: 'center', backgroundColor: selectedRegionCode === r.code ? '#5F50A9' : 'transparent', color: selectedRegionCode === r.code ? '#fff' : '#334155', fontWeight: selectedRegionCode === r.code ? 'bold' : '600', transition: 'all 0.15s' }}
+                      >
+                        {r.label}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
@@ -470,19 +573,37 @@ function HomePage() {
                   {myPets.length > 0 && (
                     <div style={{ marginBottom: '12px' }}>
                       <div style={{ fontSize: '11.5px', fontWeight: 'bold', color: '#64748b', marginBottom: '6px' }}>등록된 우리 아이</div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '120px', overflowY: 'auto' }}>
-                        {myPets.map((pet) => (
-                          <div 
-                            key={pet.id} 
-                            onClick={(e) => handlePetToggle(pet.id, e)}
-                            style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '7px 10px', borderRadius: '10px', cursor: 'pointer', backgroundColor: selectedPetIds.includes(pet.id) ? 'rgba(95, 80, 169, 0.1)' : '#f8fafc', border: selectedPetIds.includes(pet.id) ? '1px solid #5F50A9' : '1px solid #e2e8f0' }}
-                          >
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <p style={{ margin: 0, fontWeight: 'bold', fontSize: '12.5px', color: selectedPetIds.includes(pet.id) ? '#5F50A9' : '#333' }}>{pet.name}</p>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', maxHeight: '140px', overflowY: 'auto' }}>
+                        {myPets.map((pet) => {
+                          const petImg = pet.profile_image || pet.imageUrl || pet.image || pet.photo;
+                          return (
+                            <div 
+                              key={pet.id} 
+                              onClick={(e) => handlePetToggle(pet.id, e)}
+                              style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '7px 10px', borderRadius: '10px', cursor: 'pointer', backgroundColor: selectedPetIds.includes(pet.id) ? 'rgba(95, 80, 169, 0.1)' : '#f8fafc', border: selectedPetIds.includes(pet.id) ? '1px solid #5F50A9' : '1px solid #e2e8f0' }}
+                            >
+                              {petImg ? (
+                                <img 
+                                  src={petImg} 
+                                  alt={pet.name} 
+                                  onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                                  style={{ width: '28px', height: '28px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '1px solid #e2e8f0' }} 
+                                />
+                              ) : (
+                                <div style={{ width: '28px', height: '28px', borderRadius: '50%', backgroundColor: '#F3EEFA', color: '#5F50A9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', flexShrink: 0 }}>
+                                  🐶
+                                </div>
+                              )}
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <p style={{ margin: 0, fontWeight: 'bold', fontSize: '12.5px', color: selectedPetIds.includes(pet.id) ? '#5F50A9' : '#333', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                  {pet.name}
+                                  {pet.breed && <span style={{ fontSize: '10.5px', color: '#64748b', fontWeight: 'normal', marginLeft: '4px' }}>({pet.breed})</span>}
+                                </p>
+                              </div>
+                              <span style={{ color: '#5F50A9', fontWeight: 'bold', fontSize: '12.5px' }}>{selectedPetIds.includes(pet.id) ? '✓' : ''}</span>
                             </div>
-                            <span style={{ color: '#5F50A9', fontWeight: 'bold', fontSize: '12.5px' }}>{selectedPetIds.includes(pet.id) ? '✓' : ''}</span>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   )}
@@ -507,24 +628,26 @@ function HomePage() {
             {/* 검색 버튼 */}
             <button 
               onClick={handleSearch} 
+              className="home-search-submit-btn"
               style={{ 
-                width: '54px', 
-                height: '54px', 
-                minWidth: '54px',
+                height: '52px', 
+                padding: '0 20px 0 18px',
                 backgroundColor: '#5F50A9', 
                 color: 'white', 
                 border: 'none', 
-                borderRadius: '50%', 
+                borderRadius: '50px', 
                 cursor: 'pointer', 
                 display: 'flex', 
                 alignItems: 'center', 
                 justifyContent: 'center',
+                gap: '8px',
                 marginLeft: '8px', 
                 boxShadow: '0 4px 16px rgba(95, 80, 169, 0.4)',
-                transition: 'transform 0.2s ease, box-shadow 0.2s ease'
+                transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                flexShrink: 0
               }}
               onMouseOver={(e) => {
-                e.currentTarget.style.transform = 'scale(1.06)';
+                e.currentTarget.style.transform = 'scale(1.04)';
                 e.currentTarget.style.boxShadow = '0 6px 20px rgba(95, 80, 169, 0.5)';
               }}
               onMouseOut={(e) => {
@@ -532,7 +655,10 @@ function HomePage() {
                 e.currentTarget.style.boxShadow = '0 4px 16px rgba(95, 80, 169, 0.4)';
               }}
             >
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <span style={{ fontSize: '15px', fontWeight: '800', letterSpacing: '-0.2px', whiteSpace: 'nowrap' }}>
+                관광지 찾기
+              </span>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="11" cy="11" r="8"></circle>
                 <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
               </svg>
@@ -618,81 +744,149 @@ function HomePage() {
             </span>
           </div>
 
-          <div style={{ 
-            display: 'flex', 
-            gap: '6px', 
-            width: '100%',
-            overflowX: 'auto',
-            scrollbarWidth: 'none',
-            msOverflowStyle: 'none'
-          }}>
-            {REGION_OPTIONS.map(r => {
-              const displayLabel = r.code === '' ? '전체' : r.label;
-              return (
-                <button
-                  key={r.code || 'all'}
-                  type="button"
-                  onClick={() => {
-                    navigate('/search', {
-                      state: {
-                        regionCode: r.code,
-                        region: r.code ? r.label : '',
-                        selectedPetIds
-                      }
-                    });
-                  }}
-                  style={{
-                    flex: '1 1 0px',
-                    minWidth: '50px',
-                    padding: '9px 0',
-                    textAlign: 'center',
-                    whiteSpace: 'nowrap',
-                    borderRadius: '50px',
-                    border: '1.5px solid #e2e8f0',
-                    backgroundColor: '#f8fafc',
-                    color: '#334155',
-                    fontSize: displayLabel.length > 3 ? '11px' : '12.5px',
-                    fontWeight: '700',
-                    cursor: 'pointer',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
-                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
-                  }}
-                  onMouseOver={(e) => {
-                    e.currentTarget.style.backgroundColor = '#5F50A9';
-                    e.currentTarget.style.color = '#ffffff';
-                    e.currentTarget.style.borderColor = '#5F50A9';
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(95, 80, 169, 0.3)';
-                  }}
-                  onMouseOut={(e) => {
-                    e.currentTarget.style.backgroundColor = '#f8fafc';
-                    e.currentTarget.style.color = '#334155';
-                    e.currentTarget.style.borderColor = '#e2e8f0';
-                    e.currentTarget.style.transform = 'none';
-                    e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.02)';
-                  }}
-                >
-                  {displayLabel}
-                </button>
-              );
-            })}
+          <div style={{ position: 'relative', width: '100%' }}>
+            <div 
+              className="region-scroll-container"
+              style={{ 
+                display: 'flex', 
+                gap: '6px', 
+                width: '100%',
+                overflowX: 'auto',
+                scrollbarWidth: 'none',
+                msOverflowStyle: 'none',
+                WebkitOverflowScrolling: 'touch'
+              }}
+            >
+              {REGION_OPTIONS.map(r => {
+                const displayLabel = r.code === '' ? '전체' : r.label;
+                return (
+                  <button
+                    key={r.code || 'all'}
+                    type="button"
+                    onClick={() => {
+                      navigate('/search', {
+                        state: {
+                          regionCode: r.code,
+                          region: r.code ? r.label : '',
+                          selectedPetIds
+                        }
+                      });
+                    }}
+                    style={{
+                      flex: '1 1 0px',
+                      minWidth: '52px',
+                      padding: '9px 4px',
+                      textAlign: 'center',
+                      whiteSpace: 'nowrap',
+                      borderRadius: '50px',
+                      border: '1.5px solid #e2e8f0',
+                      backgroundColor: '#f8fafc',
+                      color: '#334155',
+                      fontSize: displayLabel.length > 3 ? '12px' : '13px',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
+                      transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+                    }}
+                    onMouseOver={(e) => {
+                      e.currentTarget.style.backgroundColor = '#5F50A9';
+                      e.currentTarget.style.color = '#ffffff';
+                      e.currentTarget.style.borderColor = '#5F50A9';
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(95, 80, 169, 0.3)';
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.style.backgroundColor = '#f8fafc';
+                      e.currentTarget.style.color = '#334155';
+                      e.currentTarget.style.borderColor = '#e2e8f0';
+                      e.currentTarget.style.transform = 'none';
+                      e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.02)';
+                    }}
+                  >
+                    {displayLabel}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* 웹(PC)에서는 숨기고 모바일에서만 노출되는 넘김 인디케이터 */}
+            <div 
+              className="home-region-scroll-fade"
+              style={{
+                position: 'absolute',
+                top: 0,
+                right: 0,
+                bottom: 0,
+                width: '45px',
+                background: 'linear-gradient(to right, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.85) 50%, rgba(255, 255, 255, 1) 100%)',
+                pointerEvents: 'none',
+                display: 'none',
+                alignItems: 'center',
+                justifyContent: 'flex-end',
+                paddingRight: '6px',
+                borderRadius: '0 20px 20px 0'
+              }}
+            >
+              <span style={{ fontSize: '14px', color: '#5F50A9', fontWeight: '900', opacity: 0.75 }}>›</span>
+            </div>
           </div>
         </div>
       </div>
 
 {/* 4. 실시간 추천 관광지 카드 (레퍼런스 스타일) */}
       <div style={{ maxWidth: '1200px', margin: '40px auto 0 auto', padding: '0 20px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-          <div>
-            <h2 style={{ fontSize: '24px', fontWeight: '800', color: '#1e293b', margin: '0 0 8px 0' }}>대한민국 관광지 with PawPass</h2>
-            <p style={{ fontSize: '14px', color: '#64748b', margin: 0 }}>PawPass에 등록된 대한민국 관광지를 소개합니다.</p>
+        <div className="home-recommend-header" style={{ marginBottom: '20px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
+            <div>
+              <h2 style={{ fontSize: '24px', fontWeight: '800', color: '#1e293b', margin: '0 0 2px 0', lineHeight: 1.25 }}>
+                <div>대한민국 관광지</div>
+                <div style={{ 
+                  fontSize: '20px', 
+                  fontWeight: '900', 
+                  background: 'linear-gradient(135deg, #5F50A9 0%, #E26895 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  marginTop: '2px'
+                }}>
+                  with PawPass
+                </div>
+              </h2>
+            </div>
+            
+            <button 
+              onClick={() => navigate('/search')} 
+              className="home-more-spots-btn"
+              style={{ 
+                background: '#5F50A9', 
+                border: 'none', 
+                color: '#fff', 
+                padding: '9px 18px', 
+                borderRadius: '50px', 
+                cursor: 'pointer', 
+                fontWeight: 'bold', 
+                fontSize: '13px', 
+                boxShadow: '0 4px 14px rgba(95, 80, 169, 0.25)', 
+                transition: 'all 0.2s ease',
+                whiteSpace: 'nowrap',
+                flexShrink: 0,
+                marginTop: '4px'
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.backgroundColor = '#4c3d8f';
+                e.currentTarget.style.transform = 'translateY(-1px)';
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.backgroundColor = '#5F50A9';
+                e.currentTarget.style.transform = 'none';
+              }}
+            >
+              더 보기 →
+            </button>
           </div>
-          <button 
-            onClick={() => navigate('/search')} 
-            style={{ background: '#5F50A9', border: 'none', color: '#fff', padding: '10px 24px', borderRadius: '50px', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px', boxShadow: '0 4px 14px rgba(95, 80, 169, 0.3)', transition: 'all 0.2s ease' }}
-          >
-            더 보기 →
-          </button>
+
+          <p style={{ fontSize: '13.5px', color: '#64748b', margin: '6px 0 0 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            PawPass에 등록된 대한민국 관광지를 소개합니다.
+          </p>
         </div>
 
         {isLoadingSpots ? (
@@ -732,13 +926,13 @@ function HomePage() {
                     </button>
                   </div>
                   <div style={{ padding: '0' }}>
-                    <h4 style={{ margin: '0 0 6px 0', fontSize: '16px', fontWeight: '700', color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{spot.name}</h4>
-                    <p style={{ margin: '0 0 12px 0', fontSize: '12px', color: '#94a3b8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>📍 {spot.address}</p>
+                    <h4 style={{ margin: '0 0 6px 0', fontSize: '17px', fontWeight: '800', color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{spot.name}</h4>
+                    <p style={{ margin: '0 0 12px 0', fontSize: '13.5px', color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>📍 {spot.address}</p>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: '11px', padding: '4px 8px', borderRadius: '6px', fontWeight: 'bold', backgroundColor: '#f1f5f9', color: '#64748b' }}>
+                      <span style={{ fontSize: '12.5px', padding: '4px 10px', borderRadius: '8px', fontWeight: '800', backgroundColor: '#f1f5f9', color: '#475569' }}>
                         {spot.matchStatus}
                       </span>
-                      <span style={{ color: '#5F50A9', fontSize: '13px', fontWeight: 'bold' }}>자세히 보기 →</span>
+                      <span style={{ color: '#5F50A9', fontSize: '14px', fontWeight: '800' }}>자세히 보기 →</span>
                     </div>
                   </div>
                 </div>
@@ -749,8 +943,145 @@ function HomePage() {
       </div>
 
       </div>
+
+      {/* 📍 위치 정보 제공 권한 동의 안내 모달 (중앙 팝업) */}
+      {showLocationModal && (
+        <div 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(6px)',
+            WebkitBackdropFilter: 'blur(6px)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px',
+            animation: 'modalBackdropFade 0.2s ease-out'
+          }}
+          onClick={() => setShowLocationModal(false)}
+        >
+          <div 
+            style={{
+              backgroundColor: '#ffffff',
+              borderRadius: '28px',
+              maxWidth: '380px',
+              width: '100%',
+              padding: '30px 24px 24px 24px',
+              textAlign: 'center',
+              boxShadow: '0 25px 60px rgba(0, 0, 0, 0.28)',
+              position: 'relative',
+              animation: 'modalCardPop 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+              boxSizing: 'border-box'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <style>{`
+              @keyframes modalBackdropFade {
+                from { opacity: 0; }
+                to { opacity: 1; }
+              }
+              @keyframes modalCardPop {
+                from { opacity: 0; transform: scale(0.92) translateY(12px); }
+                to { opacity: 1; transform: scale(1) translateY(0); }
+              }
+            `}</style>
+
+            {/* 상단 핀 아이콘 */}
+            <div style={{
+              width: '64px',
+              height: '64px',
+              borderRadius: '50%',
+              backgroundColor: '#F3EEFA',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 16px auto',
+              fontSize: '32px',
+              boxShadow: '0 6px 16px rgba(95, 80, 169, 0.15)'
+            }}>
+              📍
+            </div>
+
+            <h3 style={{ fontSize: '19px', fontWeight: '800', color: '#1e293b', margin: '0 0 10px 0', letterSpacing: '-0.3px' }}>
+              현재 위치로 관광지 탐색
+            </h3>
+
+            <p style={{ fontSize: '13.5px', color: '#64748b', lineHeight: '1.65', margin: '0 0 24px 0', wordBreak: 'keep-all' }}>
+              현재 계신 위치를 기반으로 <strong style={{ color: '#5F50A9' }}>가장 가까운 반려동물 동반 장소</strong>를 추천해 드립니다.<br/>
+              위치 정보 제공을 허용하시겠습니까?
+            </p>
+
+            {/* 액션 버튼 그룹 */}
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                type="button"
+                onClick={() => setShowLocationModal(false)}
+                disabled={isLocating}
+                style={{
+                  flex: 1,
+                  padding: '12px 0',
+                  backgroundColor: '#f1f5f9',
+                  color: '#64748b',
+                  border: 'none',
+                  borderRadius: '50px',
+                  fontSize: '14px',
+                  fontWeight: '700',
+                  cursor: isLocating ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseOver={(e) => !isLocating && (e.currentTarget.style.backgroundColor = '#e2e8f0')}
+                onMouseOut={(e) => !isLocating && (e.currentTarget.style.backgroundColor = '#f1f5f9')}
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={handleCurrentLocationSearch}
+                disabled={isLocating}
+                style={{
+                  flex: 1.5,
+                  padding: '12px 0',
+                  backgroundColor: '#5F50A9',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '50px',
+                  fontSize: '14px',
+                  fontWeight: '700',
+                  cursor: isLocating ? 'wait' : 'pointer',
+                  boxShadow: '0 6px 18px rgba(95, 80, 169, 0.35)',
+                  transition: 'all 0.2s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px'
+                }}
+                onMouseOver={(e) => !isLocating && (e.currentTarget.style.transform = 'translateY(-2px)')}
+                onMouseOut={(e) => !isLocating && (e.currentTarget.style.transform = 'none')}
+              >
+                {isLocating ? (
+                  <>
+                    <span>⏳</span>
+                    <span>위치 확인 중...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>위치 공유 및 검색</span>
+                    <span>🐾</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
 
 export default HomePage;
+

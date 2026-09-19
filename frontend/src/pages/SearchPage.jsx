@@ -108,14 +108,31 @@ function DrawerContent({ spot, onClose, navigate, user, myPets, selectedPetIds =
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative', overflow: 'hidden' }}>
       
       {/* 1. 스크롤 가능한 본문 영역 */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '24px 28px 24px 28px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      <div 
+        id="pawpass-drawer-scroll-container"
+        style={{ flex: 1, overflowY: 'auto', padding: '16px 24px 30px 24px', display: 'flex', flexDirection: 'column', gap: '18px' }}
+      >
         
+        {/* 모바일 바텀시트 드래그 핸들 (모바일에서만 시각적 가이드) */}
+        <div 
+          onClick={onClose}
+          style={{ 
+            width: '40px', 
+            height: '4.5px', 
+            backgroundColor: '#cbd5e1', 
+            borderRadius: '10px', 
+            margin: '0 auto 6px auto', 
+            cursor: 'pointer',
+            flexShrink: 0
+          }} 
+        />
+
         {/* 상단 액션 바 (카테고리 뱃지 & 원형 닫기 버튼) */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ 
-            fontSize: '11px', 
+            fontSize: '11.5px', 
             fontWeight: '800', 
-            letterSpacing: '0.6px', 
+            letterSpacing: '0.5px', 
             backgroundColor: '#F3EEFA', 
             color: '#5F50A9', 
             padding: '5px 14px', 
@@ -125,28 +142,36 @@ function DrawerContent({ spot, onClose, navigate, user, myPets, selectedPetIds =
           </span>
           
           <button 
+            type="button"
             onClick={onClose}
             aria-label="닫기"
+            className="drawer-close-circle-btn"
             style={{ 
               background: '#f1f5f9', 
               border: 'none', 
-              color: '#475569', 
+              color: '#334155', 
               cursor: 'pointer', 
               width: '36px', 
               height: '36px', 
+              minWidth: '36px',
+              minHeight: '36px',
+              maxWidth: '36px',
+              maxHeight: '36px',
+              padding: 0,
               borderRadius: '50%', 
               display: 'flex', 
               alignItems: 'center', 
               justifyContent: 'center', 
-              boxShadow: '0 2px 6px rgba(0,0,0,0.04)',
-              transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)' 
+              boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
+              transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+              flexShrink: 0
             }}
             onMouseOver={(e) => { e.currentTarget.style.backgroundColor = '#e2e8f0'; e.currentTarget.style.transform = 'scale(1.08)'; }}
             onMouseOut={(e) => { e.currentTarget.style.backgroundColor = '#f1f5f9'; e.currentTarget.style.transform = 'none'; }}
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M18 6L6 18"></path>
-              <path d="M6 6l12 12"></path>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
             </svg>
           </button>
         </div>
@@ -373,15 +398,18 @@ function DrawerContent({ spot, onClose, navigate, user, myPets, selectedPetIds =
         </div>
       </div>
 
-      {/* 2. 패널 하단에 항상 고정된 플로팅 액션 바 (스크롤 불필요) */}
-      <div style={{ 
-        padding: '16px 28px 24px 28px', 
-        backgroundColor: '#ffffff', 
-        borderTop: '1px solid #f1f5f9', 
-        boxShadow: '0 -8px 24px rgba(0,0,0,0.06)',
-        zIndex: 10,
-        flexShrink: 0
-      }}>
+      {/* 2. 패널 하단에 항상 고정된 플로팅 액션 바 (네비게이션 위에 항상 노출) */}
+      <div 
+        className="drawer-bottom-action-bar"
+        style={{ 
+          padding: '14px 24px 20px 24px', 
+          backgroundColor: '#ffffff', 
+          borderTop: '1px solid #f1f5f9', 
+          boxShadow: '0 -8px 24px rgba(0,0,0,0.06)',
+          zIndex: 20,
+          flexShrink: 0
+        }}
+      >
         <button 
           type="button"
           onClick={() => {
@@ -390,7 +418,7 @@ function DrawerContent({ spot, onClose, navigate, user, myPets, selectedPetIds =
           }}
           style={{ 
             width: '100%', 
-            height: '52px',
+            height: '50px',
             padding: '0 24px', 
             backgroundColor: '#5F50A9', 
             color: 'white', 
@@ -883,18 +911,21 @@ function SearchMapView({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      <div style={{
-        display: 'flex',
-        flexDirection: 'row',
-        gap: '14px',
-        height: '500px',
-        backgroundColor: '#ffffff',
-        borderRadius: '24px',
-        overflow: 'hidden',
-        boxShadow: '0 10px 30px rgba(0,0,0,0.06)',
-        border: '1px solid #e2e8f0',
-        position: 'relative'
-      }}>
+      <div 
+        className="search-map-view-container"
+        style={{
+          display: 'flex',
+          flexDirection: 'row',
+          gap: '14px',
+          height: '500px',
+          backgroundColor: '#ffffff',
+          borderRadius: '24px',
+          overflow: 'hidden',
+          boxShadow: '0 10px 30px rgba(0,0,0,0.06)',
+          border: '1px solid #e2e8f0',
+          position: 'relative'
+        }}
+      >
       <style>{`
         @keyframes user-loc-pulse {
           0% { transform: scale(1); opacity: 0.9; }
@@ -902,17 +933,20 @@ function SearchMapView({
         }
       `}</style>
       {/* 1. 좌측 관광지 미니 리스트 패널 */}
-      <div style={{
-        width: '290px',
-        minWidth: '260px',
-        height: '100%',
-        overflowY: 'auto',
-        borderRight: '1px solid #f1f5f9',
-        backgroundColor: '#fafbfc',
-        display: 'flex',
-        flexDirection: 'column',
-        boxSizing: 'border-box'
-      }}>
+      <div 
+        className="search-map-places-list"
+        style={{
+          width: '290px',
+          minWidth: '260px',
+          height: '100%',
+          overflowY: 'auto',
+          borderRight: '1px solid #f1f5f9',
+          backgroundColor: '#fafbfc',
+          display: 'flex',
+          flexDirection: 'column',
+          boxSizing: 'border-box'
+        }}
+      >
         <div style={{ padding: '14px 16px', backgroundColor: '#ffffff', borderBottom: '1px solid #f1f5f9', position: 'sticky', top: 0, zIndex: 5 }}>
           <span style={{ fontSize: '13px', fontWeight: '800', color: '#1e293b', display: 'block', marginBottom: '4px' }}>
             📍 지도 표시 장소 ({spots.length}개)
@@ -1025,20 +1059,22 @@ function SearchMapView({
       </div>
 
       {/* 2. 우측 메인 인터랙티브 지도 */}
-      <div style={{ flex: 1, height: '100%', position: 'relative' }}>
+      <div className="search-map-wrapper" style={{ flex: 1, height: '100%', position: 'relative' }}>
         <div ref={mapContainerRef} style={{ width: '100%', height: '100%' }} />
 
         {/* 지도 위 플로팅 장소 프리뷰 팝오버 카드 */}
         {activeSpot && (
-          <div style={{
-            position: 'absolute',
-            bottom: '20px',
-            right: '20px',
-            zIndex: 30,
-            width: '320px',
-            backgroundColor: '#ffffff',
-            borderRadius: '20px',
-            padding: '16px',
+          <div 
+            className="search-map-preview-card"
+            style={{
+              position: 'absolute',
+              bottom: '20px',
+              right: '20px',
+              zIndex: 30,
+              width: '320px',
+              backgroundColor: '#ffffff',
+              borderRadius: '20px',
+              padding: '16px',
             boxShadow: '0 16px 40px rgba(0, 0, 0, 0.18)',
             border: '1px solid rgba(226, 232, 240, 0.95)'
           }}>
@@ -1285,9 +1321,26 @@ function SearchPage() {
   const [userLocation, setUserLocation] = useState(null);
   const [isLocating, setIsLocating] = useState(false);
   const [showLocationModal, setShowLocationModal] = useState(false);
+  const [showStickySearch, setShowStickySearch] = useState(false);
+  const [isStickyCollapsed, setIsStickyCollapsed] = useState(false);
 
   const dropdownRef = useRef(null);
   const observerTarget = useRef(null);
+  const mainSearchPillRef = useRef(null);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (mainSearchPillRef.current) {
+        const rect = mainSearchPillRef.current.getBoundingClientRect();
+        setShowStickySearch(rect.bottom < 50);
+      } else {
+        setShowStickySearch(window.scrollY > 280);
+      }
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
   // 선택된 펫 IDs를 ref에도 동기화 (클로저 캡처 문제 방지 → 검색 시 최신값 보장)
   const selectedPetIdsRef = useRef(selectedPetIds);
   useEffect(() => { selectedPetIdsRef.current = selectedPetIds; }, [selectedPetIds]);
@@ -1368,12 +1421,25 @@ function SearchPage() {
 
   useEffect(() => {
     const handleClickOutside = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
-        setActiveDropdown(null);
+      // 드롭다운 메뉴나 트리거 요소 내부를 클릭한 경우 닫지 않음
+      if (
+        e.target && e.target.closest && (
+          e.target.closest('.search-match-dropdown-menu') ||
+          e.target.closest('.search-match-dropdown-trigger') ||
+          e.target.closest('.modern-search-pill') ||
+          e.target.closest('.sticky-floating-search-bar')
+        )
+      ) {
+        return;
       }
+      setActiveDropdown(null);
     };
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside, { passive: true });
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
   }, []);
 
   useEffect(() => {
@@ -1449,10 +1515,10 @@ function SearchPage() {
 
   useEffect(() => {
     const currentState = location.state || {};
-    const curKeyword = currentState.keyword || searchParams.get('keyword') || '';
-    const curMatchStatus = currentState.matchStatus || searchParams.get('matchStatus') || '';
-    const curRawRegion = currentState.regionCode || currentState.region || searchParams.get('region') || '';
-    const curRawCategory = currentState.category || currentState.type || searchParams.get('category') || '';
+    const curKeyword = searchParams.get('keyword') !== null ? searchParams.get('keyword') : (currentState.keyword || '');
+    const curMatchStatus = searchParams.get('matchStatus') !== null ? searchParams.get('matchStatus') : (currentState.matchStatus || '');
+    const curRawRegion = searchParams.get('region') !== null ? searchParams.get('region') : (currentState.regionCode || currentState.region || '');
+    const curRawCategory = searchParams.get('category') !== null ? searchParams.get('category') : (currentState.category || currentState.type || '');
     
     const curMatchedRegion = findRegion(curRawRegion);
     const curMatchedCategory = CATEGORY_OPTIONS.find(c => c.value === String(curRawCategory) || c.label === String(curRawCategory));
@@ -1713,31 +1779,44 @@ function SearchPage() {
       `}</style>
       
       {/* 상단 모던 히어로 & 플로팅 검색창 */}
-      <div style={{ 
-        textAlign: 'center', 
-        padding: '34px 20px 28px 20px', 
-        background: 'linear-gradient(135deg, rgba(201, 182, 215, 0.45) 0%, rgba(246, 202, 221, 0.35) 35%, rgba(197, 224, 251, 0.45) 70%, rgba(174, 210, 249, 0.4) 100%)',
-        borderRadius: '28px',
-        boxShadow: '0 12px 35px rgba(201, 182, 215, 0.22)',
-        marginBottom: '20px',
-        position: 'relative',
-        zIndex: 50,
-        backdropFilter: 'blur(12px)',
-        border: '1px solid rgba(255, 255, 255, 0.7)'
-      }}>
+      <div 
+        className="search-header-banner"
+        style={{ 
+          textAlign: 'center', 
+          padding: '34px 20px 28px 20px', 
+          background: 'linear-gradient(135deg, rgba(201, 182, 215, 0.45) 0%, rgba(246, 202, 221, 0.35) 35%, rgba(197, 224, 251, 0.45) 70%, rgba(174, 210, 249, 0.4) 100%)',
+          borderRadius: '28px',
+          boxShadow: '0 12px 35px rgba(201, 182, 215, 0.22)',
+          marginBottom: '20px',
+          position: 'relative',
+          zIndex: 50,
+          backdropFilter: 'blur(12px)',
+          border: '1px solid rgba(255, 255, 255, 0.7)'
+        }}
+      >
         <span style={{ fontSize: '12px', fontWeight: '800', letterSpacing: '1.5px', color: '#5F50A9', textTransform: 'uppercase', display: 'inline-block', marginBottom: '10px', backgroundColor: 'rgba(255, 255, 255, 0.85)', padding: '5px 16px', borderRadius: '50px', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
           Explore Destinations
         </span>
-        <h1 style={{ fontSize: '32px', fontWeight: '800', color: '#1e293b', margin: '0 0 8px 0', letterSpacing: '-0.5px' }}>
+        <h1 
+          className="search-header-title"
+          style={{ fontSize: '32px', fontWeight: '800', color: '#1e293b', margin: '0 0 8px 0', letterSpacing: '-0.5px' }}
+        >
           우리 아이 맞춤 관광지 탐색
         </h1>
-        <p style={{ fontSize: '15px', color: '#64748b', margin: '0 0 28px 0' }}>
+        <p 
+          className="search-header-desc"
+          style={{ fontSize: '15px', color: '#64748b', margin: '0 0 28px 0' }}
+        >
           아이와 딱 맞는 관광지를 찾아보세요
         </p>
 
         {/* 플로팅 검색창 (모던 웹 Pill 스타일) */}
         <div 
-          ref={dropdownRef} 
+          ref={(node) => {
+            dropdownRef.current = node;
+            mainSearchPillRef.current = node;
+          }} 
+          className="modern-search-pill"
           style={{ 
             backgroundColor: '#ffffff', 
             borderRadius: '50px', 
@@ -1769,7 +1848,10 @@ function SearchPage() {
           `}</style>
 
           {/* 1. 키워드 / 여행지 */}
-          <div style={{ flex: 1.4, display: 'flex', flexDirection: 'column', justifyContent: 'center', textAlign: 'left', padding: '6px 12px' }}>
+          <div 
+            className="search-segment-btn"
+            style={{ flex: 1.4, display: 'flex', flexDirection: 'column', justifyContent: 'center', textAlign: 'left', padding: '6px 12px' }}
+          >
             <span style={{ fontSize: '11px', fontWeight: '800', color: '#64748b', letterSpacing: '0.4px', textTransform: 'uppercase', marginBottom: '2px' }}>
               여행지
             </span>
@@ -1857,7 +1939,7 @@ function SearchPage() {
                           e.stopPropagation(); 
                           setSelectedRegionCode(r.code); 
                           setSelectedRegionName(r.code ? r.label : ''); 
-                          setActiveDropdown(null);
+                          setActiveDropdown(null); 
                           fetchSpots({
                             regionCode: r.code,
                             category: selectedCategory,
@@ -1909,7 +1991,7 @@ function SearchPage() {
             
             {activeDropdown === 'category' && (
               <div style={{ position: 'absolute', top: '56px', left: 0, width: '220px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '16px', boxShadow: '0 12px 30px rgba(0,0,0,0.12)', zIndex: 100, padding: '8px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px' }}>
-                <div
+                <div 
                   onClick={(e) => { 
                     e.stopPropagation(); 
                     setSelectedCategory(''); 
@@ -1981,20 +2063,38 @@ function SearchPage() {
                 {myPets.length > 0 && (
                   <div style={{ marginBottom: '12px' }}>
                     <div style={{ fontSize: '11px', fontWeight: 'bold', color: '#64748b', marginBottom: '6px' }}>등록된 우리 아이</div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '120px', overflowY: 'auto' }}>
-                      {myPets.map((pet) => (
-                        <div 
-                          key={pet.id} 
-                          onClick={(e) => handlePetToggle(pet.id, e)}
-                          style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 10px', borderRadius: '8px', cursor: 'pointer', backgroundColor: selectedPetIds.includes(pet.id) ? 'rgba(95, 80, 169, 0.1)' : '#f8fafc', border: selectedPetIds.includes(pet.id) ? '1px solid #5F50A9' : '1px solid #e2e8f0' }}
-                        >
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <p style={{ margin: 0, fontWeight: 'bold', fontSize: '12px', color: selectedPetIds.includes(pet.id) ? '#5F50A9' : '#333' }}>{pet.name}</p>
-                          </div>
-                          <span style={{ color: '#5F50A9', fontWeight: 'bold', fontSize: '12px' }}>{selectedPetIds.includes(pet.id) ? '✓' : ''}</span>
-                        </div>
-                      ))}
-                    </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', maxHeight: '140px', overflowY: 'auto' }}>
+                        {myPets.map((pet) => {
+                          const petImg = pet.profile_image || pet.imageUrl || pet.image || pet.photo;
+                          return (
+                            <div 
+                              key={pet.id} 
+                              onClick={(e) => handlePetToggle(pet.id, e)}
+                              style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 10px', borderRadius: '8px', cursor: 'pointer', backgroundColor: selectedPetIds.includes(pet.id) ? 'rgba(95, 80, 169, 0.1)' : '#f8fafc', border: selectedPetIds.includes(pet.id) ? '1px solid #5F50A9' : '1px solid #e2e8f0' }}
+                            >
+                              {petImg ? (
+                                <img 
+                                  src={petImg} 
+                                  alt={pet.name} 
+                                  onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                                  style={{ width: '26px', height: '26px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '1px solid #e2e8f0' }} 
+                                />
+                              ) : (
+                                <div style={{ width: '26px', height: '26px', borderRadius: '50%', backgroundColor: '#F3EEFA', color: '#5F50A9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', flexShrink: 0 }}>
+                                  🐶
+                                </div>
+                              )}
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <p style={{ margin: 0, fontWeight: 'bold', fontSize: '12px', color: selectedPetIds.includes(pet.id) ? '#5F50A9' : '#333', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                  {pet.name}
+                                  {pet.breed && <span style={{ fontSize: '10.5px', color: '#64748b', fontWeight: 'normal', marginLeft: '4px' }}>({pet.breed})</span>}
+                                </p>
+                              </div>
+                              <span style={{ color: '#5F50A9', fontWeight: 'bold', fontSize: '12px' }}>{selectedPetIds.includes(pet.id) ? '✓' : ''}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
                   </div>
                 )}
 
@@ -2019,27 +2119,31 @@ function SearchPage() {
           <button 
             type="button"
             onClick={() => handleSearchButtonClick()} 
+            className="search-submit-pill-btn"
             style={{ 
-              width: '48px', 
-              height: '48px', 
-              minWidth: '48px',
+              height: '46px', 
+              padding: '0 18px 0 16px',
               backgroundColor: '#5F50A9', 
               color: 'white', 
               border: 'none', 
-              borderRadius: '50%', 
+              borderRadius: '50px', 
               cursor: 'pointer', 
               display: 'flex', 
               alignItems: 'center', 
               justifyContent: 'center',
+              gap: '6px',
               marginLeft: '6px', 
               boxShadow: '0 4px 14px rgba(95, 80, 169, 0.35)',
               transition: 'transform 0.2s ease, box-shadow 0.2s ease',
               flexShrink: 0
             }}
-            onMouseOver={(e) => { e.currentTarget.style.transform = 'scale(1.05)'; e.currentTarget.style.boxShadow = '0 6px 18px rgba(95, 80, 169, 0.45)'; }}
+            onMouseOver={(e) => { e.currentTarget.style.transform = 'scale(1.04)'; e.currentTarget.style.boxShadow = '0 6px 18px rgba(95, 80, 169, 0.45)'; }}
             onMouseOut={(e) => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = '0 4px 14px rgba(95, 80, 169, 0.35)'; }}
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <span style={{ fontSize: '14px', fontWeight: '800', letterSpacing: '-0.2px', whiteSpace: 'nowrap' }}>
+              관광지 찾기
+            </span>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="11" cy="11" r="8"></circle>
               <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
             </svg>
@@ -2047,47 +2151,359 @@ function SearchPage() {
         </div>
       </div>
 
-      {/* 방문 판정 필터 버튼 바 & 뷰 모드 전환 토글 (카드형 / 지도형) */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px', marginBottom: '16px', padding: '0 4px' }}>
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: '13px', fontWeight: 'bold', color: '#475569', marginRight: '6px' }}>💡 방문 판정:</span>
-          {MATCH_STATUS_BUTTONS.map((btn) => {
-            const isActive = selectedMatchStatus === btn.value;
-            return (
-              <button
-                key={btn.value || 'all'}
-                type="button"
-                onClick={() => handleMatchStatusButtonClick(btn.value)}
-                style={{
-                  padding: '8px 18px',
-                  borderRadius: '50px',
-                  border: isActive ? 'none' : '1.5px solid #e2e8f0',
-                  backgroundColor: isActive ? '#5F50A9' : '#fff',
-                  color: isActive ? '#fff' : '#475569',
-                  fontWeight: isActive ? 'bold' : 'normal',
-                  fontSize: '13px',
-                  cursor: 'pointer',
-                  boxShadow: isActive ? '0 4px 14px rgba(95, 80, 169, 0.35)' : '0 2px 6px rgba(0,0,0,0.03)',
-                  transition: 'transform 0.2s ease, box-shadow 0.2s ease'
-                }}
-                onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; }}
-                onMouseOut={(e) => { e.currentTarget.style.transform = 'none'; }}
-              >
-                {btn.label}
-              </button>
-            );
-          })}
+      {/* 🚀 스크롤 다운 시 상단 고정 플로팅 검색바 & 하단 중앙 접기(▲) 탭 */}
+      {showStickySearch && (
+        !isStickyCollapsed ? (
+          <div 
+            className="sticky-search-wrapper"
+            style={{
+              position: 'fixed',
+              top: '64px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              width: '94%',
+              maxWidth: '860px',
+              zIndex: 990,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              pointerEvents: 'none',
+              animation: 'stickySearchSlideDown 0.25s cubic-bezier(0.16, 1, 0.3, 1)'
+            }}
+          >
+            <style>{`
+              @keyframes stickySearchSlideDown {
+                from { opacity: 0; transform: translate(-50%, -15px); }
+                to { opacity: 1; transform: translate(-50%, 0); }
+              }
+            `}</style>
+            <div 
+              className="sticky-floating-search-bar"
+              style={{
+                pointerEvents: 'auto',
+                width: '100%',
+                backgroundColor: '#ffffff',
+                borderRadius: '50px',
+                padding: '6px 10px 6px 20px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                boxShadow: '0 12px 35px rgba(95, 80, 169, 0.22), 0 4px 12px rgba(0, 0, 0, 0.08)',
+                border: '1.5px solid rgba(201, 182, 215, 0.85)',
+                boxSizing: 'border-box'
+              }}
+            >
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                <span style={{ fontSize: '15px' }}>🔍</span>
+                <input
+                  type="text"
+                  value={keyword}
+                  onChange={(e) => setKeyword(e.target.value)}
+                  onKeyDown={(e) => { 
+                    if (e.key === 'Enter') {
+                      if (e.nativeEvent.isComposing) return;
+                      handleSearchButtonClick(); 
+                    }
+                  }}
+                  placeholder={randomPlaceholder}
+                  style={{
+                    flex: 1,
+                    border: 'none',
+                    outline: 'none',
+                    fontSize: '14px',
+                    fontWeight: '700',
+                    color: '#1e293b',
+                    background: 'transparent',
+                    minWidth: '100px'
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                {(selectedRegionName || selectedCategoryName) && (
+                  <span style={{
+                    fontSize: '11.5px',
+                    fontWeight: '700',
+                    color: '#5F50A9',
+                    backgroundColor: '#F3EEFA',
+                    padding: '4px 10px',
+                    borderRadius: '20px',
+                    whiteSpace: 'nowrap'
+                  }}>
+                    {selectedRegionName ? selectedRegionName.replace('📍 ', '') : '전체지역'} · {selectedCategoryName || '전체테마'}
+                  </span>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => handleSearchButtonClick()}
+                  style={{
+                    height: '36px',
+                    padding: '0 16px',
+                    backgroundColor: '#5F50A9',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '50px',
+                    fontSize: '13px',
+                    fontWeight: '800',
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 8px rgba(95, 80, 169, 0.3)',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  검색
+                </button>
+              </div>
+            </div>
+
+            {/* 🔽 검색창 바로 아래 중앙에 위치한 모던 슬라이드업 접기 핸들 탭 */}
+            <button
+              type="button"
+              className="sticky-search-collapse-tab"
+              onClick={() => setIsStickyCollapsed(true)}
+              title="검색창 위로 올리기 (접기)"
+              aria-label="검색창 접기"
+              style={{
+                pointerEvents: 'auto',
+                marginTop: '-1px',
+                padding: '3px 22px',
+                backgroundColor: '#ffffff',
+                color: '#64748b',
+                border: '1.5px solid rgba(201, 182, 215, 0.85)',
+                borderTop: 'none',
+                borderRadius: '0 0 14px 14px',
+                boxShadow: '0 4px 12px rgba(95, 80, 169, 0.12)',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '4px',
+                fontSize: '11px',
+                fontWeight: '800',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseOver={(e) => { 
+                e.currentTarget.style.backgroundColor = '#F3EEFA'; 
+                e.currentTarget.style.color = '#5F50A9';
+                e.currentTarget.style.transform = 'translateY(1px)'; 
+              }}
+              onMouseOut={(e) => { 
+                e.currentTarget.style.backgroundColor = '#ffffff'; 
+                e.currentTarget.style.color = '#64748b';
+                e.currentTarget.style.transform = 'none'; 
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="18 15 12 9 6 15"></polyline>
+              </svg>
+            </button>
+          </div>
+        ) : (
+          /* 접힌 상태일 때 상단 중앙에 위치한 모던 슬라이드다운 펼치기 탭 버튼 */
+          <div 
+            className="sticky-search-expand-wrapper"
+            style={{
+              position: 'fixed',
+              top: '64px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              zIndex: 990,
+              display: 'flex',
+              justifyContent: 'center'
+            }}
+          >
+            <button
+              type="button"
+              className="sticky-search-expand-tab"
+              onClick={() => setIsStickyCollapsed(false)}
+              title="검색창 다시 펼치기"
+              style={{
+                backgroundColor: '#ffffff',
+                color: '#5F50A9',
+                border: '1.5px solid rgba(201, 182, 215, 0.85)',
+                borderRadius: '0 0 16px 16px',
+                padding: '5px 18px',
+                fontSize: '12px',
+                fontWeight: '800',
+                cursor: 'pointer',
+                boxShadow: '0 6px 18px rgba(95, 80, 169, 0.18)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                transition: 'all 0.2s ease',
+                animation: 'stickySearchSlideDown 0.2s cubic-bezier(0.16, 1, 0.3, 1)'
+              }}
+              onMouseOver={(e) => { 
+                e.currentTarget.style.backgroundColor = '#F3EEFA'; 
+                e.currentTarget.style.transform = 'translateY(2px)'; 
+              }}
+              onMouseOut={(e) => { 
+                e.currentTarget.style.backgroundColor = '#ffffff'; 
+                e.currentTarget.style.transform = 'none'; 
+              }}
+            >
+              <span>🔍 관광지 검색창 열기</span>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </button>
+          </div>
+        )
+      )}
+
+      {/* 방문 판정 드롭다운 & 뷰 모드 전환 토글 (카드형 / 지도형) - 동일 선상 1줄 배치 */}
+      <div 
+        className="search-filter-controls-row" 
+        style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center', 
+          flexWrap: 'nowrap', 
+          gap: '8px', 
+          marginBottom: '16px', 
+          width: '100%',
+          boxSizing: 'border-box',
+          position: 'relative',
+          zIndex: 50
+        }}
+      >
+        {/* 💡 방문 판정 드롭다운 */}
+        <div style={{ position: 'relative', flexShrink: 0 }}>
+          <button
+            type="button"
+            className="search-match-dropdown-trigger"
+            onClick={(e) => {
+              e.stopPropagation();
+              setActiveDropdown(activeDropdown === 'matchStatus' ? null : 'matchStatus');
+            }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '8px 14px',
+              borderRadius: '50px',
+              border: selectedMatchStatus ? '1.5px solid #5F50A9' : '1.5px solid #e2e8f0',
+              backgroundColor: selectedMatchStatus ? '#F3EEFA' : '#ffffff',
+              color: selectedMatchStatus ? '#5F50A9' : '#334155',
+              fontWeight: '800',
+              fontSize: '13px',
+              cursor: 'pointer',
+              boxShadow: selectedMatchStatus ? '0 3px 12px rgba(95, 80, 169, 0.18)' : '0 2px 8px rgba(0, 0, 0, 0.03)',
+              transition: 'all 0.2s ease',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            <span style={{ 
+              color: selectedMatchStatus === '가능' ? '#16a34a' : selectedMatchStatus === '조건부' ? '#d97706' : selectedMatchStatus === '불가' ? '#dc2626' : '#5F50A9',
+              fontWeight: '800',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px'
+            }}>
+              {selectedMatchStatus ? (
+                MATCH_STATUS_BUTTONS.find(b => b.value === selectedMatchStatus)?.label || selectedMatchStatus
+              ) : (
+                '💡 방문 판정: 전체'
+              )}
+            </span>
+            <svg 
+              width="12" 
+              height="12" 
+              viewBox="0 0 24 24" 
+              fill="none" 
+              stroke={selectedMatchStatus ? '#5F50A9' : '#64748b'} 
+              strokeWidth="2.5" 
+              strokeLinecap="round" 
+              strokeLinejoin="round" 
+              style={{ 
+                transform: activeDropdown === 'matchStatus' ? 'rotate(180deg)' : 'none', 
+                transition: 'transform 0.2s ease',
+                marginLeft: '2px'
+              }}
+            >
+              <path d="M6 9l6 6 6-6"/>
+            </svg>
+          </button>
+
+          {activeDropdown === 'matchStatus' && (
+            <div 
+              className="search-match-dropdown-menu"
+              style={{
+                position: 'absolute',
+                top: 'calc(100% + 6px)',
+                left: 0,
+                minWidth: '160px',
+                backgroundColor: '#ffffff',
+                borderRadius: '16px',
+                padding: '6px',
+                boxShadow: '0 12px 35px rgba(0, 0, 0, 0.15)',
+                border: '1px solid #e2e8f0',
+                zIndex: 200,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '3px',
+                animation: 'matchDropdownFadeIn 0.18s cubic-bezier(0.16, 1, 0.3, 1)'
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <style>{`
+                @keyframes matchDropdownFadeIn {
+                  from { opacity: 0; transform: translateY(-6px); }
+                  to { opacity: 1; transform: translateY(0); }
+                }
+              `}</style>
+              {MATCH_STATUS_BUTTONS.map((btn) => {
+                const isSelected = selectedMatchStatus === btn.value;
+                return (
+                  <button
+                    type="button"
+                    key={btn.value || 'all'}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleMatchStatusButtonClick(btn.value);
+                      setActiveDropdown(null);
+                    }}
+                    style={{
+                      width: '100%',
+                      border: 'none',
+                      textAlign: 'left',
+                      padding: '9px 12px',
+                      borderRadius: '10px',
+                      cursor: 'pointer',
+                      fontSize: '13px',
+                      fontWeight: isSelected ? '800' : '600',
+                      backgroundColor: isSelected ? '#F3EEFA' : 'transparent',
+                      color: isSelected ? '#5F50A9' : '#334155',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      transition: 'background-color 0.15s ease'
+                    }}
+                    onMouseOver={(e) => { if (!isSelected) e.currentTarget.style.backgroundColor = '#f8fafc'; }}
+                    onMouseOut={(e) => { if (!isSelected) e.currentTarget.style.backgroundColor = 'transparent'; }}
+                  >
+                    <span>{btn.label}</span>
+                    {isSelected && <span style={{ color: '#5F50A9', fontWeight: '900', fontSize: '13px' }}>✓</span>}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* 🔲 카드형 vs 🗺️ 지도형 뷰 모드 토글 */}
-        <div style={{ 
-          display: 'flex', 
-          backgroundColor: '#ffffff', 
-          padding: '4px', 
-          borderRadius: '50px', 
-          boxShadow: '0 2px 10px rgba(0,0,0,0.04)',
-          border: '1.5px solid #e2e8f0'
-        }}>
+        <div 
+          className="search-view-mode-toggle"
+          style={{ 
+            display: 'flex', 
+            backgroundColor: '#ffffff', 
+            padding: '4px', 
+            borderRadius: '50px', 
+            boxShadow: '0 2px 10px rgba(0,0,0,0.04)',
+            border: '1.5px solid #e2e8f0',
+            flexShrink: 0
+          }}
+        >
           <button
             type="button"
             onClick={() => setViewMode('card')}
@@ -2095,16 +2511,17 @@ function SearchPage() {
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              padding: '6px 16px',
+              padding: '6px 14px',
               borderRadius: '50px',
               border: 'none',
               backgroundColor: viewMode === 'card' ? '#5F50A9' : 'transparent',
               color: viewMode === 'card' ? '#ffffff' : '#64748b',
               fontWeight: viewMode === 'card' ? 'bold' : '600',
-              fontSize: '13px',
+              fontSize: '12.5px',
               cursor: 'pointer',
               boxShadow: viewMode === 'card' ? '0 2px 8px rgba(95, 80, 169, 0.3)' : 'none',
-              transition: 'all 0.2s ease'
+              transition: 'all 0.2s ease',
+              whiteSpace: 'nowrap'
             }}
           >
             <span>🔲</span>
@@ -2117,16 +2534,17 @@ function SearchPage() {
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              padding: '6px 16px',
+              padding: '6px 14px',
               borderRadius: '50px',
               border: 'none',
               backgroundColor: viewMode === 'map' ? '#5F50A9' : 'transparent',
               color: viewMode === 'map' ? '#ffffff' : '#64748b',
               fontWeight: viewMode === 'map' ? 'bold' : '600',
-              fontSize: '13px',
+              fontSize: '12.5px',
               cursor: 'pointer',
               boxShadow: viewMode === 'map' ? '0 2px 8px rgba(95, 80, 169, 0.3)' : 'none',
-              transition: 'all 0.2s ease'
+              transition: 'all 0.2s ease',
+              whiteSpace: 'nowrap'
             }}
           >
             <span>🗺️</span>
@@ -2251,8 +2669,36 @@ function SearchPage() {
 
                         <button
                           type="button"
+                          className="spot-card-favorite-btn"
                           onClick={(e) => { e.stopPropagation(); toggleFavorite(spot); }}
-                          style={{ position: 'absolute', top: '12px', right: '12px', backgroundColor: 'rgba(255, 255, 255, 0.9)', border: 'none', borderRadius: '50%', width: '34px', height: '34px', cursor: 'pointer', zIndex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.12)', transition: 'transform 0.15s ease' }}
+                          title={liked ? "즐겨찾기 해제" : "즐겨찾기 추가"}
+                          aria-label={liked ? "즐겨찾기 해제" : "즐겨찾기 추가"}
+                          style={{ 
+                            position: 'absolute', 
+                            top: '12px', 
+                            right: '12px', 
+                            backgroundColor: 'rgba(255, 255, 255, 0.92)', 
+                            backdropFilter: 'blur(4px)',
+                            WebkitBackdropFilter: 'blur(4px)',
+                            border: 'none', 
+                            borderRadius: '50%', 
+                            width: '36px', 
+                            height: '36px', 
+                            minWidth: '36px',
+                            minHeight: '36px',
+                            maxWidth: '36px',
+                            maxHeight: '36px',
+                            padding: 0,
+                            cursor: 'pointer', 
+                            zIndex: 10, 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'center', 
+                            fontSize: '18px',
+                            lineHeight: '1',
+                            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.12)', 
+                            transition: 'transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1)' 
+                          }}
                           onMouseOver={(e) => { e.currentTarget.style.transform = 'scale(1.15)'; }}
                           onMouseOut={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
                         >
@@ -2262,13 +2708,13 @@ function SearchPage() {
 
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
                         <div>
-                          <h4 style={{ margin: 0, fontSize: '16px', fontWeight: 'bold', color: '#1f2937', marginBottom: '4px' }}>{spot.name}</h4>
-                          <span style={{ fontSize: '10px', backgroundColor: '#f1f5f9', color: '#64748b', padding: '2px 6px', borderRadius: '4px' }}>
+                          <h4 style={{ margin: 0, fontSize: '17px', fontWeight: '800', color: '#1f2937', marginBottom: '4px' }}>{spot.name}</h4>
+                          <span style={{ fontSize: '12px', backgroundColor: '#f1f5f9', color: '#64748b', padding: '3px 8px', borderRadius: '6px', fontWeight: '700' }}>
                             {spot.source === 'kcisa' ? '🏥 한국문화정보원' : '🏞️ 한국관광공사'}
                           </span>
                         </div>
                         <span style={{ 
-                          fontSize: '11px', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold', 
+                          fontSize: '12.5px', padding: '4px 8px', borderRadius: '6px', fontWeight: '800', 
                           backgroundColor: spot.matchStatus === '가능' ? '#dcfce7' : spot.matchStatus === '조건부 가능' || spot.matchStatus === '조건부' ? '#fef9c3' : '#f1f5f9', 
                           color: spot.matchStatus === '가능' ? '#15803d' : spot.matchStatus === '조건부 가능' || spot.matchStatus === '조건부' ? '#a16207' : '#64748b' 
                         }}>
@@ -2276,7 +2722,7 @@ function SearchPage() {
                         </span>
                       </div>
 
-                      <p style={{ margin: '0 0 12px 0', fontSize: '13px', color: '#6b7280' }}>📍 {spot.address}</p>
+                      <p style={{ margin: '0 0 12px 0', fontSize: '13.5px', color: '#6b7280' }}>📍 {spot.address}</p>
                     </div>
 
                     {/* 💡 카드 하단 지도 연동 버튼 그룹 (파란색 카카오맵 + 초록색 네이버 지도) */}
@@ -2287,9 +2733,9 @@ function SearchPage() {
                         rel="noreferrer" 
                         onClick={(e) => e.stopPropagation()}
                         style={{ 
-                          display: 'inline-block', padding: '6px 10px', 
+                          display: 'inline-block', padding: '6px 12px', 
                           backgroundColor: '#A2B9EE', color: '#1e3a8a', borderRadius: '20px', 
-                          fontSize: '11px', fontWeight: 'bold', textDecoration: 'none', 
+                          fontSize: '12.5px', fontWeight: '800', textDecoration: 'none', 
                           boxSizing: 'border-box' 
                         }}
                       >
@@ -2301,13 +2747,13 @@ function SearchPage() {
                         rel="noreferrer" 
                         onClick={(e) => e.stopPropagation()}
                         style={{ 
-                          display: 'inline-block', padding: '6px 10px', 
-                          backgroundColor: '#CBF5AF', color: '#166534', borderRadius: '20px', 
-                          fontSize: '11px', fontWeight: 'bold', textDecoration: 'none', 
+                          display: 'inline-block', padding: '6px 12px', 
+                          backgroundColor: '#bbf7d0', color: '#15803d', borderRadius: '20px', 
+                          fontSize: '12.5px', fontWeight: '800', textDecoration: 'none', 
                           boxSizing: 'border-box' 
                         }}
                       >
-                        네이버 지도 & 리뷰 ↗
+                        네이버 지도 ↗
                       </a>
                     </div>
                   </div>
@@ -2325,8 +2771,35 @@ function SearchPage() {
             )}
           </div>
 
+          {/* 📱 모바일 바텀시트 / 데스크톱 드로어 백드롭 오버레이 */}
+          {selectedSpotDetail && (
+            <div 
+              className="search-detail-backdrop"
+              onClick={() => setSelectedSpotId(null)}
+              style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: 'rgba(15, 23, 42, 0.55)',
+                backdropFilter: 'blur(3px)',
+                WebkitBackdropFilter: 'blur(3px)',
+                zIndex: 99,
+                animation: 'fadeInSearchBackdrop 0.2s ease'
+              }}
+            >
+              <style>{`
+                @keyframes fadeInSearchBackdrop {
+                  from { opacity: 0; }
+                  to { opacity: 1; }
+                }
+              `}</style>
+            </div>
+          )}
+
           <div 
-            className="search-detail-drawer" 
+            className={`search-detail-drawer ${selectedSpotDetail ? 'open' : ''}`}
             style={{ 
               position: 'fixed', top: 0, right: selectedSpotDetail ? 0 : '-620px', 
               width: '540px', maxWidth: '92vw', height: '100vh', 
@@ -2387,8 +2860,7 @@ function SearchPage() {
               textAlign: 'center',
               boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
               position: 'relative',
-              animation: 'locModalFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
-              fontFamily: 'sans-serif'
+              animation: 'locModalFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1)'
             }}
             onClick={(e) => e.stopPropagation()}
           >

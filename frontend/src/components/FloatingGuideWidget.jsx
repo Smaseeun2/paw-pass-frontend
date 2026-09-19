@@ -81,10 +81,80 @@ const guideSteps = [
 export default function FloatingGuideWidget() {
   const [isOpen, setIsOpen] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
+  const [showScrollTop, setShowScrollTop] = useState(false);
   const bubbleRef = useRef(null);
   const buttonRef = useRef(null);
   const navigate = useNavigate();
   const { user, login } = useAuth();
+
+  // 스크롤 위치 감지 (상세 패널 열림 여부에 따라 패널 스크롤 또는 윈도우 스크롤 감지)
+  useEffect(() => {
+    let currentDrawerEl = null;
+
+    const handleWindowScroll = () => {
+      const drawerEl = document.getElementById('pawpass-drawer-scroll-container');
+      if (drawerEl) {
+        // 상세 패널이 열려있는 경우 상세 패널 스크롤 기준
+        setShowScrollTop(drawerEl.scrollTop > 180);
+      } else {
+        // 상세 패널이 닫혀있는 경우 윈도우 스크롤 기준
+        setShowScrollTop(window.scrollY > 180);
+      }
+    };
+
+    const handleDrawerScroll = (e) => {
+      setShowScrollTop(e.currentTarget.scrollTop > 180);
+    };
+
+    const updateScrollTarget = () => {
+      const drawerEl = document.getElementById('pawpass-drawer-scroll-container');
+      if (drawerEl !== currentDrawerEl) {
+        if (currentDrawerEl) {
+          currentDrawerEl.removeEventListener('scroll', handleDrawerScroll);
+        }
+        currentDrawerEl = drawerEl;
+        if (currentDrawerEl) {
+          currentDrawerEl.addEventListener('scroll', handleDrawerScroll, { passive: true });
+          setShowScrollTop(currentDrawerEl.scrollTop > 180);
+        } else {
+          setShowScrollTop(window.scrollY > 180);
+        }
+      }
+    };
+
+    window.addEventListener('scroll', handleWindowScroll, { passive: true });
+    
+    // DOM 변화(상세 패널 열림/닫힘) 감지
+    const observer = new MutationObserver(() => {
+      updateScrollTarget();
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    updateScrollTarget();
+
+    return () => {
+      window.removeEventListener('scroll', handleWindowScroll);
+      if (currentDrawerEl) {
+        currentDrawerEl.removeEventListener('scroll', handleDrawerScroll);
+      }
+      observer.disconnect();
+    };
+  }, []);
+
+  const scrollToTop = () => {
+    const drawerEl = document.getElementById('pawpass-drawer-scroll-container');
+    if (drawerEl) {
+      drawerEl.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+      });
+    } else {
+      window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+      });
+    }
+  };
 
   // 바깥 영역 클릭 시 닫기
   useEffect(() => {
@@ -137,6 +207,65 @@ export default function FloatingGuideWidget() {
           from { opacity: 0; transform: translateY(8px) scale(0.95); }
           to { opacity: 1; transform: translateY(0) scale(1); }
         }
+        @keyframes scrollTopFadeIn {
+          from { opacity: 0; transform: translateY(12px) scale(0.9); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .floating-guide-container {
+          position: fixed;
+          bottom: 24px;
+          right: 24px;
+          z-index: 10025;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 10px;
+          transition: bottom 0.25s ease;
+        }
+        .floating-guide-bubble {
+          position: fixed;
+          bottom: 84px;
+          right: 24px;
+          z-index: 10026;
+          width: 275px;
+          background-color: #ffffff;
+          border-radius: 20px;
+          box-shadow: 0 15px 35px -8px rgba(126, 105, 184, 0.22), 0 4px 12px rgba(0, 0, 0, 0.05);
+          border: 1px solid rgba(226, 232, 240, 0.85);
+          padding: 14px 16px 12px 16px;
+          animation: miniBubbleIn 0.2s ease-out forwards;
+          box-sizing: border-box;
+          transition: bottom 0.25s ease;
+        }
+        .floating-guide-bubble.with-scroll-top {
+          bottom: 140px;
+        }
+
+        /* 📱 모바일 환경 (768px 이하): 하단 탭바(높이 약 60px) 위에 여유있게 배치 */
+        @media (max-width: 768px) {
+          .floating-guide-container {
+            bottom: calc(68px + env(safe-area-inset-bottom, 8px)) !important;
+            right: 14px !important;
+          }
+          .floating-guide-bubble {
+            bottom: calc(128px + env(safe-area-inset-bottom, 8px)) !important;
+            right: 14px !important;
+            width: calc(100vw - 28px) !important;
+            max-width: 290px !important;
+          }
+          .floating-guide-bubble.with-scroll-top {
+            bottom: calc(184px + env(safe-area-inset-bottom, 8px)) !important;
+          }
+        }
+
+        .scroll-to-top-btn {
+          transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease, background-color 0.2s ease;
+        }
+        .scroll-to-top-btn:hover {
+          transform: translateY(-3px) scale(1.08) !important;
+          background-color: #F3EEFA !important;
+          box-shadow: 0 8px 22px rgba(95, 80, 169, 0.35) !important;
+        }
         .mini-guide-btn {
           transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.22s ease;
         }
@@ -183,20 +312,7 @@ export default function FloatingGuideWidget() {
       {isOpen && (
         <div
           ref={bubbleRef}
-          style={{
-            position: 'fixed',
-            bottom: '76px',
-            right: '20px',
-            zIndex: 9999,
-            width: '275px',
-            backgroundColor: '#ffffff',
-            borderRadius: '20px',
-            boxShadow: '0 15px 35px -8px rgba(126, 105, 184, 0.22), 0 4px 12px rgba(0, 0, 0, 0.05)',
-            border: '1px solid rgba(226, 232, 240, 0.85)',
-            padding: '14px 16px 12px 16px',
-            animation: 'miniBubbleIn 0.2s ease-out forwards',
-            boxSizing: 'border-box'
-          }}
+          className={`floating-guide-bubble ${showScrollTop ? 'with-scroll-top' : ''}`}
         >
           {/* 말풍선 아래쪽 꼬리 */}
           <div
@@ -216,10 +332,10 @@ export default function FloatingGuideWidget() {
           {/* 상단 헤더 (스텝 카운터 + 태그 + 닫기) */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <span style={{ fontSize: '10px', fontWeight: '800', color: '#7E69B8', backgroundColor: '#F3EFFF', padding: '2px 7px', borderRadius: '50px' }}>
+              <span style={{ fontSize: '11.5px', fontWeight: '800', color: '#7E69B8', backgroundColor: '#F3EFFF', padding: '3px 8px', borderRadius: '50px' }}>
                 {currentStep + 1} / {guideSteps.length}
               </span>
-              <span style={{ fontSize: '10px', fontWeight: '700', color: current.textColor, backgroundColor: current.tagBg, padding: '2px 7px', borderRadius: '50px' }}>
+              <span style={{ fontSize: '11.5px', fontWeight: '800', color: current.textColor, backgroundColor: current.tagBg, padding: '3px 8px', borderRadius: '50px' }}>
                 {current.tag}
               </span>
             </div>
@@ -230,7 +346,7 @@ export default function FloatingGuideWidget() {
                 background: 'none',
                 border: 'none',
                 color: '#94a3b8',
-                fontSize: '13px',
+                fontSize: '14px',
                 cursor: 'pointer',
                 padding: '2px',
                 display: 'flex',
@@ -249,13 +365,13 @@ export default function FloatingGuideWidget() {
           {/* 슬라이드 본문 */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '12px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ fontSize: '18px', lineHeight: 1 }}>{current.icon}</span>
-              <h4 style={{ margin: 0, fontSize: '14.5px', fontWeight: '800', color: '#1e293b' }}>
+              <span style={{ fontSize: '19px', lineHeight: 1 }}>{current.icon}</span>
+              <h4 style={{ margin: 0, fontSize: '15.5px', fontWeight: '800', color: '#1e293b' }}>
                 {current.title}
               </h4>
             </div>
 
-            <p style={{ margin: 0, fontSize: '12px', color: '#64748b', lineHeight: '1.45', minHeight: '36px', wordBreak: 'keep-all' }}>
+            <p style={{ margin: 0, fontSize: '13px', color: '#64748b', lineHeight: '1.5', minHeight: '38px', wordBreak: 'keep-all' }}>
               {current.desc}
             </p>
           </div>
@@ -268,13 +384,13 @@ export default function FloatingGuideWidget() {
                 onClick={() => login()}
                 style={{
                   width: '100%',
-                  padding: '7.5px 10px',
+                  padding: '8px 10px',
                   borderRadius: '50px',
                   border: 'none',
                   background: 'linear-gradient(135deg, #F89BBF 0%, #E26895 100%)',
                   color: '#ffffff',
-                  fontSize: '12px',
-                  fontWeight: '700',
+                  fontSize: '13px',
+                  fontWeight: '800',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
@@ -286,7 +402,7 @@ export default function FloatingGuideWidget() {
               >
                 <span>🔑 Google 로그인하기</span>
               </button>
-              <div style={{ textAlign: 'center', fontSize: '10.5px', color: '#94a3b8', marginBottom: '10px' }}>
+              <div style={{ textAlign: 'center', fontSize: '11.5px', color: '#94a3b8', marginBottom: '10px' }}>
                 ※ 즐겨찾기는 로그인 후 이용 가능합니다
               </div>
             </div>
@@ -296,13 +412,13 @@ export default function FloatingGuideWidget() {
               onClick={() => handleNavigate(current.path)}
               style={{
                 width: '100%',
-                padding: '7px 10px',
+                padding: '8px 10px',
                 borderRadius: '50px',
                 border: 'none',
                 background: current.btnBg,
                 color: '#ffffff',
-                fontSize: '12px',
-                fontWeight: '700',
+                fontSize: '13px',
+                fontWeight: '800',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
@@ -313,7 +429,7 @@ export default function FloatingGuideWidget() {
               }}
             >
               <span>{current.btnText}</span>
-              <span style={{ fontSize: '11px' }}>→</span>
+              <span style={{ fontSize: '12px' }}>→</span>
             </button>
           )}
 
@@ -353,15 +469,45 @@ export default function FloatingGuideWidget() {
         </div>
       )}
 
-      {/* 2. 우측 하단 미니 동그라미 플로팅 버튼 */}
+      {/* 2. 우측 하단 플로팅 버튼 그룹: [맨 위로 이동 버튼 (스크롤 시 노출)] + [이용 가이드 버튼] */}
       <div 
-        style={{
-          position: 'fixed',
-          bottom: '20px',
-          right: '20px',
-          zIndex: 9998
-        }}
+        className="floating-guide-container"
       >
+        {/* 🚀 맨 위로 올리기 버튼 (스크롤 시 부드럽게 등장) */}
+        {showScrollTop && (
+          <button
+            type="button"
+            onClick={scrollToTop}
+            className="scroll-to-top-btn"
+            title="맨 위로 이동"
+            aria-label="맨 위로 이동"
+            style={{
+              width: '48px',
+              height: '48px',
+              borderRadius: '50%',
+              backgroundColor: '#ffffff',
+              border: '1.5px solid rgba(95, 80, 169, 0.25)',
+              color: '#5F50A9',
+              cursor: 'pointer',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 6px 18px rgba(95, 80, 169, 0.22), 0 2px 6px rgba(0, 0, 0, 0.04)',
+              outline: 'none',
+              animation: 'scrollTopFadeIn 0.22s cubic-bezier(0.34, 1.56, 0.64, 1)'
+            }}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#5F50A9" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="18 15 12 9 6 15"></polyline>
+            </svg>
+            <span style={{ fontSize: '10px', fontWeight: '900', letterSpacing: '-0.3px', marginTop: '1px', color: '#5F50A9', lineHeight: 1 }}>
+              TOP
+            </span>
+          </button>
+        )}
+
+        {/* 🐾 이용 가이드 버튼 */}
         <button
           ref={buttonRef}
           className="mini-guide-btn"
@@ -390,7 +536,7 @@ export default function FloatingGuideWidget() {
           ) : (
             <>
               <span style={{ fontSize: '17px', lineHeight: 1 }}>🐾</span>
-              <span style={{ fontSize: '8px', fontWeight: '900', letterSpacing: '-0.2px', marginTop: '1px' }}>
+              <span style={{ fontSize: '10px', fontWeight: '900', letterSpacing: '-0.2px', marginTop: '1px' }}>
                 가이드
               </span>
             </>
