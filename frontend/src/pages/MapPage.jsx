@@ -57,22 +57,35 @@ function MapPage() {
       .then(serverRoutes => {
         if (!isMounted || !Array.isArray(serverRoutes)) return;
 
+        let localSaved = [];
+        try {
+          localSaved = JSON.parse(localStorage.getItem(storageKey) || '[]');
+        } catch {}
+
         const mapped = serverRoutes.map(item => {
-          const contentId = item.content_id ?? item.id;
-          const isKakao = item.source === 'kakao' || String(contentId).startsWith('kakao_');
-          const id = isKakao ? (String(contentId).startsWith('kakao_') ? String(contentId) : `kakao_${contentId}`) : String(contentId);
+          const contentId = String(item.content_id ?? item.id ?? '');
+          const isKakao = item.source === 'kakao' || contentId.startsWith('kakao_');
+          const id = isKakao ? (contentId.startsWith('kakao_') ? contentId : `kakao_${contentId}`) : contentId;
           
+          const matchedLocal = localSaved.find(s => 
+            String(s.content_id || s.contentId || s.id) === String(contentId) ||
+            String(s.name || s.title) === String(item.title || item.name)
+          );
+          
+          const resolvedAddress = matchedLocal?.address || matchedLocal?.addr || matchedLocal?.addr1 || item.addr1 || item.address || item.addr || '';
+
           return {
+            ...matchedLocal,
             id,
-            contentId,
-            content_id: item.content_id ?? item.id,
-            source: item.source || (isKakao ? 'kakao' : 'tourapi'),
-            name: item.title || item.name || '장소명 없음',
-            title: item.title || item.name || '장소명 없음',
-            address: item.addr1 || item.address || item.addr || '',
-            lat: Number(item.lat),
-            lng: Number(item.lng),
-            imageUrl: item.image || item.first_image || item.imageUrl || ''
+            contentId: contentId.replace(/^kakao_/, ''),
+            content_id: contentId.replace(/^kakao_/, ''),
+            source: item.source || matchedLocal?.source || (isKakao ? 'kakao' : 'tourapi'),
+            name: item.title || item.name || matchedLocal?.name || matchedLocal?.title || '장소명 없음',
+            title: item.title || item.name || matchedLocal?.title || matchedLocal?.name || '장소명 없음',
+            address: resolvedAddress,
+            lat: Number(item.lat ?? matchedLocal?.lat),
+            lng: Number(item.lng ?? matchedLocal?.lng),
+            imageUrl: matchedLocal?.imageUrl || matchedLocal?.image || item.image || item.first_image || ''
           };
         }).filter(s => !isNaN(s.lat) && !isNaN(s.lng) && s.lat !== 0 && s.lng !== 0).slice(0, 8);
 
@@ -89,6 +102,45 @@ function MapPage() {
       isMounted = false;
     };
   }, [storageKey]);
+
+  // 💡 주소가 비어있는 장소가 있다면 좌표(lat, lng)를 기반으로 카카오 Geocoder 도로명/지번 주소 자동 보강
+  useEffect(() => {
+    const hasMissingAddress = selectedSpots.some(s => (!s.address || s.address.trim() === '') && s.lat && s.lng);
+    if (!hasMissingAddress) return;
+
+    let isMounted = true;
+    loadKakaoMapSdk().then(() => {
+      if (!isMounted || !window.kakao?.maps?.services) return;
+      const geocoder = new window.kakao.maps.services.Geocoder();
+
+      selectedSpots.forEach((spot, idx) => {
+        if ((!spot.address || spot.address.trim() === '') && spot.lat && spot.lng) {
+          geocoder.coord2Address(Number(spot.lng), Number(spot.lat), (result, status) => {
+            if (status === window.kakao.maps.services.Status.OK && result[0]) {
+              const roadAddr = result[0].road_address?.address_name;
+              const jibunAddr = result[0].address?.address_name;
+              const addrToSet = roadAddr || jibunAddr || '';
+              if (addrToSet && isMounted) {
+                setSelectedSpots(prev => {
+                  if (!prev[idx] || prev[idx].address === addrToSet) return prev;
+                  const next = [...prev];
+                  next[idx] = { ...next[idx], address: addrToSet };
+                  if (storageKey) {
+                    localStorage.setItem(storageKey, JSON.stringify(next));
+                  }
+                  return next;
+                });
+              }
+            }
+          });
+        }
+      });
+    }).catch(() => {});
+
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedSpots, storageKey]);
 
   const [routeResult, setRouteResult] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -216,47 +268,80 @@ function MapPage() {
         overflow: visible;
       `;
 
-      // 🏷️ 핀 호버 시 상단에 표시될 장소명 툴팁 라벨 (핀 위치는 완전히 고정)
-      const nameTooltip = document.createElement('div');
-      nameTooltip.className = 'pawpass-map-pin-tooltip';
-      nameTooltip.style.cssText = `
+      // 🏷️ 핀 옆에 표시될 [장소명 & 주소] 라벨
+      const sideLabel = document.createElement('div');
+      sideLabel.className = 'pawpass-map-pin-side-label';
+      sideLabel.style.cssText = `
         position: absolute;
-        bottom: calc(100% + 8px);
-        left: 50%;
-        transform: translateX(-50%);
-        background: rgba(15, 23, 42, 0.92);
-        backdrop-filter: blur(6px);
-        -webkit-backdrop-filter: blur(6px);
-        color: #ffffff;
-        font-size: 12px;
-        font-weight: 800;
-        padding: 5px 12px;
-        border-radius: 8px;
+        left: calc(100% + 8px);
+        top: ${isMobile ? '50%' : '14px'};
+        transform: translateY(-50%);
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        border: 1.5px solid #5F50A9;
+        border-radius: 10px;
+        padding: 4px 10px;
+        box-shadow: 0 4px 14px rgba(95, 80, 169, 0.18), 0 2px 6px rgba(0, 0, 0, 0.08);
         white-space: nowrap;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 1.5px;
         pointer-events: none;
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
-        opacity: 0;
-        visibility: hidden;
-        transition: opacity 0.15s cubic-bezier(0.4, 0, 0.2, 1), transform 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-        z-index: 1000;
-        letter-spacing: -0.2px;
+        z-index: 20;
+        transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
       `;
-      nameTooltip.innerText = spot.name || '장소명';
 
-      const tooltipArrow = document.createElement('div');
-      tooltipArrow.style.cssText = `
-        position: absolute;
-        top: 100%;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 0;
-        height: 0;
-        border-left: 5px solid transparent;
-        border-right: 5px solid transparent;
-        border-top: 5px solid rgba(15, 23, 42, 0.92);
+      const titleEl = document.createElement('span');
+      titleEl.className = 'pawpass-pin-side-title';
+      titleEl.style.cssText = `
+        font-size: ${isMobile ? '11px' : '12px'};
+        font-weight: 800;
+        color: #1e293b;
+        max-width: ${isMobile ? '130px' : '180px'};
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        line-height: 1.25;
       `;
-      nameTooltip.appendChild(tooltipArrow);
-      markerContainer.appendChild(nameTooltip);
+      titleEl.innerText = spot.name || spot.title || '장소명 없음';
+      sideLabel.appendChild(titleEl);
+
+      const addressEl = document.createElement('span');
+      addressEl.className = 'pawpass-pin-side-address';
+      addressEl.style.cssText = `
+        font-size: ${isMobile ? '9.5px' : '10.5px'};
+        font-weight: 600;
+        color: #64748b;
+        max-width: ${isMobile ? '130px' : '180px'};
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        line-height: 1.2;
+      `;
+      addressEl.innerText = spot.address ? `📍 ${spot.address}` : '📍 주소 확인 중...';
+      sideLabel.appendChild(addressEl);
+
+      // 만약 주소가 비어있다면 카카오 Geocoder로 실시간 보정
+      if ((!spot.address || spot.address.trim() === '') && window.kakao && window.kakao.maps && window.kakao.maps.services) {
+        try {
+          const geocoder = new window.kakao.maps.services.Geocoder();
+          geocoder.coord2Address(lng, lat, (result, status) => {
+            if (status === window.kakao.maps.services.Status.OK && result[0]) {
+              const roadAddr = result[0].road_address?.address_name;
+              const jibunAddr = result[0].address?.address_name;
+              const addrToUse = roadAddr || jibunAddr || '';
+              if (addrToUse) {
+                addressEl.innerText = `📍 ${addrToUse}`;
+                spot.address = addrToUse;
+              }
+            }
+          });
+        } catch (e) {}
+      }
+
+      markerContainer.appendChild(sideLabel);
 
       const markerBadge = document.createElement('div');
       markerBadge.className = 'pawpass-map-pin-badge';
@@ -300,13 +385,15 @@ function MapPage() {
       }
 
       markerContainer.onmouseenter = () => {
-        nameTooltip.style.opacity = '1';
-        nameTooltip.style.visibility = 'visible';
+        sideLabel.style.borderColor = '#4338ca';
+        sideLabel.style.boxShadow = '0 6px 20px rgba(95, 80, 169, 0.35)';
+        sideLabel.style.transform = 'translateY(-50%) scale(1.05)';
         markerContainer.style.zIndex = '999';
       };
       markerContainer.onmouseleave = () => {
-        nameTooltip.style.opacity = '0';
-        nameTooltip.style.visibility = 'hidden';
+        sideLabel.style.borderColor = '#5F50A9';
+        sideLabel.style.boxShadow = '0 4px 14px rgba(95, 80, 169, 0.18), 0 2px 6px rgba(0, 0, 0, 0.08)';
+        sideLabel.style.transform = 'translateY(-50%) scale(1.0)';
         markerContainer.style.zIndex = String(10 + index);
       };
 
@@ -1033,7 +1120,7 @@ function MapPage() {
                             <span style={{ color: '#5F50A9', marginRight: '4px' }}>{index + 1}.</span> {spot.name || spot.title}
                           </div>
                           <div style={{ fontSize: '11px', color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            📍 {spot.address || spot.addr}
+                            📍 {spot.address || spot.addr || spot.addr1 || '주소 확인 중...'}
                           </div>
                         </div>
                       </div>

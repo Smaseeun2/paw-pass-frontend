@@ -218,18 +218,28 @@ function DetailPage() {
           const isAdded = serverRoutes.some(item => String(item.content_id ?? item.id) === spotId);
           setIsRouteAdded(isAdded);
           if (storageKey) {
-            const mapped = serverRoutes.map(item => ({
-              id: String(item.content_id ?? item.id),
-              contentId: String(item.content_id ?? item.id),
-              content_id: String(item.content_id ?? item.id),
-              name: item.title || item.name || '장소명 없음',
-              title: item.title || item.name || '장소명 없음',
-              address: item.addr1 || item.address || item.addr || '',
-              lat: Number(item.lat),
-              lng: Number(item.lng),
-              imageUrl: item.image || item.first_image || item.imageUrl || '',
-              source: item.source || 'tourapi'
-            }));
+            let localSaved = [];
+            try {
+              localSaved = JSON.parse(localStorage.getItem(storageKey) || '[]');
+            } catch {}
+
+            const mapped = serverRoutes.map(item => {
+              const cId = String(item.content_id ?? item.id ?? '');
+              const matched = localSaved.find(s => String(s.content_id || s.contentId || s.id) === cId);
+              return {
+                ...matched,
+                id: cId,
+                contentId: cId,
+                content_id: cId,
+                name: item.title || item.name || matched?.name || matched?.title || '장소명 없음',
+                title: item.title || item.name || matched?.title || matched?.name || '장소명 없음',
+                address: matched?.address || item.addr1 || item.address || item.addr || '',
+                lat: Number(item.lat ?? matched?.lat),
+                lng: Number(item.lng ?? matched?.lng),
+                imageUrl: matched?.imageUrl || matched?.image || item.image || item.first_image || '',
+                source: item.source || matched?.source || 'tourapi'
+              };
+            });
             localStorage.setItem(storageKey, JSON.stringify(mapped));
           }
         }
