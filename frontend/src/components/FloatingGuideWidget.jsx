@@ -250,6 +250,13 @@ export default function FloatingGuideWidget() {
           bottom: 140px;
         }
 
+        .mini-guide-text {
+          white-space: nowrap !important;
+          word-break: keep-all !important;
+          display: inline-block !important;
+          line-height: 1 !important;
+        }
+
         /* 📱 모바일 환경 (768px 이하): 하단 탭바(높이 약 60px) 위에 여유있게 배치 */
         @media (max-width: 768px) {
           .floating-guide-container {
@@ -267,17 +274,23 @@ export default function FloatingGuideWidget() {
             bottom: calc(184px + env(safe-area-inset-bottom, 8px)) !important;
           }
           .mini-guide-btn {
-            width: 44px !important;
-            height: 44px !important;
+            width: 48px !important;
+            height: 48px !important;
+            padding: 0 !important;
           }
           .mini-guide-paw {
-            font-size: 14px !important;
+            font-size: 15px !important;
+            line-height: 1 !important;
           }
           .mini-guide-text {
-            font-size: 8px !important;
-            font-weight: 800 !important;
-            letter-spacing: -0.3px !important;
+            font-size: 9px !important;
+            font-weight: 900 !important;
+            letter-spacing: -0.4px !important;
             margin-top: 1px !important;
+            white-space: nowrap !important;
+            word-break: keep-all !important;
+            display: inline-block !important;
+            line-height: 1 !important;
           }
         }
 
@@ -565,7 +578,7 @@ export default function FloatingGuideWidget() {
           ) : (
             <>
               <span className="mini-guide-paw" style={{ fontSize: '17px', lineHeight: 1 }}>🐾</span>
-              <span className="mini-guide-text" style={{ fontSize: '10px', fontWeight: '900', letterSpacing: '-0.2px', marginTop: '1px' }}>
+              <span className="mini-guide-text" style={{ fontSize: '10px', fontWeight: '900', letterSpacing: '-0.3px', marginTop: '1px', whiteSpace: 'nowrap', wordBreak: 'keep-all', display: 'inline-block', lineHeight: 1 }}>
                 가이드
               </span>
             </>
