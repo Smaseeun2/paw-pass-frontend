@@ -1350,10 +1350,16 @@ function SearchPage() {
   const initRawRegion = queryState.regionCode || queryState.region || searchParams.get('region') || '';
   const initRawCategory = queryState.category || queryState.type || searchParams.get('category') || '';
   const getInitialPetIds = () => {
-    let ids = queryState.selectedPetIds || (queryState.petId ? [queryState.petId] : null);
-    if (!ids && searchParams.get('petIds')) {
-      ids = searchParams.get('petIds').split(',');
+    let ids = null;
+    if (searchParams.get('petIds') !== null) {
+      const raw = searchParams.get('petIds');
+      ids = raw ? raw.split(',').filter(Boolean).map(String) : [];
+    } else if (queryState.selectedPetIds && Array.isArray(queryState.selectedPetIds) && queryState.selectedPetIds.length > 0) {
+      ids = queryState.selectedPetIds.map(String);
+    } else if (queryState.petId) {
+      ids = [String(queryState.petId)];
     }
+
     if (!ids || ids.length === 0) {
       try {
         const guestPets = JSON.parse(localStorage.getItem('paw_pass_pets_guest') || '[]');
@@ -1362,7 +1368,7 @@ function SearchPage() {
         const allPets = [...userLocalPets, ...userPets, ...guestPets];
         if (allPets.length > 0) {
           const rep = allPets.find(p => p.isPrimary || p.is_primary || p.isRepresentative || p.is_representative) || allPets[0];
-          if (rep && rep.id) ids = [rep.id];
+          if (rep && rep.id) ids = [String(rep.id)];
         }
       } catch (e) {
         // 무시
@@ -1595,12 +1601,18 @@ function SearchPage() {
     const curMatchedRegion = findRegion(curRawRegion);
     const curMatchedCategory = CATEGORY_OPTIONS.find(c => c.value === String(curRawCategory) || c.label === String(curRawCategory));
 
-    let curPetIds = currentState.selectedPetIds || (currentState.petId ? [currentState.petId] : null);
-    if (!curPetIds && searchParams.get('petIds')) {
-      curPetIds = searchParams.get('petIds').split(',');
-    }
-    if (!curPetIds || curPetIds.length === 0) {
-      curPetIds = selectedPetIdsRef.current;
+    let curPetIds = null;
+    if (searchParams.get('petIds') !== null) {
+      const raw = searchParams.get('petIds');
+      curPetIds = raw ? raw.split(',').filter(Boolean).map(String) : [];
+    } else if (currentState.selectedPetIds && Array.isArray(currentState.selectedPetIds) && currentState.selectedPetIds.length > 0) {
+      curPetIds = currentState.selectedPetIds.map(String);
+    } else if (currentState.petId) {
+      curPetIds = [String(currentState.petId)];
+    } else if (selectedPetIdsRef.current.length > 0) {
+      curPetIds = selectedPetIdsRef.current.map(String);
+    } else {
+      curPetIds = [];
     }
 
     const curGuestSize = currentState.guestSizeHint ||
@@ -1615,7 +1627,7 @@ function SearchPage() {
     setSelectedCategoryName(curMatchedCategory ? curMatchedCategory.label : (curRawCategory ? String(curRawCategory) : ''));
     setKeyword(curKeyword);
     setSelectedMatchStatus(curMatchStatus);
-    if (curPetIds && curPetIds.length > 0) setSelectedPetIds(curPetIds);
+    setSelectedPetIds(curPetIds);
 
     // 즉시 검색 실행 (진입 시 검색 버튼 누른 것과 동일하게 관광지 목록 로드)
     fetchSpots({
@@ -1701,8 +1713,14 @@ function SearchPage() {
 
   const handlePetToggle = (petId, e) => {
     e.stopPropagation();
+    const targetIdStr = String(petId);
     setSelectedPetIds(prev => {
-      const next = prev.includes(petId) ? prev.filter(id => id !== petId) : [...prev, petId];
+      const prevStrs = prev.map(String);
+      const exists = prevStrs.includes(targetIdStr);
+      const next = exists 
+        ? prevStrs.filter(id => id !== targetIdStr) 
+        : [...prevStrs, targetIdStr];
+
       fetchSpots({
         regionCode: selectedRegionCode,
         category: selectedCategory,
@@ -1710,6 +1728,15 @@ function SearchPage() {
         petIds: next,
         keyword: keyword.trim()
       }, false);
+
+      const newParams = {};
+      if (keyword.trim()) newParams.keyword = keyword.trim();
+      if (selectedRegionCode) newParams.region = selectedRegionCode;
+      if (selectedCategory) newParams.category = selectedCategory;
+      if (selectedMatchStatus) newParams.matchStatus = selectedMatchStatus;
+      if (next.length > 0) newParams.petIds = next.join(',');
+      setSearchParams(newParams, { replace: true });
+
       return next;
     });
   };
@@ -1717,7 +1744,10 @@ function SearchPage() {
   const getPetFilterLabel = () => {
     const parts = [];
     if (myPets.length > 0 && selectedPetIds.length > 0) {
-      const selectedNames = myPets.filter(p => selectedPetIds.includes(p.id)).map(p => p.name);
+      const selectedIdsStr = selectedPetIds.map(String);
+      const selectedNames = myPets
+        .filter(p => selectedIdsStr.includes(String(p.id)))
+        .map(p => p.name);
       if (selectedNames.length > 0) parts.push(selectedNames.join(', '));
     }
     const extraParts = [];
@@ -2155,11 +2185,12 @@ function SearchPage() {
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', maxHeight: '140px', overflowY: 'auto' }}>
                         {myPets.map((pet) => {
                           const petImg = pet.profile_image || pet.imageUrl || pet.image || pet.photo;
+                          const isSelected = selectedPetIds.map(String).includes(String(pet.id));
                           return (
                             <div 
                               key={pet.id} 
                               onClick={(e) => handlePetToggle(pet.id, e)}
-                              style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 10px', borderRadius: '8px', cursor: 'pointer', backgroundColor: selectedPetIds.includes(pet.id) ? 'rgba(95, 80, 169, 0.1)' : '#f8fafc', border: selectedPetIds.includes(pet.id) ? '1px solid #5F50A9' : '1px solid #e2e8f0' }}
+                              style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 10px', borderRadius: '8px', cursor: 'pointer', backgroundColor: isSelected ? 'rgba(95, 80, 169, 0.1)' : '#f8fafc', border: isSelected ? '1px solid #5F50A9' : '1px solid #e2e8f0' }}
                             >
                               {petImg ? (
                                 <img 
@@ -2174,12 +2205,12 @@ function SearchPage() {
                                 </div>
                               )}
                               <div style={{ flex: 1, minWidth: 0 }}>
-                                <p style={{ margin: 0, fontWeight: 'bold', fontSize: '12px', color: selectedPetIds.includes(pet.id) ? '#5F50A9' : '#333', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                <p style={{ margin: 0, fontWeight: 'bold', fontSize: '12px', color: isSelected ? '#5F50A9' : '#333', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                   {pet.name}
                                   {pet.breed && <span style={{ fontSize: '10.5px', color: '#64748b', fontWeight: 'normal', marginLeft: '4px' }}>({pet.breed})</span>}
                                 </p>
                               </div>
-                              <span style={{ color: '#5F50A9', fontWeight: 'bold', fontSize: '12px' }}>{selectedPetIds.includes(pet.id) ? '✓' : ''}</span>
+                              <span style={{ color: '#5F50A9', fontWeight: 'bold', fontSize: '12px' }}>{isSelected ? '✓' : ''}</span>
                             </div>
                           );
                         })}

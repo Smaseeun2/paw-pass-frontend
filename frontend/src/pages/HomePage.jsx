@@ -285,15 +285,23 @@ function HomePage() {
 
   const handlePetToggle = (petId, e) => {
     e.stopPropagation();
-    setSelectedPetIds(prev => 
-      prev.includes(petId) ? prev.filter(id => id !== petId) : [...prev, petId]
-    );
+    const targetIdStr = String(petId);
+    setSelectedPetIds(prev => {
+      const prevStrs = prev.map(String);
+      const exists = prevStrs.includes(targetIdStr);
+      return exists 
+        ? prevStrs.filter(id => id !== targetIdStr) 
+        : [...prevStrs, targetIdStr];
+    });
   };
 
   const getPetFilterLabel = () => {
     const parts = [];
     if (myPets.length > 0 && selectedPetIds.length > 0) {
-      const selectedNames = myPets.filter(p => selectedPetIds.includes(p.id)).map(p => p.name);
+      const selectedIdsStr = selectedPetIds.map(String);
+      const selectedNames = myPets
+        .filter(p => selectedIdsStr.includes(String(p.id)))
+        .map(p => p.name);
       if (selectedNames.length > 0) parts.push(selectedNames.join(', '));
     }
     const extraParts = [];
@@ -638,11 +646,12 @@ function HomePage() {
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', maxHeight: '140px', overflowY: 'auto' }}>
                         {myPets.map((pet) => {
                           const petImg = pet.profile_image || pet.imageUrl || pet.image || pet.photo;
+                          const isSelected = selectedPetIds.map(String).includes(String(pet.id));
                           return (
                             <div 
                               key={pet.id} 
                               onClick={(e) => handlePetToggle(pet.id, e)}
-                              style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '7px 10px', borderRadius: '10px', cursor: 'pointer', backgroundColor: selectedPetIds.includes(pet.id) ? 'rgba(95, 80, 169, 0.1)' : '#f8fafc', border: selectedPetIds.includes(pet.id) ? '1px solid #5F50A9' : '1px solid #e2e8f0' }}
+                              style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '7px 10px', borderRadius: '10px', cursor: 'pointer', backgroundColor: isSelected ? 'rgba(95, 80, 169, 0.1)' : '#f8fafc', border: isSelected ? '1px solid #5F50A9' : '1px solid #e2e8f0' }}
                             >
                               {petImg ? (
                                 <img 
@@ -657,12 +666,12 @@ function HomePage() {
                                 </div>
                               )}
                               <div style={{ flex: 1, minWidth: 0 }}>
-                                <p style={{ margin: 0, fontWeight: 'bold', fontSize: '12.5px', color: selectedPetIds.includes(pet.id) ? '#5F50A9' : '#333', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                <p style={{ margin: 0, fontWeight: 'bold', fontSize: '12.5px', color: isSelected ? '#5F50A9' : '#333', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                   {pet.name}
                                   {pet.breed && <span style={{ fontSize: '10.5px', color: '#64748b', fontWeight: 'normal', marginLeft: '4px' }}>({pet.breed})</span>}
                                 </p>
                               </div>
-                              <span style={{ color: '#5F50A9', fontWeight: 'bold', fontSize: '12.5px' }}>{selectedPetIds.includes(pet.id) ? '✓' : ''}</span>
+                              <span style={{ color: '#5F50A9', fontWeight: 'bold', fontSize: '12.5px' }}>{isSelected ? '✓' : ''}</span>
                             </div>
                           );
                         })}
