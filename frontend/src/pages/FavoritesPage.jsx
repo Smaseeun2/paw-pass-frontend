@@ -129,9 +129,6 @@ function FavoriteCard({ spot, onRemove }) {
             <h4 style={{ margin: 0, fontSize: '17px', fontWeight: '800', color: '#1f2937', marginBottom: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', letterSpacing: '-0.3px' }}>
               {spotName}
             </h4>
-            <span style={{ fontSize: '12px', backgroundColor: '#f1f5f9', color: '#64748b', padding: '3px 8px', borderRadius: '6px', fontWeight: '700', display: 'inline-block' }}>
-              {spotSource === 'kcisa' ? '🏥 한국문화정보원' : '🏞️ 한국관광공사'}
-            </span>
           </div>
           {matchStatus && (
             <span style={{ 

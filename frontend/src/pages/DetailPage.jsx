@@ -666,15 +666,8 @@ function DetailPage() {
         <div className="detail-meta-header" style={{ marginBottom: '24px' }}>
           <div className="detail-badge-action-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
             <div className="detail-badges-left" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-              <span className="detail-source-badge" style={{ 
-                fontSize: '12px', padding: '4px 10px', borderRadius: '50px', 
-                backgroundColor: detail.source === 'kcisa' ? '#e0f2fe' : '#fef3c7', 
-                color: detail.source === 'kcisa' ? '#0369a1' : '#b45309', fontWeight: '800' 
-              }}>
-                {detail.source === 'kcisa' ? '🏥 한국문화정보원' : '🏞️ 한국관광공사'}
-              </span>
               {detail.rawCategory && (
-                <span className="detail-category-badge" style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '50px', backgroundColor: '#f1f5f9', color: '#475569', fontWeight: '700' }}>
+                <span className="detail-category-badge" style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '50px', backgroundColor: '#F3EEFA', color: '#5F50A9', fontWeight: '800' }}>
                   {detail.rawCategory}
                 </span>
               )}

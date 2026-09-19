@@ -1046,9 +1046,9 @@ function HomePage() {
                       spot={spot} 
                       fallback={
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-                          <span style={{ fontSize: '36px', marginBottom: '4px' }}>{spot.source === 'kcisa' ? '🏛️' : '🌲'}</span>
-                          <span style={{ fontSize: '11px', fontWeight: 'bold', color: spot.source === 'kcisa' ? '#0369a1' : '#b45309' }}>
-                            {spot.source === 'kcisa' ? '한국문화정보원' : '한국관광공사'}
+                          <span style={{ fontSize: '32px', marginBottom: '4px' }}>🖼️</span>
+                          <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#64748b' }}>
+                            대표 이미지 준비중
                           </span>
                         </div>
                       }

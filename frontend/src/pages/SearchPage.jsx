@@ -141,20 +141,8 @@ function DrawerContent({ spot, onClose, navigate, user, myPets, selectedPetIds =
           }
         `}</style>
 
-        {/* 상단 액션 바 (카테고리 뱃지 & 원형 닫기 버튼) */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ 
-            fontSize: '11.5px', 
-            fontWeight: '800', 
-            letterSpacing: '0.5px', 
-            backgroundColor: '#F3EEFA', 
-            color: '#5F50A9', 
-            padding: '5px 14px', 
-            borderRadius: '50px' 
-          }}>
-            {spot.source === 'kcisa' ? '🏥 한국문화정보원' : '🏞️ 한국관광공사'}
-          </span>
-          
+        {/* 상단 액션 바 (원형 닫기 버튼) */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
           <button 
             type="button"
             onClick={onClose}
@@ -1144,7 +1132,6 @@ function SearchMapView({
                 }}>
                   {activeSpot.matchStatus}
                 </span>
-                <span style={{ fontSize: '10px', color: '#94a3b8' }}>{activeSpot.source === 'kcisa' ? '한국문화정보원' : '한국관광공사'}</span>
               </div>
 
               <button
@@ -2907,16 +2894,14 @@ function SearchPage() {
                       </div>
 
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
-                        <div>
-                          <h4 style={{ margin: 0, fontSize: '17px', fontWeight: '800', color: '#1f2937', marginBottom: '4px' }}>{spot.name}</h4>
-                          <span style={{ fontSize: '12px', backgroundColor: '#f1f5f9', color: '#64748b', padding: '3px 8px', borderRadius: '6px', fontWeight: '700' }}>
-                            {spot.source === 'kcisa' ? '🏥 한국문화정보원' : '🏞️ 한국관광공사'}
-                          </span>
+                        <div style={{ flex: 1, minWidth: 0, paddingRight: '6px' }}>
+                          <h4 style={{ margin: 0, fontSize: '17px', fontWeight: '800', color: '#1f2937', marginBottom: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{spot.name}</h4>
                         </div>
                         <span style={{ 
                           fontSize: '12.5px', padding: '4px 8px', borderRadius: '6px', fontWeight: '800', 
                           backgroundColor: spot.matchStatus === '가능' ? '#dcfce7' : spot.matchStatus === '조건부 가능' || spot.matchStatus === '조건부' ? '#fef9c3' : '#f1f5f9', 
-                          color: spot.matchStatus === '가능' ? '#15803d' : spot.matchStatus === '조건부 가능' || spot.matchStatus === '조건부' ? '#a16207' : '#64748b' 
+                          color: spot.matchStatus === '가능' ? '#15803d' : spot.matchStatus === '조건부 가능' || spot.matchStatus === '조건부' ? '#a16207' : '#64748b',
+                          flexShrink: 0
                         }}>
                           {spot.matchStatus}
                         </span>
