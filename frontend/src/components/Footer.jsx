@@ -89,16 +89,20 @@ function Footer() {
 
   return (
     <>
-      <footer style={{ 
-        backgroundColor: '#f8fafc', 
-        borderTop: '1px solid #e2e8f0', 
-        padding: '28px 20px', 
-        marginTop: 'auto',
-        width: '100%',
-        boxSizing: 'border-box',
-        position: 'relative',
-        zIndex: 10
-      }}>
+      <footer 
+        className="pawpass-footer"
+        style={{ 
+          backgroundColor: '#f1f5f9', 
+          borderTop: '1px solid #e2e8f0', 
+          padding: '36px 20px 32px 20px', 
+          marginTop: 'auto',
+          width: '100%',
+          boxSizing: 'border-box',
+          position: 'relative',
+          zIndex: 10,
+          margin: 0
+        }}
+      >
         <div style={{ maxWidth: '1000px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'center', textAlign: 'center' }}>
           
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>

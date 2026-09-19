@@ -51,10 +51,32 @@ function MapPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [mapLoaded, setMapLoaded] = useState(false);
 
-  // 직접 검색 관련 State
+  // 직접 검색 관련 State 및 Ref
   const [searchKeyword, setSearchKeyword] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
+  const searchSectionRef = useRef(null);
+
+  // 💡 화면 바깥(다른 영역) 터치/클릭 시 검색 결과 리스트 닫기 (모바일 & 웹)
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (
+        searchResults.length > 0 &&
+        searchSectionRef.current &&
+        !searchSectionRef.current.contains(e.target)
+      ) {
+        setSearchResults([]);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside, { passive: true });
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, [searchResults.length]);
 
   // 드래그 앤 드롭 중인 항목 인덱스 추적
   const [draggedItemIndex, setDraggedItemIndex] = useState(null);
@@ -528,17 +550,19 @@ function MapPage() {
         </p>
       </div>
 
-      {/* 장소 검색 바 (끝이 완전히 둥근 캡슐형) */}
+      {/* 장소 검색 바 */}
       <div 
+        ref={searchSectionRef}
         className="map-search-bar-container"
         style={{ 
           backgroundColor: '#ffffff', 
-          borderRadius: '50px', 
-          padding: '6px 8px 6px 22px', 
-          boxShadow: '0 10px 30px rgba(95, 80, 169, 0.08), 0 2px 10px rgba(0, 0, 0, 0.04)', 
+          borderRadius: '16px', 
+          padding: '8px 10px 8px 18px', 
+          boxShadow: '0 6px 24px rgba(95, 80, 169, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04)', 
           border: '1.5px solid rgba(226, 232, 240, 0.95)',
           marginBottom: '20px',
           position: 'relative',
+          zIndex: 50,
           boxSizing: 'border-box'
         }}
       >
@@ -551,10 +575,10 @@ function MapPage() {
             placeholder="가고 싶은 관광지나 장소 검색 (예: 강릉, 카페)"
             style={{ 
               flex: 1, 
-              padding: '10px 0', 
+              padding: '8px 0', 
               backgroundColor: 'transparent', 
               border: 'none', 
-              fontSize: '14px', 
+              fontSize: '14.5px', 
               fontWeight: '600',
               outline: 'none',
               color: '#1e293b',
@@ -567,12 +591,12 @@ function MapPage() {
             disabled={isSearching} 
             title="장소 검색"
             style={{ 
-              width: '40px', 
-              height: '40px', 
-              minWidth: '40px',
-              minHeight: '40px',
-              maxWidth: '40px',
-              maxHeight: '40px',
+              width: '38px', 
+              height: '38px', 
+              minWidth: '38px',
+              minHeight: '38px',
+              maxWidth: '38px',
+              maxHeight: '38px',
               padding: 0,
               borderRadius: '50%', 
               backgroundColor: '#5F50A9', 
@@ -582,23 +606,23 @@ function MapPage() {
               display: 'flex', 
               alignItems: 'center', 
               justifyContent: 'center',
-              boxShadow: '0 4px 14px rgba(95, 80, 169, 0.35)',
+              boxShadow: '0 3px 12px rgba(95, 80, 169, 0.3)',
               transition: 'transform 0.2s ease, box-shadow 0.2s ease',
               flexShrink: 0
             }}
             onMouseOver={(e) => {
               e.currentTarget.style.transform = 'scale(1.06)';
-              e.currentTarget.style.boxShadow = '0 6px 18px rgba(95, 80, 169, 0.45)';
+              e.currentTarget.style.boxShadow = '0 5px 16px rgba(95, 80, 169, 0.45)';
             }}
             onMouseOut={(e) => {
               e.currentTarget.style.transform = 'none';
-              e.currentTarget.style.boxShadow = '0 4px 14px rgba(95, 80, 169, 0.35)';
+              e.currentTarget.style.boxShadow = '0 3px 12px rgba(95, 80, 169, 0.3)';
             }}
           >
             {isSearching ? (
               <span style={{ fontSize: '13px' }}>⏳</span>
             ) : (
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="11" cy="11" r="8"></circle>
                 <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
               </svg>
@@ -607,27 +631,104 @@ function MapPage() {
         </form>
 
         {searchResults.length > 0 && (
-          <div style={{ marginTop: '12px', maxHeight: '200px', overflowY: 'auto', backgroundColor: '#fff', border: '1px solid #f1f5f9', borderRadius: '20px', padding: '12px 16px', boxShadow: '0 10px 25px rgba(0,0,0,0.08)' }}>
-            <div style={{ fontSize: '12px', fontWeight: '800', color: '#64748b', marginBottom: '8px', paddingLeft: '4px' }}>검색 결과 (클릭하여 동선에 추가)</div>
-            {searchResults.map(spot => (
-              <div 
-                key={spot.id}
-                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 8px', borderBottom: '1px solid #f8fafc', fontSize: '13px', gap: '8px' }}
+          <div style={{ 
+            position: 'absolute',
+            top: 'calc(100% + 8px)',
+            left: 0,
+            right: 0,
+            zIndex: 100,
+            backgroundColor: '#ffffff', 
+            border: '1.5px solid #e2e8f0', 
+            borderRadius: '14px', 
+            boxShadow: '0 12px 30px rgba(15, 23, 42, 0.12), 0 4px 12px rgba(0, 0, 0, 0.04)',
+            overflow: 'hidden',
+            boxSizing: 'border-box'
+          }}>
+            <div style={{ 
+              padding: '10px 14px', 
+              fontSize: '12px', 
+              fontWeight: '800', 
+              color: '#64748b', 
+              borderBottom: '1px solid #f1f5f9',
+              backgroundColor: '#f8fafc',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <span>🔍 검색 결과 ({searchResults.length}개)</span>
+              <button 
+                type="button" 
+                onClick={() => setSearchResults([])}
+                style={{ 
+                  background: 'none', 
+                  border: 'none', 
+                  color: '#94a3b8', 
+                  fontSize: '11px', 
+                  cursor: 'pointer',
+                  padding: '2px 4px',
+                  fontWeight: '600'
+                }}
+                onMouseOver={(e) => { e.currentTarget.style.color = '#e11d48'; }}
+                onMouseOut={(e) => { e.currentTarget.style.color = '#94a3b8'; }}
               >
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <strong style={{ color: '#1e293b', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{spot.name}</strong> 
-                  <span style={{ color: '#64748b', fontSize: '11.5px', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{spot.address}</span>
-                </div>
-                <button 
-                  type="button" 
-                  className="map-brand-btn" 
-                  onClick={() => handleAddSpotToRoute(spot)} 
-                  style={{ padding: "6px 12px", backgroundColor: "#5F50A9", color: "#fff", border: "none", fontSize: "11.5px", fontWeight: "800", cursor: "pointer", borderRadius: "50px", boxShadow: "0 2px 6px rgba(95, 80, 169, 0.25)", flexShrink: 0, whiteSpace: 'nowrap' }}
+                닫기 ✕
+              </button>
+            </div>
+            <div style={{ 
+              maxHeight: '230px', 
+              overflowY: 'auto', 
+              padding: '6px',
+              boxSizing: 'border-box'
+            }}>
+              {searchResults.map(spot => (
+                <div 
+                  key={spot.id}
+                  style={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center', 
+                    padding: '8px 10px', 
+                    borderRadius: '8px',
+                    borderBottom: '1px solid #f8fafc', 
+                    fontSize: '13px', 
+                    gap: '10px',
+                    boxSizing: 'border-box',
+                    transition: 'background-color 0.15s ease'
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f8fafc'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
                 >
-                  + 동선에 추가
-                </button>
-              </div>
-            ))}
+                  <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+                    <strong style={{ color: '#1e293b', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '13px' }}>
+                      {spot.name}
+                    </strong> 
+                    <span style={{ color: '#64748b', fontSize: '11.5px', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: '2px' }}>
+                      {spot.address}
+                    </span>
+                  </div>
+                  <button 
+                    type="button" 
+                    className="map-brand-btn" 
+                    onClick={() => handleAddSpotToRoute(spot)} 
+                    style={{ 
+                      padding: "6px 12px", 
+                      backgroundColor: "#5F50A9", 
+                      color: "#fff", 
+                      border: "none", 
+                      fontSize: "11.5px", 
+                      fontWeight: "800", 
+                      cursor: "pointer", 
+                      borderRadius: "50px", 
+                      boxShadow: "0 2px 6px rgba(95, 80, 169, 0.25)", 
+                      flexShrink: 0, 
+                      whiteSpace: 'nowrap' 
+                    }}
+                  >
+                    + 추가
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>

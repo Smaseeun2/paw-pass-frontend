@@ -460,7 +460,7 @@ function App() {
             <ScrollToTop />
             <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', width: '100%' }}>
               <AppNav />
-              <div className="pawpass-main-content" style={{ padding: '20px', flex: 1 }}>
+              <div className="pawpass-main-content" style={{ padding: 0, flex: 1, display: 'flex', flexDirection: 'column', width: '100%' }}>
                 <Routes>
                   <Route path="/" element={<HomePage />} />
                   <Route path="/profile" element={<ProfilePage />} />
