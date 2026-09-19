@@ -505,23 +505,48 @@
     right: 0 !important;
     width: 100vw !important;
     max-width: 100vw !important;
-    height: calc(84vh - 64px) !important;
-    max-height: calc(84vh - 64px) !important;
+    height: calc(62vh - 64px) !important;
+    max-height: calc(62vh - 64px) !important;
     border-radius: 28px 28px 0 0 !important;
     border-left: none !important;
     border-top: 1px solid rgba(226, 232, 240, 0.9) !important;
     box-shadow: 0 -12px 45px rgba(0, 0, 0, 0.28) !important;
     padding-top: 8px !important;
     z-index: 10010 !important;
-    transform: translateY(120%) !important;
-    transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1) !important;
+    transform: translateY(105%) !important;
+    transition: transform 0.38s cubic-bezier(0.2, 0.9, 0.3, 1) !important;
+    pointer-events: none !important;
     overflow: hidden !important;
     display: flex !important;
     flex-direction: column !important;
+    will-change: transform;
   }
 
   .search-detail-drawer.open {
-    transform: translateY(0) !important;
+    transform: translateY(0%) !important;
+    pointer-events: auto !important;
+  }
+
+  /* 모바일에서 상세 패널 열림 시 뒷배경 스크롤 완전 차단 */
+  body:has(.search-detail-drawer.open) {
+    overflow: hidden !important;
+    touch-action: none !important;
+  }
+
+  /* 모바일에서 상세 패널 열림 시 메인 화면의 플로팅 가이드/TOP 위젯 완전히 숨김 */
+  body:has(.search-detail-drawer.open) .floating-guide-container,
+  body:has(.search-detail-drawer.open) .floating-guide-bubble {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+  }
+
+  #pawpass-drawer-scroll-container {
+    overscroll-behavior: contain !important;
+    overscroll-behavior-y: contain !important;
+    -webkit-overflow-scrolling: touch !important;
+    touch-action: pan-y !important;
   }
 
   .drawer-bottom-action-bar {

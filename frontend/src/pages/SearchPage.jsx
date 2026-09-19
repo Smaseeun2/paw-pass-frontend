@@ -112,7 +112,17 @@ function DrawerContent({ spot, onClose, navigate, user, myPets, selectedPetIds =
       <div 
         id="pawpass-drawer-scroll-container"
         onScroll={(e) => setShowDrawerScrollTop(e.currentTarget.scrollTop > 80)}
-        style={{ flex: 1, overflowY: 'auto', padding: '16px 24px 30px 24px', display: 'flex', flexDirection: 'column', gap: '18px' }}
+        style={{ 
+          flex: 1, 
+          overflowY: 'auto', 
+          padding: '16px 24px 30px 24px', 
+          display: 'flex', 
+          flexDirection: 'column', 
+          gap: '18px',
+          overscrollBehavior: 'contain',
+          WebkitOverflowScrolling: 'touch',
+          touchAction: 'pan-y'
+        }}
       >
         
         {/* 모바일 바텀시트 드래그 핸들 (모바일에서만 시각적 가이드, 웹에서는 완전 숨김) */}
@@ -1794,6 +1804,22 @@ function SearchPage() {
 
   const selectedSpotDetail = spots.find(s => String(s.id) === String(selectedSpotId));
 
+  // 📱 모바일 상세 바텀시트 열림 시 뒷배경(탐색 페이지) 스크롤 완전 잠금
+  useEffect(() => {
+    const isMobile = window.innerWidth <= 768;
+    if (isMobile && selectedSpotDetail) {
+      const originalOverflow = document.body.style.overflow;
+      const originalTouchAction = document.body.style.touchAction;
+      document.body.style.overflow = 'hidden';
+      document.body.style.touchAction = 'none';
+
+      return () => {
+        document.body.style.overflow = originalOverflow;
+        document.body.style.touchAction = originalTouchAction;
+      };
+    }
+  }, [selectedSpotDetail]);
+
   return (
     <>
       <div style={{
@@ -2838,6 +2864,11 @@ function SearchPage() {
             <div 
               className="search-detail-backdrop"
               onClick={() => setSelectedSpotId(null)}
+              onTouchMove={(e) => {
+                if (typeof window !== 'undefined' && window.innerWidth <= 768) {
+                  e.preventDefault();
+                }
+              }}
               style={{
                 position: 'fixed',
                 top: 0,
@@ -2847,6 +2878,7 @@ function SearchPage() {
                 backgroundColor: 'rgba(15, 23, 42, 0.05)',
                 backdropFilter: 'none',
                 WebkitBackdropFilter: 'none',
+                touchAction: 'none',
                 zIndex: 99,
                 animation: 'fadeInSearchBackdrop 0.15s ease'
               }}

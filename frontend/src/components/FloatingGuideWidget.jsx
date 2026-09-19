@@ -141,6 +141,27 @@ export default function FloatingGuideWidget() {
     };
   }, []);
 
+  const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
+
+  // 모바일 상세 패널 오픈 감지 (열려있을 때 모바일 가이드 & TOP 위젯 숨김)
+  useEffect(() => {
+    const checkDrawer = () => {
+      const isMobile = window.innerWidth <= 768;
+      const drawer = document.querySelector('.search-detail-drawer.open');
+      setIsMobileDrawerOpen(isMobile && !!drawer);
+    };
+
+    checkDrawer();
+    const observer = new MutationObserver(checkDrawer);
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+    window.addEventListener('resize', checkDrawer);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', checkDrawer);
+    };
+  }, []);
+
   const scrollToTop = () => {
     const drawerEl = document.getElementById('pawpass-drawer-scroll-container');
     if (drawerEl) {
@@ -199,6 +220,8 @@ export default function FloatingGuideWidget() {
 
   const current = guideSteps[currentStep];
   const isFavoritesStep = current.id === 'favorites';
+
+  if (isMobileDrawerOpen) return null;
 
   return (
     <>
